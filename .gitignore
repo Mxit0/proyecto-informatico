@@ -1,0 +1,9 @@
+# IGNORAR CARPETAS GLOBALES
+/node_modules/
+/.vscode/
+.DS_Store
+
+# IGNORAR ARCHIVOS CLAVE (Si se generaron en la raíz)
+/docker-compose.yml.*
+/package.json
+/package-lock.json
