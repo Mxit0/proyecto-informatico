@@ -1,2 +1,2 @@
-package com.example.marketelectronico.cart
+package com.example.marketelectronico.ui.cart
 

@@ -1,2 +1,2 @@
-package com.example.marketelectronico.chat
+package com.example.marketelectronico.ui.chat
 

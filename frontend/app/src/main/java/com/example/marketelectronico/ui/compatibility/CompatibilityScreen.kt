@@ -1,2 +1,2 @@
-package com.example.marketelectronico.compatibility
+package com.example.marketelectronico.ui.compatibility
 

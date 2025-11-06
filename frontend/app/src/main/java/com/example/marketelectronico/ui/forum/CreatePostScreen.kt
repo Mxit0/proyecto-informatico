@@ -1,2 +1,2 @@
-package com.example.marketelectronico.forum
+package com.example.marketelectronico.ui.forum
 

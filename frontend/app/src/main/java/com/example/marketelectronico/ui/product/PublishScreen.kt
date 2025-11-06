@@ -1,2 +1,2 @@
-package com.example.marketelectronico.product
+package com.example.marketelectronico.ui.product
 

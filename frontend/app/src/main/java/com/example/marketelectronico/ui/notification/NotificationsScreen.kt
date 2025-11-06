@@ -1,2 +1,2 @@
-package com.example.marketelectronico.notification
+package com.example.marketelectronico.ui.notification
 
