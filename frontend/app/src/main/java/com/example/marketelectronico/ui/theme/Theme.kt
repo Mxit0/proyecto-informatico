@@ -1,6 +1,5 @@
-package com.example.marketelectronico.ui.theme
+package com.example.marketelectronico.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

@@ -1,4 +1,4 @@
-package com.example.marketelectronico.ui.theme
+package com.example.marketelectronico.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

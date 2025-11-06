@@ -1,4 +1,4 @@
-package com.example.marketelectronico.ui.theme
+package com.example.marketelectronico.theme
 
 import androidx.compose.ui.graphics.Color
 
