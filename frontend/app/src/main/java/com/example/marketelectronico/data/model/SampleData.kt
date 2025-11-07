@@ -1,7 +1,11 @@
 package com.example.marketelectronico.data.model
 
-// 1. Aquí está tu clase Product, CON TODOS LOS CAMPOS
-// Damos valores por defecto para que no se rompa MainScreen al crear productos simples.
+// --- 1. DEFINICIONES DE MODELOS (TODAS LAS DATA CLASSES) ---
+
+/**
+ * Modelo para un Producto (usado en MainScreen)
+ * [cite: 3-13]
+ */
 data class Product(
     val id: String,
     val name: String,
@@ -15,8 +19,48 @@ data class Product(
     val specifications: Map<String, String> = emptyMap()
 )
 
-// 2. Datos de muestra con todos los campos llenos (para Recomendaciones)
+/**
+ * Modelo para la lista de Chats (usado en ChatListScreen)
+ */
+data class ChatPreview(
+    val id: String,
+    val name: String,
+    val lastMessage: String,
+    val timestamp: String
+)
 
+/**
+ * Modelo para un Mensaje individual (usado en ConversationScreen)
+ */
+data class Message(
+    val id: String,
+    val text: String,
+    val isSentByMe: Boolean
+)
+
+/**
+ * Modelo para un Hilo del Foro (usado en ForumScreen y PostDetailScreen)
+ */
+data class ForumThread(
+    val id: String,
+    val title: String,
+    val author: String,
+    val replies: Int
+)
+
+/**
+ * Modelo para una Respuesta del Foro (usado en PostDetailScreen)
+ */
+data class ForumReply(
+    val id: String,
+    val author: String,
+    val content: String
+)
+
+
+// --- 2. DATOS DE MUESTRA (TODOS LOS VAL) ---
+
+// --- Datos de Productos (de tu amigo) [cite: 16-107] ---
 val sampleProduct1 = Product(
     id = "1",
     name = "CPU Intel Core i7",
@@ -35,86 +79,43 @@ val sampleProduct1 = Product(
         "Socket" to "LGA 1200"
     )
 )
+val sampleProduct2 = Product(id = "2", name = "GPU NVIDIA RTX 3080", price = 700.0, imageUrl = "...", status = "Usado - Buen Estado", sellerName = "GamerZ", sellerRating = 4.5, sellerReviews = 89)
+val sampleProduct3 = Product(id = "3", name = "RAM 16GB DDR4", price = 80.0, imageUrl = "...", status = "Nuevo", sellerName = "PartsWorld", sellerRating = 4.9, sellerReviews = 512)
+val sampleProduct4 = Product(id = "4", name = "SSD Samsung 980 Pro 1TB", price = 180.0, imageUrl = "...")
+val sampleProduct5 = Product(id = "5", name = "Motherboard ASUS ROG", price = 200.0, imageUrl = "...")
+val sampleProduct6 = Product(id = "6", name = "Power Supply 750W", price = 120.0, imageUrl = "...")
+val sampleProduct7 = Product(id = "7", name = "Case NZXT H510", price = 70.0, imageUrl = "...")
+val sampleProduct8 = Product(id = "8", name = "Cooler Master Hyper 212", price = 40.0, imageUrl = "...")
+val sampleProduct9 = Product(id = "9", name = "Monitor 144Hz", price = 300.0, imageUrl = "...")
 
-val sampleProduct2 = Product(
-    id = "2",
-    name = "GPU NVIDIA RTX 3080",
-    price = 700.0,
-    imageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=GPU",
-    status = "Usado - Buen Estado",
-    sellerName = "GamerZ",
-    sellerRating = 4.5,
-    sellerReviews = 89,
-    description = "Potente tarjeta gráfica para juegos en 4K.",
-    specifications = mapOf("Memoria" to "10GB GDDR6X", "Núcleos CUDA" to "8704")
-)
-
-val sampleProduct3 = Product(
-    id = "3",
-    name = "RAM 16GB DDR4",
-    price = 80.0,
-    imageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=RAM",
-    status = "Nuevo",
-    sellerName = "PartsWorld",
-    sellerRating = 4.9,
-    sellerReviews = 512,
-    description = "Memoria RAM Corsair Vengeance 3200MHz.",
-    specifications = mapOf("Capacidad" to "16GB (2x8GB)", "Velocidad" to "3200MHz")
-)
-
-// --- Productos para 'Novedades' (con campos por defecto) ---
-val sampleProduct4 = Product(
-    id = "4",
-    name = "SSD Samsung 980 Pro 1TB",
-    price = 180.0,
-    imageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=SSD"
-)
-
-val sampleProduct5 = Product(
-    id = "5",
-    name = "Motherboard ASUS ROG",
-    price = 200.0,
-    imageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=Placa"
-)
-
-val sampleProduct6 = Product(
-    id = "6",
-    name = "Power Supply 750W",
-    price = 120.0,
-    imageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=Fuente"
-)
-
-// --- (INICIO) ACTUALIZACIÓN DE DATOS ---
-// --- Productos para 'Ofertas' (con campos por defecto) ---
-val sampleProduct7 = Product(
-    id = "7",
-    name = "Case NZXT H510",
-    price = 70.0,
-    imageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=Gabinete"
-)
-val sampleProduct8 = Product(
-    id = "8",
-    name = "Cooler Master Hyper 212",
-    price = 40.0,
-    imageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=Cooler"
-)
-val sampleProduct9 = Product(
-    id = "9",
-    name = "Monitor 144Hz",
-    price = 300.0,
-    imageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=Monitor"
-)
-// --- (FIN) ACTUALIZACIÓN DE DATOS ---
-
-
-// 3. Listas que usarán tus pantallas
 val sampleRecommendations = listOf(sampleProduct1, sampleProduct2, sampleProduct3)
 val sampleNews = listOf(sampleProduct4, sampleProduct5, sampleProduct6)
-
-// --- LISTA DE OFERTAS ACTUALIZADA ---
 val sampleOffers = listOf(sampleProduct7, sampleProduct8, sampleProduct9)
 
-// 4. Lista 'allSampleProducts' ACTUALIZADA para incluir las nuevas ofertas
-//    (Se usa un Set para evitar duplicados si un producto está en varias listas)
-val allSampleProducts = (sampleRecommendations + sampleNews + sampleOffers)
-    .distinctBy { it.id }
+val allSampleProducts = (sampleRecommendations + sampleNews + sampleOffers).distinctBy { it.id }
+
+// --- Datos de Chat (Tus datos) ---
+val sampleChats = listOf(
+    ChatPreview("1", "GamerZ", "Sí, la RTX 3080 aún está disponible.", "10:30 AM"),
+    ChatPreview("2", "PartsWorld", "Tu pedido de RAM ha sido enviado.", "Ayer"),
+    ChatPreview("3", "TechTrader", "¡Gracias por tu compra!", "Ayer")
+)
+val sampleMessages = listOf(
+    Message("1", "Hola, ¿sigue disponible la RTX 3080?", true),
+    Message("2", "¡Hola! Sí, aún la tengo.", false),
+    Message("3", "Genial, ¿aceptas 650?", true),
+    Message("4. Lo siento, el precio es fijo en 700.", false)
+)
+
+// --- Datos de Foro (Tus datos) ---
+val sampleThreads = listOf(
+    ForumThread("1", "¿Es la RTX 4060 un buen upgrade desde la 2060?", "GamerZ", 12),
+    ForumThread("2", "Problemas con socket LGA 1200", "TechTrader", 5),
+    ForumThread("3", "Mejor SSD M.2 calidad/precio 2025", "PartsWorld", 34)
+)
+val originalPost = ForumThread("1", "¿Es la RTX 4060 un buen upgrade desde la 2060?", "GamerZ", 12)
+val postContent = "Estoy pensando en actualizar mi vieja 2060 y vi la 4060 a buen precio. ¿Vale la pena el salto o mejor ahorro para una 4070?"
+val sampleReplies = listOf(
+    ForumReply("1", "TechTrader", "Depende de tu monitor. Para 1080p, la 4060 es genial."),
+    ForumReply("2", "User123", "Yo ahorraría para la 4070, mucho más futuro.")
+)
