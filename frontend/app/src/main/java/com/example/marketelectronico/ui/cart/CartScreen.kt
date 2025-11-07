@@ -1,6 +1,7 @@
 package com.example.marketelectronico.ui.cart
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,18 +26,27 @@ import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.repository.CartRepository
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
-import androidx.compose.foundation.background
-import com.example.marketelectronico.data.model.sampleProduct1
+import java.text.NumberFormat
+import java.util.Currency
 
+/**
+ * Pantalla del Carrito de Compras (Order)
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
     navController: NavController
 ) {
+    // Obtenemos los items directamente del repositorio
     val cartProducts = CartRepository.cartItems
-    var productToRemove by remember { mutableStateOf<Product?>(null) }
-    var selectedItem by remember { mutableIntStateOf(-1) }
+    // Obtenemos el precio total
+    val totalPrice = CartRepository.totalPrice.value
 
+    // Estado para el diálogo de confirmación de eliminación
+    var productToDelete by remember { mutableStateOf<Product?>(null) }
+
+    // Estado para la barra de navegación inferior
+    var selectedItem by remember { mutableIntStateOf(-1) } // -1 para que "Inicio" no esté seleccionado por defecto
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -52,7 +62,7 @@ fun CartScreen(
             TopAppBar(
                 title = { Text("Order", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackStack() }) { // Botón de retroceso
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 },
@@ -64,42 +74,45 @@ fun CartScreen(
         },
         bottomBar = {
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
-
-                // --- ¡NUEVO! SECCIÓN DE TOTAL ---
-                Row(
+                // --- Sección de Total y Botón de Pago ---
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Text(
-                        text = "Total:",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                    // Formateamos el precio para que muestre 2 decimales
-                    Text(
-                        text = "$${String.format("%.2f", CartRepository.totalPrice.value)}",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Total:",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = formatCurrency(totalPrice),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = { navController.navigate("payment") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        // --- ESTA ES LA LÍNEA ACTUALIZADA ---
+                        // El botón se deshabilita si el carrito está vacío
+                        enabled = cartProducts.isNotEmpty()
+                    ) {
+                        Text("Continue to payment")
+                    }
                 }
-                // ---------------------------------
 
-                // Botón de Pago
-                Button(
-                    onClick = { /* TODO: Ir a la pantalla de pago */ },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp) // Reducido el padding superior
-                        .height(50.dp),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text("Continue to payment")
-                }
-
-                // Barra de Navegación
+                // --- Barra de Navegación Inferior ---
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface
                 ) {
@@ -114,7 +127,7 @@ fun CartScreen(
                                     "Inicio" -> navController.navigate("main") {
                                         popUpTo("main") { inclusive = true }
                                     }
-                                    // ... (otras navegaciones)
+                                    // TODO: Añadir navegación para los otros items
                                 }
                             }
                         )
@@ -125,83 +138,80 @@ fun CartScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (cartProducts.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Tu carrito está vacío",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.Gray
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp) // Padding interno para la lista
-                ) {
-                    item {
-                        Text(
-                            text = "Items Selected",
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(vertical = 16.dp),
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                    items(cartProducts) { product ->
-                        CartItem(
-                            product = product,
-                            onRemoveClick = {
-                                productToRemove = product
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                    // Espacio al final para que no se pegue al botón de total
-                    item {
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                }
-            }
-        }
-
-        // Diálogo de confirmación (sin cambios)
-        if (productToRemove != null) {
+        // --- Diálogo de Confirmación para Eliminar ---
+        productToDelete?.let { product ->
             AlertDialog(
-                onDismissRequest = { productToRemove = null },
-                title = { Text(text = "¿Eliminar Producto?") },
-                text = { Text(text = "¿Estás seguro de que quieres eliminar \"${productToRemove!!.name}\" del carrito?") },
+                onDismissRequest = { productToDelete = null }, // Cierra si tocas fuera
+                title = { Text(text = "Eliminar Producto") },
+                text = { Text(text = "¿Estás seguro de que quieres eliminar \"${product.name}\" de tu carrito?") },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            CartRepository.removeFromCart(productToRemove!!)
-                            productToRemove = null
+                            CartRepository.removeFromCart(product)
+                            productToDelete = null // Cierra el diálogo
                         }
                     ) {
-                        Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                        Text("Eliminar")
                     }
                 },
                 dismissButton = {
                     TextButton(
-                        onClick = { productToRemove = null }
+                        onClick = { productToDelete = null } // Cierra el diálogo
                     ) {
                         Text("Cancelar")
                     }
                 }
             )
         }
+
+        // --- Contenido de la Pantalla ---
+        if (cartProducts.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding), // Usar el padding del Scaffold
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Tu carrito está vacío",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.Gray
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Aplicar el padding del Scaffold
+                    .padding(innerPadding),
+                // Padding horizontal para los items de la lista
+                contentPadding = PaddingValues(horizontal = 16.dp)
+            ) {
+                item {
+                    Text(
+                        text = "Items Selected",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(vertical = 16.dp),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+                items(cartProducts) { product ->
+                    CartItem(
+                        product = product,
+                        onRemoveClick = {
+                            productToDelete = product // Activa el diálogo en lugar de borrar
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+        }
     }
 }
 
-// CartItem (sin cambios)
+/**
+ * Composable para un solo item en la lista del carrito
+ */
 @Composable
 fun CartItem(product: Product, onRemoveClick: () -> Unit) {
     Row(
@@ -209,7 +219,7 @@ fun CartItem(product: Product, onRemoveClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
-            painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+            painter = painterResource(id = android.R.drawable.ic_menu_gallery), // Placeholder
             contentDescription = product.name,
             modifier = Modifier
                 .size(60.dp)
@@ -226,28 +236,60 @@ fun CartItem(product: Product, onRemoveClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Used - ${product.status}",
+                text = "Used - ${product.status}", // Muestra el estado
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.Gray
             )
         }
-
+        // Botón para eliminar el item
         IconButton(onClick = onRemoveClick) {
             Icon(
                 Icons.Default.Delete,
                 contentDescription = "Eliminar producto",
-                tint = Color.Gray
+                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
             )
         }
     }
 }
 
-// Preview (sin cambios)
+/**
+ * Formatea un valor Double a un string de moneda (ej. $120.00)
+ */
+private fun formatCurrency(amount: Double): String {
+    val format = NumberFormat.getCurrencyInstance()
+    format.currency = Currency.getInstance("USD")
+    return format.format(amount)
+}
+
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun CartScreenPreview() {
-    CartRepository.clearCart()
-    CartRepository.addToCart(sampleProduct1)
+    // Creamos un producto de muestra SOLO para esta preview
+    val previewProduct = Product(
+        id = "1",
+        name = "Intel Core i7-9700K Processor",
+        price = 250.0,
+        imageUrl = "",
+        status = "Good",
+        sellerName = "TechTrader",
+        sellerRating = 4.8,
+        sellerReviews = 120,
+        description = "...",
+        specifications = emptyMap()
+    )
+
+    CartRepository.clearCart() // Limpia el carrito para la preview
+    CartRepository.addToCart(previewProduct) // Añade un item para que no esté vacío
+
+    MarketElectronicoTheme {
+        CartScreen(navController = rememberNavController())
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
+@Composable
+fun CartScreenEmptyPreview() {
+    CartRepository.clearCart() // Limpia el carrito para la preview vacía
 
     MarketElectronicoTheme {
         CartScreen(navController = rememberNavController())

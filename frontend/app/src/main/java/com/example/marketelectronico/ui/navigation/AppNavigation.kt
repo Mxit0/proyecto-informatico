@@ -6,14 +6,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.auth.LoginScreen
 import com.example.marketelectronico.ui.cart.CartScreen
+import com.example.marketelectronico.ui.cart.PaymentScreen
+import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
 import com.example.marketelectronico.ui.main.MainScreen
 import com.example.marketelectronico.ui.product.ProductReviewScreen
 import com.example.marketelectronico.ui.product.ProductScreen
 
 /**
  * Gestiona la navegación para el prototipo.
- * Define las 5 rutas principales.
- *
+ * Define las 7 rutas principales.
  */
 @Composable
 fun AppNavigation() {
@@ -32,13 +33,11 @@ fun AppNavigation() {
             MainScreen(navController = navController)
         }
 
-        // Ruta para los detalles del producto
         composable("product_detail/{productId}") { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")
             ProductScreen(navController = navController, productId = productId)
         }
 
-        // Ruta para las reseñas del producto
         composable("product_reviews/{productId}") { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")
             ProductReviewScreen(navController = navController, productId = productId)
@@ -46,6 +45,15 @@ fun AppNavigation() {
 
         composable("cart") {
             CartScreen(navController = navController)
+        }
+
+        composable("payment") {
+            PaymentScreen(navController = navController)
+        }
+
+        // --- 2. AÑADIR NUEVA RUTA ---
+        composable("add_payment_method") {
+            AddPaymentMethodScreen(navController = navController)
         }
     }
 }
