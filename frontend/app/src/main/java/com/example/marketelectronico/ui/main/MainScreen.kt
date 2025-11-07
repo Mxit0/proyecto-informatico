@@ -21,23 +21,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.marketelectronico.data.model.sampleRecommendations
+// Importamos los datos de muestra
+import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.model.sampleNews
 import com.example.marketelectronico.data.model.sampleOffers
-import com.example.marketelectronico.data.model.Product
+import com.example.marketelectronico.data.model.sampleRecommendations
 
-// --- Datos de muestra (YA NO SE DEFINEN AQUÍ) ---
-// Se importan desde com.example.marketelectronico.data.model.SampleData
-
-/**
- * Pantalla Principal
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
+    // --- 1. SEGUIMIENTO DEL ITEM SELECCIONADO ---
+    // Sigue siendo '0' (Inicio) porque esta es la MainScreen.
     var selectedItem by remember { mutableIntStateOf(0) }
 
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
@@ -47,7 +44,7 @@ fun MainScreen(
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
-        Icons.Default.Info // Icono 'Forum' cambiado por 'Info'
+        Icons.Default.Info
     )
 
     Scaffold(
@@ -66,7 +63,21 @@ fun MainScreen(
                         icon = { Icon(navIcons[index], contentDescription = label, tint = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray) },
                         label = { Text(label, color = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
                         selected = selectedItem == index,
-                        onClick = { selectedItem = index }
+                        // --- 2. LÓGICA DE NAVEGACIÓN AÑADIDA ---
+                        onClick = {
+                            selectedItem = index
+                            when (label) {
+                                "Inicio" -> navController.navigate("main") {
+                                    // Limpia el historial para no acumular pantallas de "main"
+                                    popUpTo("main") { inclusive = true }
+                                }
+                                "Categorías" -> { /* TODO: navController.navigate("categories") */ }
+                                "Vender" -> { /* TODO: navController.navigate("publish") */ }
+                                "Mensajes" -> { /* TODO: navController.navigate("messages") */ }
+                                "Perfil" -> { /* TODO: navController.navigate("profile") */ }
+                                "Foro" -> { /* TODO: navController.navigate("forum") */ }
+                            }
+                        }
                     )
                 }
             }
@@ -92,7 +103,7 @@ fun TechTradeTopBar(onCartClick: () -> Unit) {
             }
         },
         actions = {
-            IconButton(onClick = onCartClick) {
+            IconButton(onClick = onCartClick) { // Acción del carrito
                 Icon(Icons.Default.ShoppingCart, contentDescription = "Carrito", tint = MaterialTheme.colorScheme.onBackground)
             }
         },

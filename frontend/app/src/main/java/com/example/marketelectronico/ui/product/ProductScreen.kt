@@ -29,6 +29,9 @@ import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.model.allSampleProducts
 import com.example.marketelectronico.data.model.sampleProduct1
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+import com.example.marketelectronico.data.repository.CartRepository
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 
 /**
  * Pantalla de Detalles del Producto.
@@ -39,9 +42,14 @@ fun ProductScreen(
     navController: NavController,
     productId: String?
 ) {
+    // Busca el producto, o usa el primero como fallback
     val product = allSampleProducts.find { it.id == productId } ?: allSampleProducts.first()
 
-    var selectedItem by remember { mutableIntStateOf(0) }
+    // --- 1. SEGUIMIENTO DEL ITEM SELECCIONADO ---
+    // En esta pantalla, ningún item está seleccionado por defecto.
+    var selectedItem by remember { mutableIntStateOf(-1) }
+    var showDialog by remember { mutableStateOf(false) }
+
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -80,7 +88,20 @@ fun ProductScreen(
                         icon = { Icon(navIcons[index], contentDescription = label, tint = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray) },
                         label = { Text(label, color = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
                         selected = selectedItem == index,
-                        onClick = { selectedItem = index }
+                        // --- 2. LÓGICA DE NAVEGACIÓN AÑADIDA ---
+                        onClick = {
+                            selectedItem = index
+                            when (label) {
+                                "Inicio" -> navController.navigate("main") {
+                                    popUpTo("main") { inclusive = true }
+                                }
+                                "Categorías" -> { /* TODO: navController.navigate("categories") */ }
+                                "Vender" -> { /* TODO: navController.navigate("publish") */ }
+                                "Mensajes" -> { /* TODO: navController.navigate("messages") */ }
+                                "Perfil" -> { /* TODO: navController.navigate("profile") */ }
+                                "Foro" -> { /* TODO: navController.navigate("forum") */ }
+                            }
+                        }
                     )
                 }
             }
@@ -174,7 +195,10 @@ fun ProductScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Button(
-                        onClick = { /* TODO: Añadir al carrito */ },
+                        onClick = {
+                            CartRepository.addToCart(product)
+                            showDialog = true
+                        },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(8.dp)
@@ -232,13 +256,12 @@ fun ProductScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // --- Botones de reviews (ACTUALIZADO) ---
+                // Botones de reviews
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     OutlinedButton(
-                        // --- 1. ACCIÓN DE NAVEGACIÓN AÑADIDA ---
                         onClick = { navController.navigate("product_reviews/${product.id}") },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
@@ -258,7 +281,34 @@ fun ProductScreen(
                         Text("View seller review")
                     }
                 }
+                Spacer(modifier = Modifier.height(16.dp)) // Espacio extra al final
             }
+        }
+
+        // --- DIÁLOGO DE "AÑADIDO AL CARRITO" ---
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text(text = "¡Producto Añadido!") },
+                text = { Text(text = "El producto ha sido añadido a tu carrito.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDialog = false
+                            navController.navigate("cart") // Navega al carrito
+                        }
+                    ) {
+                        Text("Ir al Carrito")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showDialog = false } // Solo cierra el diálogo
+                    ) {
+                        Text("Seguir Comprando")
+                    }
+                }
+            )
         }
     }
 }
