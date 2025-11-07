@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-// Importamos los datos de muestra
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.model.sampleNews
 import com.example.marketelectronico.data.model.sampleOffers
@@ -33,10 +33,10 @@ fun MainScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    // --- 1. SEGUIMIENTO DEL ITEM SELECCIONADO ---
-    // Sigue siendo '0' (Inicio) porque esta es la MainScreen.
-    var selectedItem by remember { mutableIntStateOf(0) }
+    // Esta pantalla es "Inicio", así que el item 0 está seleccionado
+    val selectedItem by remember { mutableIntStateOf(0) }
 
+    // Esta es la lista de 'master', la respetamos
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -44,14 +44,15 @@ fun MainScreen(
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
-        Icons.Default.Info
+        Icons.Default.Info // Respetamos el ícono 'Info' de master
     )
 
     Scaffold(
         modifier = modifier,
         topBar = {
             TechTradeTopBar(
-                onCartClick = { navController.navigate("cart") } // Navega al carrito
+                onCartClick = { navController.navigate("cart") }, // Navega al carrito
+                onNotificationsClick = { navController.navigate("notifications") }
             )
         },
         bottomBar = {
@@ -63,19 +64,29 @@ fun MainScreen(
                         icon = { Icon(navIcons[index], contentDescription = label, tint = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray) },
                         label = { Text(label, color = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
                         selected = selectedItem == index,
-                        // --- 2. LÓGICA DE NAVEGACIÓN AÑADIDA ---
+                        
                         onClick = {
-                            selectedItem = index
-                            when (label) {
-                                "Inicio" -> navController.navigate("main") {
-                                    // Limpia el historial para no acumular pantallas de "main"
-                                    popUpTo("main") { inclusive = true }
+                            // selectedItem = index (No es necesario en esta pantalla)
+                            
+                            val route = when (label) {
+                                "Inicio" -> "main"
+                                // Tus pantallas (SÍ navegan)
+                                "Mensajes" -> "chat_list"
+                                "Perfil" -> "profile"
+                                "Foro" -> "forum"
+                                // Pantallas de compañeros (aún no implementadas)
+                                "Categorías" -> "categories" 
+                                "Vender" -> "publish"
+                                else -> "main"
+                            }
+
+                            // Navegamos a la ruta
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
                                 }
-                                "Categorías" -> { /* TODO: navController.navigate("categories") */ }
-                                "Vender" -> { /* TODO: navController.navigate("publish") */ }
-                                "Mensajes" -> { /* TODO: navController.navigate("messages") */ }
-                                "Perfil" -> { /* TODO: navController.navigate("profile") */ }
-                                "Foro" -> { /* TODO: navController.navigate("forum") */ }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     )
@@ -91,19 +102,19 @@ fun MainScreen(
     }
 }
 
-// --- Barra Superior ---
+// --- BARRA SUPERIOR ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TechTradeTopBar(onCartClick: () -> Unit) {
+fun TechTradeTopBar(onCartClick: () -> Unit, onNotificationsClick: () -> Unit) {
     TopAppBar(
         title = { Text("TechTrade", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground) },
         navigationIcon = {
-            IconButton(onClick = { /* TODO: Acción Notificaciones */ }) {
+            IconButton(onClick = onNotificationsClick) {
                 Icon(Icons.Default.Notifications, contentDescription = "Notificaciones", tint = MaterialTheme.colorScheme.onBackground)
             }
         },
         actions = {
-            IconButton(onClick = onCartClick) { // Acción del carrito
+            IconButton(onClick = onCartClick) {
                 Icon(Icons.Default.ShoppingCart, contentDescription = "Carrito", tint = MaterialTheme.colorScheme.onBackground)
             }
         },
@@ -113,7 +124,7 @@ fun TechTradeTopBar(onCartClick: () -> Unit) {
     )
 }
 
-// --- Contenido de la Pantalla (LazyColumn) ---
+// --- CONTENIDO DE LA PANTALLA (LazyColumn) ---
 @Composable
 fun MainScreenContent(modifier: Modifier = Modifier, navController: NavController) {
     LazyColumn(
@@ -154,7 +165,7 @@ fun MainScreenContent(modifier: Modifier = Modifier, navController: NavControlle
     }
 }
 
-// --- Barra de Búsqueda ---
+// --- BARRA DE BÚSQUEDA ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchBar(modifier: Modifier = Modifier) {
@@ -178,7 +189,7 @@ fun SearchBar(modifier: Modifier = Modifier) {
     )
 }
 
-// --- Título de Sección ---
+// --- TÍTULO DE SECCIÓN ---
 @Composable
 fun SectionTitle(title: String) {
     Text(
@@ -188,7 +199,7 @@ fun SectionTitle(title: String) {
     )
 }
 
-// --- Fila Horizontal de Productos (LazyRow) ---
+// --- FILA DE PRODUCTOS ---
 @Composable
 fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit) {
     LazyRow(
@@ -203,7 +214,7 @@ fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit) {
     }
 }
 
-// --- Tarjeta de Producto ---
+// --- TARJETA DE PRODUCTO ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductCard(product: Product, onClick: () -> Unit) {

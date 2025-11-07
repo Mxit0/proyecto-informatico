@@ -1,9 +1,9 @@
 package com.example.marketelectronico.data.model
 
-// --- 1. DEFINICIONES DE MODELOS (TODAS LAS DATA CLASSES) ---
+// --- 1. DEFINICIONES DE MODELOS (FUSIONADAS) ---
 
 /**
- * Modelo para un Producto (usado en MainScreen)
+ * Modelo para un Producto (Versión de 'master', más completa)
  * [cite: 3-13]
  */
 data class Product(
@@ -20,7 +20,7 @@ data class Product(
 )
 
 /**
- * Modelo para la lista de Chats (usado en ChatListScreen)
+ * Modelo para la lista de Chats (Tus pantallas)
  */
 data class ChatPreview(
     val id: String,
@@ -30,7 +30,7 @@ data class ChatPreview(
 )
 
 /**
- * Modelo para un Mensaje individual (usado en ConversationScreen)
+ * Modelo para un Mensaje individual (Tus pantallas)
  */
 data class Message(
     val id: String,
@@ -39,7 +39,7 @@ data class Message(
 )
 
 /**
- * Modelo para un Hilo del Foro (usado en ForumScreen y PostDetailScreen)
+ * Modelo para un Hilo del Foro (Tus pantallas)
  */
 data class ForumThread(
     val id: String,
@@ -49,7 +49,7 @@ data class ForumThread(
 )
 
 /**
- * Modelo para una Respuesta del Foro (usado en PostDetailScreen)
+ * Modelo para una Respuesta del Foro (Tus pantallas)
  */
 data class ForumReply(
     val id: String,
@@ -58,9 +58,9 @@ data class ForumReply(
 )
 
 
-// --- 2. DATOS DE MUESTRA (TODOS LOS VAL) ---
+// --- 2. DATOS DE MUESTRA (FUSIONADOS) ---
 
-// --- Datos de Productos (de tu amigo) [cite: 16-107] ---
+// --- Datos de Productos (de 'master') [cite: 16-107] ---
 val sampleProduct1 = Product(
     id = "1",
     name = "CPU Intel Core i7",
@@ -70,12 +70,11 @@ val sampleProduct1 = Product(
     sellerName = "TechTrader",
     sellerRating = 4.8,
     sellerReviews = 120,
-    description = "El Intel Core i7-10700K es un procesador de escritorio de alto rendimiento con 8 núcleos y 16 hilos, ideal para juegos y creación de contenido.",
+    description = "El Intel Core i7-10700K es un procesador de escritorio de alto rendimiento...",
     specifications = mapOf(
         "Núcleos" to "8",
         "Hilos" to "16",
         "Reloj Base" to "3.8 GHz",
-        "Reloj Boost" to "5.1 GHz",
         "Socket" to "LGA 1200"
     )
 )

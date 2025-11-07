@@ -17,7 +17,7 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 
 /**
  * Pantalla de Login (Punto de entrada)
- * No usa BaseScreen para tener un control total del layout.
+ * Esta pantalla NO usa BaseScreen para tener un control total.
  */
 @Composable
 fun LoginScreen(
@@ -34,14 +34,14 @@ fun LoginScreen(
         ) {
             Text(text = "Pantalla Login")
 
-            // Acción: navegar a "main" después del login
+            // Acción de ejemplo: navegar a "main" (homepage) después del login
             Button(onClick = {
                 navController.navigate("main") {
-                    // Borra "login" del historial
+                    // Borra "login" del historial para que el usuario no pueda "volver"
                     popUpTo("login") { inclusive = true }
                 }
             }) {
-                Text(text = "Ingresar (Ir a Main)")
+                Text(text = "Ingresar")
             }
         }
     }
