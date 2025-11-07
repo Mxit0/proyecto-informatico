@@ -5,14 +5,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.auth.LoginScreen
-import com.example.marketelectronico.ui.cart.CartScreen
+// Asegúrate de que esta importación exista, o crea el archivo CartScreen.kt
+// import com.example.marketelectronico.ui.cart.CartScreen
 import com.example.marketelectronico.ui.main.MainScreen
 import com.example.marketelectronico.ui.product.ProductScreen
 
 /**
  * Gestiona la navegación para el prototipo.
- * Define las 4 rutas principales.
- *
  */
 @Composable
 fun AppNavigation() {
@@ -31,15 +30,24 @@ fun AppNavigation() {
             MainScreen(navController = navController)
         }
 
-        // Ruta con argumento (para ver un producto específico)
+        // --- RUTA DEL PRODUCTO CORREGIDA ---
         composable("product_detail/{productId}") { backStackEntry ->
-            // En un futuro, obtendrías el ID así:
-            // val productId = backStackEntry.arguments?.getString("productId")
-            ProductScreen(navController = navController)
+            // 1. Obtenemos el ID del producto desde la ruta
+            val productId = backStackEntry.arguments?.getString("productId")
+
+            // 2. Pasamos el ID a la pantalla del producto
+            ProductScreen(
+                navController = navController,
+                productId = productId
+            )
         }
 
+        // Esta ruta fallará si no tienes un composable 'CartScreen'
+        // Coméntala si aún no la has creado.
+        /*
         composable("cart") {
             CartScreen(navController = navController)
         }
+        */
     }
 }
