@@ -25,24 +25,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.model.allSampleProducts
 import com.example.marketelectronico.data.model.sampleProduct1
-// Importa el TEMA correcto de tu proyecto
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 
 /**
  * Pantalla de Detalles del Producto.
- * Recibe el NavController y el ID del producto.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductScreen(
     navController: NavController,
-    productId: String? // Recibe el ID del producto desde AppNavigation
+    productId: String?
 ) {
-    // --- BÚSQUEDA DEL PRODUCTO ---
-    // En una app real, aquí llamarías a un ViewModel.
-    // Por ahora, buscamos en nuestros datos de muestra.
     val product = allSampleProducts.find { it.id == productId } ?: allSampleProducts.first()
 
     var selectedItem by remember { mutableIntStateOf(0) }
@@ -53,7 +49,7 @@ fun ProductScreen(
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
-        Icons.Default.Info // Icono 'Forum' cambiado por 'Info'
+        Icons.Default.Info
     )
 
     Scaffold(
@@ -61,7 +57,7 @@ fun ProductScreen(
             TopAppBar(
                 title = { },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) { // Acción de retroceso
+                    IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Atrás", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 },
@@ -91,12 +87,11 @@ fun ProductScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        // Contenido desplazable
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState()) // <-- IMPORT REQUERIDO
+                .verticalScroll(rememberScrollState())
         ) {
             Image(
                 painter = painterResource(id = android.R.drawable.ic_menu_gallery), // Placeholder
@@ -109,7 +104,6 @@ fun ProductScreen(
             )
 
             Column(modifier = Modifier.padding(16.dp)) {
-                // Ahora SÍ encuentra 'name', 'price' y 'status'
                 Text(
                     text = product.name,
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
@@ -152,7 +146,7 @@ fun ProductScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = product.sellerName, // <-- AHORA EXISTE
+                            text = product.sellerName,
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onBackground
                         )
@@ -160,7 +154,7 @@ fun ProductScreen(
                             Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color.Yellow, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "${product.sellerRating} (${product.sellerReviews} reviews)", // <-- AHORA EXISTE
+                                text = "${product.sellerRating} (${product.sellerReviews} reviews)",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                             )
@@ -169,7 +163,7 @@ fun ProductScreen(
                     OutlinedButton(
                         onClick = { /* TODO: Reportar vendedor */ },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.error)) // <-- IMPORT REQUERIDO
+                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.error))
                     ) {
                         Text("Report")
                     }
@@ -192,7 +186,7 @@ fun ProductScreen(
                         onClick = { /* TODO: Mensaje al vendedor */ },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)), // <-- IMPORT REQUERIDO
+                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("Message Seller")
@@ -208,21 +202,20 @@ fun ProductScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = product.description, // <-- AHORA EXISTE
+                    text = product.description,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Sección de Especificaciones (CORREGIDA)
+                // Sección de Especificaciones
                 Text(
                     text = "Specifications",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                // Convertimos el Map a una Lista para usar 'chunked'
-                val specsList = product.specifications.entries.toList() // <-- AHORA EXISTE
+                val specsList = product.specifications.entries.toList()
                 specsList.chunked(2).forEach { rowSpecs ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -239,16 +232,17 @@ fun ProductScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botones de reviews
+                // --- Botones de reviews (ACTUALIZADO) ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     OutlinedButton(
-                        onClick = { /* TODO: Ver review del producto */ },
+                        // --- 1. ACCIÓN DE NAVEGACIÓN AÑADIDA ---
+                        onClick = { navController.navigate("product_reviews/${product.id}") },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)), // <-- IMPORT REQUERIDO
+                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("View product review")
@@ -258,7 +252,7 @@ fun ProductScreen(
                         onClick = { /* TODO: Ver review del vendedor */ },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)), // <-- IMPORT REQUERIDO
+                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("View seller review")
@@ -287,14 +281,14 @@ fun SpecificationItem(label: String, value: String, modifier: Modifier = Modifie
 }
 
 
-// Vista Previa (Usa el TEMA correcto)
+// --- Vista Previa ---
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun ProductScreenPreview() {
-    MarketElectronicoTheme { // <-- TEMA CORREGIDO
+    MarketElectronicoTheme {
         ProductScreen(
             navController = rememberNavController(),
-            productId = sampleProduct1.id // Pasa un ID de muestra
+            productId = sampleProduct1.id
         )
     }
 }

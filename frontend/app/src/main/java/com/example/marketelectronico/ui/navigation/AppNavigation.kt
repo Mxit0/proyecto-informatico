@@ -5,10 +5,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.auth.LoginScreen
-// Asegúrate de que esta importación exista, o crea el archivo CartScreen.kt
-// import com.example.marketelectronico.ui.cart.CartScreen
+// import com.example.marketelectronico.ui.cart.CartScreen // (Asegúrate de tener este archivo)
 import com.example.marketelectronico.ui.main.MainScreen
 import com.example.marketelectronico.ui.product.ProductScreen
+// ***** ESTA ES LA LÍNEA QUE ARREGLA EL ERROR *****
+import com.example.marketelectronico.ui.product.ProductReviewScreen
 
 /**
  * Gestiona la navegación para el prototipo.
@@ -30,13 +31,18 @@ fun AppNavigation() {
             MainScreen(navController = navController)
         }
 
-        // --- RUTA DEL PRODUCTO CORREGIDA ---
         composable("product_detail/{productId}") { backStackEntry ->
-            // 1. Obtenemos el ID del producto desde la ruta
             val productId = backStackEntry.arguments?.getString("productId")
-
-            // 2. Pasamos el ID a la pantalla del producto
             ProductScreen(
+                navController = navController,
+                productId = productId
+            )
+        }
+
+        // --- RUTA AÑADIDA PARA REVIEWS ---
+        composable("product_reviews/{productId}") { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId")
+            ProductReviewScreen( // <-- Esto ya no dará error
                 navController = navController,
                 productId = productId
             )
