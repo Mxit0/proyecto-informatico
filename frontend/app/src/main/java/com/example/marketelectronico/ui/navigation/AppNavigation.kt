@@ -19,6 +19,7 @@ import com.example.marketelectronico.ui.forum.PostDetailScreen
 import com.example.marketelectronico.ui.cart.PaymentScreen
 import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
 import com.example.marketelectronico.ui.product.ProductReviewScreen
+import com.example.marketelectronico.ui.cart.PayConfirmScreen
 //import com.example.marketelectronico.ui.product.CategoriesScreen
 //import com.example.marketelectronico.ui.product.PublishScreen
 //import com.example.marketelectronico.ui.notifications.NotificationsScreen
@@ -65,9 +66,15 @@ fun AppNavigation() {
         composable("payment") {
             PaymentScreen(navController = navController)
         }
+
+        composable("pay_confirm") {
+            PayConfirmScreen(navController = navController)
+        }
+
         composable("add_payment_method") {
             AddPaymentMethodScreen(navController = navController)
         }
+
 
         // --- TUS PANTALLAS ---
         composable("profile") {
