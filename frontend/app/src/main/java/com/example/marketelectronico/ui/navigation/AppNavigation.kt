@@ -19,6 +19,8 @@ import com.example.marketelectronico.ui.cart.PaymentScreen
 import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
 import com.example.marketelectronico.ui.product.ProductReviewScreen
 import com.example.marketelectronico.ui.cart.PayConfirmScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 // import com.example.marketelectronico.ui.product.CategoriesScreen
 // import com.example.marketelectronico.ui.product.PublishScreen
 // import com.example.marketelectronico.ui.notifications.NotificationsScreen
@@ -70,8 +72,14 @@ fun AppNavigation() {
             PaymentScreen(navController = navController)
         }
 
-        composable("pay_confirm") {
-            PayConfirmScreen(navController = navController)
+        composable(
+            route = "pay_confirm/{orderId}",
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            PayConfirmScreen(
+                navController = navController,
+                orderId = backStackEntry.arguments?.getString("orderId")
+            )
         }
 
         composable("add_payment_method") {

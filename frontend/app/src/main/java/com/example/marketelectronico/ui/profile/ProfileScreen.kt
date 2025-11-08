@@ -28,6 +28,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState // <-- 1. IMPORT
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import com.example.marketelectronico.data.repository.OrderRepository
+import com.example.marketelectronico.data.repository.Order
+import java.text.SimpleDateFormat
+import java.util.Locale
+import androidx.compose.ui.text.font.FontWeight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -217,10 +224,24 @@ private fun MyRatingPage() {
 }
 @Composable
 private fun PurchasesHistoryPage() {
+    val orders = OrderRepository.orders
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Historial de Compras", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Aún no tienes compras.", style = MaterialTheme.typography.bodyMedium)
+
+        if (orders.isEmpty()) {
+            Text("Aún no tienes compras.", style = MaterialTheme.typography.bodyMedium)
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(orders) { order ->
+                    OrderHistoryItem(order = order)
+                }
+            }
+        }
     }
 }
 @Composable
@@ -236,5 +257,52 @@ private fun ReviewsHistoryPage() {
 fun ProfileScreenPreview() {
     MarketElectronicoTheme {
         ProfileScreen(navController = rememberNavController())
+    }
+}
+@Composable
+private fun OrderHistoryItem(order: Order) {
+    // Formateador de fecha
+    val dateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
+
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Order #${order.id.take(8)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "$${order.totalAmount}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Text(
+                text = dateFormatter.format(order.date),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Mostrar los productos en esta orden
+            order.items.forEach { product ->
+                Row(modifier = Modifier.padding(bottom = 4.dp)) {
+                    Text("• ") // Viñeta
+                    Text(
+                        text = product.name,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
     }
 }

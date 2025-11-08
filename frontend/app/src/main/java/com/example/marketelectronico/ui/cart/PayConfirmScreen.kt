@@ -31,6 +31,8 @@ import com.example.marketelectronico.data.model.allSampleProducts
 import com.example.marketelectronico.data.repository.CartRepository
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.marketelectronico.data.repository.OrderRepository
+import com.example.marketelectronico.data.repository.Order
 
 /**
  * Pantalla de confirmación de pago exitoso.
@@ -38,12 +40,20 @@ import androidx.compose.ui.graphics.vector.ImageVector
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PayConfirmScreen(
-    navController: NavController
+    navController: NavController,
+    orderId: String?
 ) {
     // Obtenemos los items del carrito para mostrarlos en el resumen
-    val purchasedItems = CartRepository.cartItems.toList()
+    val order = OrderRepository.findOrderById(orderId)
+    if (order == null) {
+        // ... (puedes mostrar un mensaje de error o simplemente volver)
+        LaunchedEffect(Unit) {
+            navController.popBackStack()
+        }
+        return
+    }
+    val purchasedItems = order.items
     val totalItems = purchasedItems.size
-
     // --- Lógica para la barra de navegación inferior ---
     // Copiada de ProductScreen.kt para consistencia
     var selectedItem by remember { mutableIntStateOf(-1) }
@@ -61,9 +71,8 @@ fun PayConfirmScreen(
     // Esta función se llamará al presionar "Continue Shopping" o la flecha de "Atrás".
     // Limpia el carrito y vuelve a la pantalla principal.
     val onDoneShopping: () -> Unit = {
-        CartRepository.clearCart() // ¡Importante! Limpiar el carrito
         navController.navigate("main") {
-            popUpTo("main") { inclusive = true } // Limpia la pila de navegación
+            popUpTo("main") { inclusive = true }
         }
     }
 
@@ -140,15 +149,14 @@ fun PayConfirmScreen(
             // --- Detalles del Pedido ---
             item {
                 PaymentDetailItem(
-                    // Usa un icono de material estándar. Reemplaza si tienes uno custom.
                     icon = Icons.Default.Tag,
                     label = "Order Number",
-                    value = "Order #123456789" // Valor de ejemplo
+                    value = "Order #${order.id.take(8)}" // Muestra parte del ID
                 )
             }
             item {
                 PaymentDetailItem(
-                    icon = Icons.Default.Inventory2, // Icono de caja
+                    icon = Icons.Default.Inventory2,
                     label = "Items Purchased",
                     value = "$totalItems Items"
                 )
@@ -177,7 +185,6 @@ fun PayConfirmScreen(
                 ProductSummaryItem(
                     product = product,
                     onAddReviewClick = {
-                        // Navega a la pantalla de reviews del producto
                         navController.navigate("product_reviews/${product.id}")
                     }
                 )
@@ -314,21 +321,30 @@ private fun ProductSummaryItem(
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun PayConfirmScreenPreview() {
-    // Añadimos datos de muestra al repositorio para la preview
-    CartRepository.clearCart()
-    CartRepository.addToCart(allSampleProducts[0])
-    CartRepository.addToCart(allSampleProducts[1])
+    val previewOrder = Order(
+        id = "preview123",
+        items = com.example.marketelectronico.data.model.allSampleProducts.take(2),
+        totalAmount = 250.0
+    )
+    OrderRepository.addOrder(previewOrder)
 
     MarketElectronicoTheme {
-        PayConfirmScreen(navController = rememberNavController())
+        PayConfirmScreen(
+            navController = rememberNavController(),
+            orderId = "preview123"
+        )
     }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun PayConfirmScreenEmptyPreview() {
-    CartRepository.clearCart()
+    OrderRepository.orders.clear() // Limpiamos el repo de órdenes para el preview
     MarketElectronicoTheme {
-        PayConfirmScreen(navController = rememberNavController())
+        // Ahora pasamos 'null' para probar el caso de "orden no encontrada"
+        PayConfirmScreen(
+            navController = rememberNavController(),
+            orderId = null
+        )
     }
 }

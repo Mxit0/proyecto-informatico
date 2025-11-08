@@ -27,9 +27,11 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import java.text.NumberFormat
 import java.util.Currency
 import com.example.marketelectronico.data.model.Product
-// --- 1. IMPORTAR EL REPOSITORIO Y EL MODELO DE PAGO ---
 import com.example.marketelectronico.data.repository.PaymentMethod
 import com.example.marketelectronico.data.repository.PaymentRepository
+import com.example.marketelectronico.data.repository.Order
+import com.example.marketelectronico.data.repository.OrderRepository
+import java.util.UUID
 
 
 // --- 2. ELIMINAR EL MODELO Y LOS DATOS DE MUESTRA LOCALES ---
@@ -106,16 +108,26 @@ fun PaymentScreen(
                     onClick = {
                         // Aquí iría tu lógica de pago (ej. llamar a una API).
                         // Al ser exitoso, navegas a la pantalla de confirmación.
-                        navController.navigate("pay_confirm") {
-                            // Opcional: Evita que el usuario vuelva a la pantalla de pago
-                            popUpTo("cart") // O la ruta de tu carrito
+                        val itemsToPurchase = CartRepository.cartItems.toList()
+                        val orderTotal = total
+                        val newOrder = Order(
+                            id = UUID.randomUUID().toString(), // Genera un ID único
+                            items = itemsToPurchase,
+                            totalAmount = orderTotal
+                        )
+                        OrderRepository.addOrder(newOrder)
+                        CartRepository.clearCart()
+                        navController.navigate("pay_confirm/${newOrder.id}") {
+                            // Limpia la pila hasta el carrito
+                            popUpTo("cart") { inclusive = true }
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .height(50.dp),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    enabled = selectedMethodId != null && CartRepository.cartItems.isNotEmpty()
                 ) {
                     Text("Pay Now")
                 }
