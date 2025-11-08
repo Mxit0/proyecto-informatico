@@ -33,6 +33,10 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.marketelectronico.data.repository.OrderRepository
 import com.example.marketelectronico.data.repository.Order
+import com.example.marketelectronico.data.repository.ReviewRepository
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 
 /**
  * Pantalla de confirmación de pago exitoso.
@@ -54,6 +58,9 @@ fun PayConfirmScreen(
     }
     val purchasedItems = order.items
     val totalItems = purchasedItems.size
+    val userReviews by remember {
+        derivedStateOf { ReviewRepository.getReviewsByUser("Asu") }
+    }
     // --- Lógica para la barra de navegación inferior ---
     // Copiada de ProductScreen.kt para consistencia
     var selectedItem by remember { mutableIntStateOf(-1) }
@@ -182,10 +189,12 @@ fun PayConfirmScreen(
 
             // --- Lista de Items Comprados ---
             items(purchasedItems) { product ->
+                val hasBeenReviewed = userReviews.any { it.productId == product.id }
                 ProductSummaryItem(
                     product = product,
+                    hasBeenReviewed = hasBeenReviewed,
                     onAddReviewClick = {
-                        navController.navigate("product_reviews/${product.id}")
+                        navController.navigate("add_review/${product.id}")
                     }
                 )
             }
@@ -270,6 +279,7 @@ private fun PaymentDetailItem(
 @Composable
 private fun ProductSummaryItem(
     product: Product,
+    hasBeenReviewed: Boolean,
     onAddReviewClick: () -> Unit
 ) {
     Surface(
@@ -306,12 +316,14 @@ private fun ProductSummaryItem(
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                onClick = onAddReviewClick,
-                shape = MaterialTheme.shapes.medium,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text("Add Review")
+            if (!hasBeenReviewed) {
+                Button(
+                    onClick = onAddReviewClick,
+                    shape = MaterialTheme.shapes.medium,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text("Add Review")
+                }
             }
         }
     }
