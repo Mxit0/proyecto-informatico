@@ -22,6 +22,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination // <-- IMPORTAR
+import androidx.navigation.compose.currentBackStackEntryAsState // <-- IMPORTAR
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.repository.CartRepository
@@ -29,24 +31,16 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import java.text.NumberFormat
 import java.util.Currency
 
-/**
- * Pantalla del Carrito de Compras (Order)
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
     navController: NavController
 ) {
-    // Obtenemos los items directamente del repositorio
     val cartProducts = CartRepository.cartItems
-    // Obtenemos el precio total
     val totalPrice = CartRepository.totalPrice.value
-
-    // Estado para el diálogo de confirmación de eliminación
     var productToDelete by remember { mutableStateOf<Product?>(null) }
 
-    // Estado para la barra de navegación inferior
-    var selectedItem by remember { mutableIntStateOf(-1) } // -1 para que "Inicio" no esté seleccionado por defecto
+    // --- LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -56,13 +50,15 @@ fun CartScreen(
         Icons.Default.Person,
         Icons.Default.Info
     )
+    val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
+    // --- FIN LÓGICA BOTTOM BAR ---
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Order", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) { // Botón de retroceso
+                    IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 },
@@ -104,30 +100,37 @@ fun CartScreen(
                             .fillMaxWidth()
                             .height(50.dp),
                         shape = MaterialTheme.shapes.medium,
-                        // --- ESTA ES LA LÍNEA ACTUALIZADA ---
-                        // El botón se deshabilita si el carrito está vacío
                         enabled = cartProducts.isNotEmpty()
                     ) {
                         Text("Continue to payment")
                     }
                 }
 
-                // --- Barra de Navegación Inferior ---
+                // --- Barra de Navegación Inferior (CORREGIDA) ---
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface
                 ) {
+                    // --- OBTENER RUTA ACTUAL ---
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentRoute = navBackStackEntry?.destination?.route
+
                     navItems.forEachIndexed { index, label ->
+                        val route = navRoutes[index]
+                        // 'selected' es dinámico
+                        val selected = currentRoute == route
+
                         NavigationBarItem(
-                            icon = { Icon(navIcons[index], contentDescription = label, tint = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray) },
-                            label = { Text(label, color = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
-                            selected = selectedItem == index,
+                            icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
+                            label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
+                            selected = selected,
+                            // --- LÓGICA DE NAVEGACIÓN COMPLETA ---
                             onClick = {
-                                selectedItem = index
-                                when (label) {
-                                    "Inicio" -> navController.navigate("main") {
-                                        popUpTo("main") { inclusive = true }
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
                                     }
-                                    // TODO: Añadir navegación para los otros items
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
                             }
                         )
@@ -138,17 +141,16 @@ fun CartScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
 
-        // --- Diálogo de Confirmación para Eliminar ---
         productToDelete?.let { product ->
             AlertDialog(
-                onDismissRequest = { productToDelete = null }, // Cierra si tocas fuera
+                onDismissRequest = { productToDelete = null },
                 title = { Text(text = "Eliminar Producto") },
                 text = { Text(text = "¿Estás seguro de que quieres eliminar \"${product.name}\" de tu carrito?") },
                 confirmButton = {
                     TextButton(
                         onClick = {
                             CartRepository.removeFromCart(product)
-                            productToDelete = null // Cierra el diálogo
+                            productToDelete = null
                         }
                     ) {
                         Text("Eliminar")
@@ -156,7 +158,7 @@ fun CartScreen(
                 },
                 dismissButton = {
                     TextButton(
-                        onClick = { productToDelete = null } // Cierra el diálogo
+                        onClick = { productToDelete = null }
                     ) {
                         Text("Cancelar")
                     }
@@ -164,12 +166,11 @@ fun CartScreen(
             )
         }
 
-        // --- Contenido de la Pantalla ---
         if (cartProducts.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding), // Usar el padding del Scaffold
+                    .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -182,9 +183,7 @@ fun CartScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    // Aplicar el padding del Scaffold
                     .padding(innerPadding),
-                // Padding horizontal para los items de la lista
                 contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
                 item {
@@ -199,7 +198,7 @@ fun CartScreen(
                     CartItem(
                         product = product,
                         onRemoveClick = {
-                            productToDelete = product // Activa el diálogo en lugar de borrar
+                            productToDelete = product
                         }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -209,9 +208,6 @@ fun CartScreen(
     }
 }
 
-/**
- * Composable para un solo item en la lista del carrito
- */
 @Composable
 fun CartItem(product: Product, onRemoveClick: () -> Unit) {
     Row(
@@ -236,12 +232,11 @@ fun CartItem(product: Product, onRemoveClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Used - ${product.status}", // Muestra el estado
+                text = "Used - ${product.status}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.Gray
             )
         }
-        // Botón para eliminar el item
         IconButton(onClick = onRemoveClick) {
             Icon(
                 Icons.Default.Delete,
@@ -252,9 +247,6 @@ fun CartItem(product: Product, onRemoveClick: () -> Unit) {
     }
 }
 
-/**
- * Formatea un valor Double a un string de moneda (ej. $120.00)
- */
 private fun formatCurrency(amount: Double): String {
     val format = NumberFormat.getCurrencyInstance()
     format.currency = Currency.getInstance("USD")
@@ -264,7 +256,6 @@ private fun formatCurrency(amount: Double): String {
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun CartScreenPreview() {
-    // Creamos un producto de muestra SOLO para esta preview
     val previewProduct = Product(
         id = "1",
         name = "Intel Core i7-9700K Processor",
@@ -278,8 +269,8 @@ fun CartScreenPreview() {
         specifications = emptyMap()
     )
 
-    CartRepository.clearCart() // Limpia el carrito para la preview
-    CartRepository.addToCart(previewProduct) // Añade un item para que no esté vacío
+    CartRepository.clearCart()
+    CartRepository.addToCart(previewProduct)
 
     MarketElectronicoTheme {
         CartScreen(navController = rememberNavController())
@@ -289,7 +280,7 @@ fun CartScreenPreview() {
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun CartScreenEmptyPreview() {
-    CartRepository.clearCart() // Limpia el carrito para la preview vacía
+    CartRepository.clearCart()
 
     MarketElectronicoTheme {
         CartScreen(navController = rememberNavController())
