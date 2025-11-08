@@ -17,11 +17,11 @@ import com.example.marketelectronico.ui.forum.CreatePostScreen
 import com.example.marketelectronico.ui.forum.ForumScreen
 import com.example.marketelectronico.ui.forum.PostDetailScreen
 import com.example.marketelectronico.ui.cart.PaymentScreen
-import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
+//import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
 import com.example.marketelectronico.ui.product.ProductReviewScreen
-import com.example.marketelectronico.ui.product.CategoriesScreen
-import com.example.marketelectronico.ui.product.PublishScreen
-import com.example.marketelectronico.ui.notifications.NotificationsScreen
+//import com.example.marketelectronico.ui.product.CategoriesScreen
+//import com.example.marketelectronico.ui.product.PublishScreen
+//import com.example.marketelectronico.ui.notifications.NotificationsScreen
 
 
 @Composable
@@ -40,15 +40,16 @@ fun AppNavigation() {
         composable("main") {
             MainScreen(navController = navController)
         }
-        composable("product_detail/{productId}") {
-            ProductScreen(navController = navController)
+        composable("product_detail/{productId}") { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId")
+            ProductScreen(navController = navController,  productId = productId)
         }
         composable("cart") {
             CartScreen(navController = navController)
         }
         composable("product_detail/{productId}") { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")
-            ProductScreen(navController = navController, /* productId = productId */)
+            ProductScreen(navController = navController,  productId = productId)
         }
         composable("product_reviews/{productId}") { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")

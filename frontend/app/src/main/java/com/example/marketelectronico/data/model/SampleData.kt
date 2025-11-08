@@ -80,7 +80,7 @@ val sampleMessages = listOf(
     Message("1", "Hola, ¿sigue disponible la RTX 3080?", true),
     Message("2", "¡Hola! Sí, aún la tengo.", false),
     Message("3", "Genial, ¿aceptas 650?", true),
-    Message("4. Lo siento, el precio es fijo en 700.", false)
+    Message("4", "Lo siento, el precio es fijo en 700.", false)
 )
 
 val sampleThreads = listOf(
