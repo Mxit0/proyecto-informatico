@@ -28,6 +28,10 @@ import com.example.marketelectronico.data.model.allSampleProducts
 import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material.icons.filled.StarHalf
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,7 +136,7 @@ fun ReviewScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    enabled = rating > 0 && comment.isNotBlank() // Habilitado solo si hay rating y comentario
+                    enabled = rating > 0
                 ) {
                     Text("Submit Review")
                 }
@@ -150,15 +154,33 @@ fun RatingInput(
         horizontalArrangement = Arrangement.Center,
         modifier = Modifier.fillMaxWidth()
     ) {
-        (1..5).forEach { star ->
+        (1..5).forEach { starIndex ->
+            // Determina qué icono mostrar (Vacío, Mitad, Lleno)
+            val icon: ImageVector = when {
+                currentRating >= starIndex -> Icons.Default.Star
+                currentRating >= starIndex - 0.5 -> Icons.Default.StarHalf
+                else -> Icons.Default.StarOutline
+            }
+
             Icon(
-                imageVector = if (star <= currentRating) Icons.Default.Star else Icons.Default.StarOutline,
-                contentDescription = "Star $star",
+                imageVector = icon,
+                contentDescription = "Star $starIndex",
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .size(48.dp)
                     .padding(4.dp)
-                    .clickable { onRatingChanged(star.toDouble()) }
+                    .pointerInput(starIndex) { // Clave: detecta el gesto
+                        detectTapGestures { offset ->
+                            // 'this.size' es el tamaño del Icono (48.dp)
+                            if (offset.x < this.size.width / 2) {
+                                // Clic en la mitad izquierda
+                                onRatingChanged(starIndex - 0.5)
+                            } else {
+                                // Clic en la mitad derecha
+                                onRatingChanged(starIndex.toDouble())
+                            }
+                        }
+                    }
             )
         }
     }

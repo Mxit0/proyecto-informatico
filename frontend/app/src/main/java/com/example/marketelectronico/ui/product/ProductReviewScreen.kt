@@ -33,6 +33,7 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
 import com.example.marketelectronico.R
+import java.util.Locale
 
 
 
@@ -151,7 +152,7 @@ private fun RatingSummary(averageRating: Double, totalReviews: Int, ratingSummar
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = averageRating.toString(),
+                text = String.format(Locale.US, "%.1f", averageRating),
                 style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onBackground
             )
