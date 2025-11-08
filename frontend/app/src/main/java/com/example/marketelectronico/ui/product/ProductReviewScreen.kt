@@ -30,32 +30,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.data.model.allSampleProducts
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+import com.example.marketelectronico.data.repository.Review
+import com.example.marketelectronico.data.repository.ReviewRepository
+import com.example.marketelectronico.R
 
-// --- Datos de Muestra para Reviews (Se quedan en este archivo) ---
-data class Review(
-    val id: String,
-    val author: String,
-    val date: String,
-    val rating: Double,
-    val comment: String,
-    val likes: Int,
-    val dislikes: Int
-)
 
-val sampleReviews = listOf(
-    Review("1", "Liam Carter", "2 weeks ago", 5.0, "This processor is a game-changer! It significantly boosted my computer's performance...", 23, 2),
-    Review("2", "Sophia Bennett", "1 month ago", 3.5, "The processor works well... however, I encountered some minor issues during installation.", 15, 3),
-    Review("3", "Ethan Walker", "2 months ago", 3.0, "The processor is okay for basic tasks, but it didn't meet my expectations for more demanding applications.", 8, 5)
-)
-
-val sampleRatingSummary = mapOf(
-    5 to 0.40f,
-    4 to 0.30f,
-    3 to 0.15f,
-    2 to 0.10f,
-    1 to 0.05f
-)
-// -------------------------------------------------
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,10 +45,12 @@ fun ProductReviewScreen(
     modifier: Modifier = Modifier // <-- Añadido modifier
 ) {
     val product = allSampleProducts.find { it.id == productId } ?: allSampleProducts.first()
-    val reviews = sampleReviews
-    val ratingSummary = sampleRatingSummary
-    val averageRating = 4.6
-    val totalReviews = 124
+    val reviews = ReviewRepository.getReviewsForProduct(productId)
+    val totalReviews = reviews.size
+    val averageRating = if (reviews.isNotEmpty()) reviews.sumOf { it.rating } / totalReviews else 0.0
+    val ratingSummary = (1..5).associateWith { star ->
+        if (totalReviews == 0) 0f else reviews.count { it.rating.toInt() == star } / totalReviews.toFloat()
+    }
 
     // --- LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
@@ -245,7 +226,7 @@ private fun ReviewItem(review: Review) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
-                painter = painterResource(id = android.R.drawable.ic_menu_gallery), // Placeholder avatar
+                painter = painterResource(id = R.drawable.ic_launcher_background), // Placeholder avatar
                 contentDescription = review.author,
                 modifier = Modifier
                     .size(40.dp)
@@ -261,7 +242,7 @@ private fun ReviewItem(review: Review) {
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = review.date,
+                    text = ReviewRepository.formatDate(review.date),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
@@ -275,16 +256,7 @@ private fun ReviewItem(review: Review) {
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f)
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.ThumbUp, contentDescription = "Likes", tint = Color.Gray, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(review.likes.toString(), style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-            Spacer(modifier = Modifier.width(16.dp))
-            Icon(Icons.Default.ThumbDown, contentDescription = "Dislikes", tint = Color.Gray, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(review.dislikes.toString(), style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-        }
+
     }
 }
 

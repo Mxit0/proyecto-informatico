@@ -185,7 +185,7 @@ fun PayConfirmScreen(
                 ProductSummaryItem(
                     product = product,
                     onAddReviewClick = {
-                        navController.navigate("product_reviews/${product.id}")
+                        navController.navigate("add_review/${product.id}")
                     }
                 )
             }
