@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack // <-- CORREGIDO
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -24,11 +25,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState // <-- IMPORTADO
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.model.allSampleProducts
 import com.example.marketelectronico.data.model.sampleProduct1
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+// --- 1. IMPORTAMOS EL REPOSITORIO ---
 import com.example.marketelectronico.data.repository.CartRepository
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -40,16 +44,13 @@ import androidx.compose.material3.TextButton
 @Composable
 fun ProductScreen(
     navController: NavController,
-    productId: String?
+    productId: String?,
+    modifier: Modifier = Modifier // <-- Añadido modifier
 ) {
-    // Busca el producto, o usa el primero como fallback
     val product = allSampleProducts.find { it.id == productId } ?: allSampleProducts.first()
-
-    // --- 1. SEGUIMIENTO DEL ITEM SELECCIONADO ---
-    // En esta pantalla, ningún item está seleccionado por defecto.
-    var selectedItem by remember { mutableIntStateOf(-1) }
     var showDialog by remember { mutableStateOf(false) }
 
+    // --- 2. LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -59,14 +60,17 @@ fun ProductScreen(
         Icons.Default.Person,
         Icons.Default.Info
     )
+    val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
+    // --- FIN LÓGICA BOTTOM BAR ---
 
     Scaffold(
+        modifier = modifier, // <-- Añadido modifier
         topBar = {
             TopAppBar(
                 title = { },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Atrás", tint = MaterialTheme.colorScheme.onBackground)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 },
                 actions = {
@@ -83,23 +87,29 @@ fun ProductScreen(
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
+                // --- 3. LÓGICA DE SELECCIÓN DINÁMICA ---
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
                 navItems.forEachIndexed { index, label ->
+                    val route = navRoutes[index]
+                    // Esta pantalla (product_detail) no está en la BottomBar,
+                    // así que 'selected' siempre será 'false', que es lo correcto.
+                    val selected = currentRoute == route
+
                     NavigationBarItem(
-                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray) },
-                        label = { Text(label, color = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
-                        selected = selectedItem == index,
-                        // --- 2. LÓGICA DE NAVEGACIÓN AÑADIDA ---
+                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
+                        label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
+                        selected = selected,
+
+                        // --- 4. LÓGICA DE NAVEGACIÓN COMPLETA ---
                         onClick = {
-                            selectedItem = index
-                            when (label) {
-                                "Inicio" -> navController.navigate("main") {
-                                    popUpTo("main") { inclusive = true }
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
                                 }
-                                "Categorías" -> { /* TODO: navController.navigate("categories") */ }
-                                "Vender" -> { /* TODO: navController.navigate("publish") */ }
-                                "Mensajes" -> { /* TODO: navController.navigate("messages") */ }
-                                "Perfil" -> { /* TODO: navController.navigate("profile") */ }
-                                "Foro" -> { /* TODO: navController.navigate("forum") */ }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     )
@@ -146,7 +156,7 @@ fun ProductScreen(
 
                 // Sección del Vendedor
                 Text(
-                    text = "Seller",
+                    text = "Vendedor",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -172,7 +182,7 @@ fun ProductScreen(
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color.Yellow, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "${product.sellerRating} (${product.sellerReviews} reviews)",
@@ -186,7 +196,7 @@ fun ProductScreen(
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                         border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.error))
                     ) {
-                        Text("Report")
+                        Text("Reportar")
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -196,6 +206,7 @@ fun ProductScreen(
                 ) {
                     Button(
                         onClick = {
+                            // --- 5. ¡AHORA ESTA LÍNEA FUNCIONA! ---
                             CartRepository.addToCart(product)
                             showDialog = true
                         },
@@ -203,7 +214,7 @@ fun ProductScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Add to Cart")
+                        Text("Añadir al Carrito")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     OutlinedButton(
@@ -213,14 +224,14 @@ fun ProductScreen(
                         border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Message Seller")
+                        Text("Mensaje al Vendedor")
                     }
                 }
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Sección de Descripción
                 Text(
-                    text = "Description",
+                    text = "Descripción",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -234,7 +245,7 @@ fun ProductScreen(
 
                 // Sección de Especificaciones
                 Text(
-                    text = "Specifications",
+                    text = "Especificaciones",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -268,7 +279,7 @@ fun ProductScreen(
                         border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("View product review")
+                        Text("Ver reviews del producto")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     OutlinedButton(
@@ -278,7 +289,7 @@ fun ProductScreen(
                         border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("View seller review")
+                        Text("Ver reviews del vendedor")
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp)) // Espacio extra al final

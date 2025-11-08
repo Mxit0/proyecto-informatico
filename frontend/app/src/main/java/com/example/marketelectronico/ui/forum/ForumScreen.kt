@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -18,8 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState // <-- 1. IMPORTAR
 import androidx.navigation.compose.rememberNavController
-// No usamos BaseScreen
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.model.ForumThread
 import com.example.marketelectronico.data.model.sampleThreads
@@ -30,8 +31,7 @@ fun ForumScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    // --- LÓGICA DE LA BOTTOM BAR ---
-    val selectedItem = 5 // 5 = "Foro"
+    // --- LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -39,8 +39,9 @@ fun ForumScreen(
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
-        Icons.Default.Info // Ícono para 'Foro'
+        Icons.Default.Chat // Ícono para 'Foro'
     )
+    val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
     // --- FIN LÓGICA BOTTOM BAR ---
 
     Scaffold(
@@ -73,25 +74,25 @@ fun ForumScreen(
             }
         },
         bottomBar = {
-            // --- IMPLEMENTACIÓN DE LA BOTTOM BAR ---
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
+                // --- 2. OBTENER RUTA ACTUAL ---
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
                 navItems.forEachIndexed { index, label ->
+                    val route = navRoutes[index]
+                    // --- 3. 'selected' AHORA ES DINÁMICO ---
+                    val selected = currentRoute == route
+
                     NavigationBarItem(
-                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray) },
-                        label = { Text(label, color = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
-                        selected = selectedItem == index,
+                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
+                        label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
+                        selected = selected, // <-- Usa el valor dinámico
+
+                        // --- 4. LÓGICA DE NAVEGACIÓN CORREGIDA ---
                         onClick = {
-                            val route = when (label) {
-                                "Inicio" -> "main"
-                                "Categorías" -> "categories"
-                                "Vender" -> "publish"
-                                "Mensajes" -> "chat_list"
-                                "Perfil" -> "profile"
-                                "Foro" -> "forum"
-                                else -> "main"
-                            }
                             navController.navigate(route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
@@ -103,7 +104,6 @@ fun ForumScreen(
                     )
                 }
             }
-            // --- FIN BOTTOM BAR ---
         }
     ) { innerPadding ->
         LazyColumn(
@@ -124,6 +124,7 @@ fun ForumScreen(
     }
 }
 
+// --- Ítem de Hilo (Sin cambios) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ForumThreadItem(

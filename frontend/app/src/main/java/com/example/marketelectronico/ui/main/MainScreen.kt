@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.model.sampleNews
 import com.example.marketelectronico.data.model.sampleOffers
@@ -33,10 +34,6 @@ fun MainScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    // Esta pantalla es "Inicio", así que el item 0 está seleccionado
-    val selectedItem by remember { mutableIntStateOf(0) }
-
-    // Esta es la lista de 'master', la respetamos
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -44,43 +41,38 @@ fun MainScreen(
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
-        Icons.Default.Info // Respetamos el ícono 'Info' de master
+        Icons.Default.Info
     )
+    val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
 
     Scaffold(
         modifier = modifier,
         topBar = {
             TechTradeTopBar(
-                onCartClick = { navController.navigate("cart") }, // Navega al carrito
-                onNotificationsClick = { navController.navigate("notifications") }
+                onCartClick = { navController.navigate("cart") },
+                onNotificationsClick = { /* navController.navigate("notifications") */ }
             )
         },
         bottomBar = {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
-                navItems.forEachIndexed { index, label ->
-                    NavigationBarItem(
-                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray) },
-                        label = { Text(label, color = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
-                        selected = selectedItem == index,
-                        
-                        onClick = {
-                            // selectedItem = index (No es necesario en esta pantalla)
-                            
-                            val route = when (label) {
-                                "Inicio" -> "main"
-                                // Tus pantallas (SÍ navegan)
-                                "Mensajes" -> "chat_list"
-                                "Perfil" -> "profile"
-                                "Foro" -> "forum"
-                                // Pantallas de compañeros (aún no implementadas)
-                                "Categorías" -> "categories" 
-                                "Vender" -> "publish"
-                                else -> "main"
-                            }
+                // --- 2. OBTENER RUTA ACTUAL ---
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
 
-                            // Navegamos a la ruta
+                navItems.forEachIndexed { index, label ->
+                    val route = navRoutes[index]
+                    // --- 3. 'selected' AHORA ES DINÁMICO ---
+                    val selected = currentRoute == route
+
+                    NavigationBarItem(
+                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
+                        label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
+                        selected = selected, // <-- Usa el valor dinámico
+
+                        // --- 4. LÓGICA DE NAVEGACIÓN CORREGIDA ---
+                        onClick = {
                             navController.navigate(route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
@@ -102,10 +94,10 @@ fun MainScreen(
     }
 }
 
-// --- BARRA SUPERIOR ---
+// --- BARRA SUPERIOR  ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TechTradeTopBar(onCartClick: () -> Unit, onNotificationsClick: () -> Unit) {
+private fun TechTradeTopBar(onCartClick: () -> Unit, onNotificationsClick: () -> Unit) {
     TopAppBar(
         title = { Text("TechTrade", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground) },
         navigationIcon = {
@@ -124,9 +116,10 @@ fun TechTradeTopBar(onCartClick: () -> Unit, onNotificationsClick: () -> Unit) {
     )
 }
 
-// --- CONTENIDO DE LA PANTALLA (LazyColumn) ---
+// --- CONTENIDO Y COMPONENTES ---
+// (MainScreenContent, SearchBar, SectionTitle, ProductRow, ProductCard)
 @Composable
-fun MainScreenContent(modifier: Modifier = Modifier, navController: NavController) {
+private fun MainScreenContent(modifier: Modifier = Modifier, navController: NavController) {
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -164,11 +157,9 @@ fun MainScreenContent(modifier: Modifier = Modifier, navController: NavControlle
         }
     }
 }
-
-// --- BARRA DE BÚSQUEDA ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchBar(modifier: Modifier = Modifier) {
+private fun SearchBar(modifier: Modifier = Modifier) {
     var text by remember { mutableStateOf("") }
     TextField(
         value = text,
@@ -188,20 +179,16 @@ fun SearchBar(modifier: Modifier = Modifier) {
         )
     )
 }
-
-// --- TÍTULO DE SECCIÓN ---
 @Composable
-fun SectionTitle(title: String) {
+private fun SectionTitle(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleLarge,
         modifier = Modifier.padding(top = 24.dp, bottom = 16.dp)
     )
 }
-
-// --- FILA DE PRODUCTOS ---
 @Composable
-fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit) {
+private fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -213,11 +200,9 @@ fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit) {
         }
     }
 }
-
-// --- TARJETA DE PRODUCTO ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProductCard(product: Product, onClick: () -> Unit) {
+private fun ProductCard(product: Product, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),

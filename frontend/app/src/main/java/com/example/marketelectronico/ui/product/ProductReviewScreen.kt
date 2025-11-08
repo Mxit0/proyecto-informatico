@@ -25,11 +25,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.data.model.allSampleProducts
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 
-// --- Datos de Muestra para Reviews (Temporal) ---
+// --- Datos de Muestra para Reviews (Se quedan en este archivo) ---
 data class Review(
     val id: String,
     val author: String,
@@ -60,18 +62,16 @@ val sampleRatingSummary = mapOf(
 @Composable
 fun ProductReviewScreen(
     navController: NavController,
-    productId: String?
+    productId: String?,
+    modifier: Modifier = Modifier // <-- Añadido modifier
 ) {
-    // En una app real, usarías el productId para buscar las reviews
     val product = allSampleProducts.find { it.id == productId } ?: allSampleProducts.first()
-    val reviews = sampleReviews // Usamos los datos de muestra
+    val reviews = sampleReviews
     val ratingSummary = sampleRatingSummary
     val averageRating = 4.6
     val totalReviews = 124
 
-    // --- 1. SEGUIMIENTO DEL ITEM SELECCIONADO ---
-    var selectedItem by remember { mutableIntStateOf(-1) }
-
+    // --- LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -81,8 +81,11 @@ fun ProductReviewScreen(
         Icons.Default.Person,
         Icons.Default.Info
     )
+    val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
+    // --- FIN LÓGICA BOTTOM BAR ---
 
     Scaffold(
+        modifier = modifier, // <-- Añadido modifier
         topBar = {
             TopAppBar(
                 title = { Text("Reviews", fontWeight = FontWeight.Bold) },
@@ -101,23 +104,27 @@ fun ProductReviewScreen(
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
+                // --- LÓGICA DE SELECCIÓN DINÁMICA ---
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
                 navItems.forEachIndexed { index, label ->
+                    val route = navRoutes[index]
+                    val selected = currentRoute == route
+
                     NavigationBarItem(
-                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray) },
-                        label = { Text(label, color = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
-                        selected = selectedItem == index,
-                        // --- 2. LÓGICA DE NAVEGACIÓN AÑADIDA ---
+                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
+                        label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
+                        selected = selected,
+
+                        // --- LÓGICA DE NAVEGACIÓN COMPLETA ---
                         onClick = {
-                            selectedItem = index
-                            when (label) {
-                                "Inicio" -> navController.navigate("main") {
-                                    popUpTo("main") { inclusive = true }
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
                                 }
-                                "Categorías" -> { /* TODO: navController.navigate("categories") */ }
-                                "Vender" -> { /* TODO: navController.navigate("publish") */ }
-                                "Mensajes" -> { /* TODO: navController.navigate("messages") */ }
-                                "Perfil" -> { /* TODO: navController.navigate("profile") */ }
-                                "Foro" -> { /* TODO: navController.navigate("forum") */ }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     )
@@ -153,13 +160,14 @@ fun ProductReviewScreen(
     }
 }
 
+// --- COMPONENTES INTERNOS (Sin cambios) ---
+
 @Composable
-fun RatingSummary(averageRating: Double, totalReviews: Int, ratingSummary: Map<Int, Float>) {
+private fun RatingSummary(averageRating: Double, totalReviews: Int, ratingSummary: Map<Int, Float>) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Calificación Promedio
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = averageRating.toString(),
@@ -173,10 +181,7 @@ fun RatingSummary(averageRating: Double, totalReviews: Int, ratingSummary: Map<I
                 color = Color.Gray
             )
         }
-
         Spacer(modifier = Modifier.width(24.dp))
-
-        // Barras de Progreso
         Column(modifier = Modifier.weight(1f)) {
             (5 downTo 1).forEach { star ->
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
@@ -205,7 +210,7 @@ fun RatingSummary(averageRating: Double, totalReviews: Int, ratingSummary: Map<I
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SortByChips() {
+private fun SortByChips() {
     var selectedChip by remember { mutableStateOf("Most recent") }
     val chips = listOf("Most recent", "Highest rating", "Lowest rating")
 
@@ -236,7 +241,7 @@ fun SortByChips() {
 }
 
 @Composable
-fun ReviewItem(review: Review) {
+private fun ReviewItem(review: Review) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
@@ -284,20 +289,20 @@ fun ReviewItem(review: Review) {
 }
 
 @Composable
-fun RatingBar(rating: Double, starSize: Dp) {
+private fun RatingBar(rating: Double, starSize: Dp) {
     Row {
         val fullStars = rating.toInt()
         val halfStar = (rating - fullStars) >= 0.5
         val emptyStars = 5 - fullStars - (if (halfStar) 1 else 0)
 
         repeat(fullStars) {
-            Icon(Icons.Default.Star, contentDescription = null, tint = Color.Yellow, modifier = Modifier.size(starSize))
+            Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(starSize))
         }
         if (halfStar) {
-            Icon(Icons.Default.StarHalf, contentDescription = null, tint = Color.Yellow, modifier = Modifier.size(starSize))
+            Icon(Icons.Default.StarHalf, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(starSize))
         }
         repeat(emptyStars) {
-            Icon(Icons.Default.StarOutline, contentDescription = null, tint = Color.Yellow, modifier = Modifier.size(starSize))
+            Icon(Icons.Default.StarOutline, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(starSize))
         }
     }
 }
@@ -313,4 +318,3 @@ fun ProductReviewScreenPreview() {
         )
     }
 }
-

@@ -4,10 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-
 import com.example.marketelectronico.ui.auth.LoginScreen
-import com.example.marketelectronico.ui.cart.CartScreen
 import com.example.marketelectronico.ui.main.MainScreen
+import com.example.marketelectronico.ui.cart.CartScreen
 import com.example.marketelectronico.ui.product.ProductScreen
 
 import com.example.marketelectronico.ui.profile.ProfileScreen
@@ -17,20 +16,23 @@ import com.example.marketelectronico.ui.forum.CreatePostScreen
 import com.example.marketelectronico.ui.forum.ForumScreen
 import com.example.marketelectronico.ui.forum.PostDetailScreen
 import com.example.marketelectronico.ui.cart.PaymentScreen
-//import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
+import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
 import com.example.marketelectronico.ui.product.ProductReviewScreen
-//import com.example.marketelectronico.ui.product.CategoriesScreen
-//import com.example.marketelectronico.ui.product.PublishScreen
-//import com.example.marketelectronico.ui.notifications.NotificationsScreen
+// import com.example.marketelectronico.ui.product.CategoriesScreen
+// import com.example.marketelectronico.ui.product.PublishScreen
+// import com.example.marketelectronico.ui.notifications.NotificationsScreen
 
-
+/**
+ * Gestiona TODA la navegación de la aplicación.
+ * Este es el archivo "maestro" de rutas FUSIONADO.
+ */
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
 
     NavHost(
         navController = navController,
-        startDestination = "login" // Empezamos en Login
+        startDestination = "login"
     ) {
 
         // --- PANTALLAS BASE ---
@@ -40,20 +42,20 @@ fun AppNavigation() {
         composable("main") {
             MainScreen(navController = navController)
         }
-        composable("product_detail/{productId}") { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId")
-            ProductScreen(navController = navController,  productId = productId)
-        }
         composable("cart") {
             CartScreen(navController = navController)
         }
+
+        // --- PANTALLAS DE PRODUCTO (Fusionadas) ---
         composable("product_detail/{productId}") { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")
-            ProductScreen(navController = navController,  productId = productId)
+            ProductScreen(navController = navController, productId = productId)
         }
+
+        // --- RUTA DESCOMENTADA ---
         composable("product_reviews/{productId}") { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")
-            // ProductReviewScreen(navController = navController, productId = productId)
+            ProductReviewScreen(navController = navController, productId = productId)
         }
         composable("categories") {
             // CategoriesScreen(navController = navController)
@@ -62,14 +64,15 @@ fun AppNavigation() {
             // PublishScreen(navController = navController)
         }
 
+        // --- PANTALLAS DE PAGO (De 'master' - DESCOMENTADAS) ---
         composable("payment") {
-            // PaymentScreen(navController = navController)
+            PaymentScreen(navController = navController)
         }
         composable("add_payment_method") {
-            // AddPaymentMethodScreen(navController = navController)
+            AddPaymentMethodScreen(navController = navController)
         }
 
-        // --- TUS PANTALLAS ---
+        // --- TUS PANTALLAS (De 'max') ---
         composable("profile") {
             ProfileScreen(navController = navController)
         }
@@ -88,7 +91,7 @@ fun AppNavigation() {
         composable("create_post") {
             CreatePostScreen(navController = navController)
         }
-        
+
         // --- OTRAS PANTALLAS ---
         composable("notifications") {
             // NotificationsScreen(navController = navController)

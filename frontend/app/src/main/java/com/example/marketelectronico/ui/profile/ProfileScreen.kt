@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState // <-- 1. IMPORTAR
 import androidx.navigation.compose.rememberNavController
-// No usamos BaseScreen, implementamos el Scaffold completo
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import kotlinx.coroutines.launch
 
@@ -34,8 +35,7 @@ fun ProfileScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    // --- LÓGICA DE LA BOTTOM BAR ---
-    val selectedItem = 4 // 4 = "Perfil"
+    // --- LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -43,14 +43,14 @@ fun ProfileScreen(
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
-        Icons.Default.Info // Ícono para 'Foro'
+        Icons.Default.Chat // Ícono para 'Foro'
     )
+    val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
     // --- FIN LÓGICA BOTTOM BAR ---
 
     Scaffold(
         modifier = modifier,
         topBar = {
-            // TopBar con flecha de "Atrás"
             TopAppBar(
                 title = { Text("Mi Perfil") },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -70,25 +70,25 @@ fun ProfileScreen(
             )
         },
         bottomBar = {
-            // --- IMPLEMENTACIÓN DE LA BOTTOM BAR ---
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
+                // --- 2. OBTENER RUTA ACTUAL ---
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
                 navItems.forEachIndexed { index, label ->
+                    val route = navRoutes[index]
+                    // --- 3. 'selected' AHORA ES DINÁMICO ---
+                    val selected = currentRoute == route
+
                     NavigationBarItem(
-                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray) },
-                        label = { Text(label, color = if (selectedItem == index) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
-                        selected = selectedItem == index,
+                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
+                        label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
+                        selected = selected, // <-- Usa el valor dinámico
+
+                        // --- 4. LÓGICA DE NAVEGACIÓN CORREGIDA ---
                         onClick = {
-                            val route = when (label) {
-                                "Inicio" -> "main"
-                                "Categorías" -> "categories"
-                                "Vender" -> "publish"
-                                "Mensajes" -> "chat_list"
-                                "Perfil" -> "profile"
-                                "Foro" -> "forum"
-                                else -> "main"
-                            }
                             navController.navigate(route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
@@ -100,22 +100,21 @@ fun ProfileScreen(
                     )
                 }
             }
-            // --- FIN BOTTOM BAR ---
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding), // Usa el padding del Scaffold
+                .padding(padding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             UserInfoSection()
-            ProfileTabs(navController = navController) // Pasa el NavController para el Logout
+            ProfileTabs(navController = navController)
         }
     }
 }
 
-// --- 1. SECCIÓN DE INFO (Foto, Nombre, Email) ---
+// --- PÁGINAS DE CONTENIDO (Sin cambios) ---
 @Composable
 private fun UserInfoSection() {
     Column(
@@ -143,17 +142,13 @@ private fun UserInfoSection() {
         )
     }
 }
-
-// --- 2. PESTAÑAS Y CONTENIDO DESLIZABLE ---
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ProfileTabs(navController: NavController) {
     val pagerState = rememberPagerState { 3 } // 3 pestañas
     val coroutineScope = rememberCoroutineScope()
     val tabTitles = listOf("Mi Nota", "Compras", "Reviews")
-
     Column(modifier = Modifier.fillMaxHeight()) {
-
         TabRow(
             selectedTabIndex = pagerState.currentPage,
             containerColor = MaterialTheme.colorScheme.surface
@@ -170,7 +165,6 @@ private fun ProfileTabs(navController: NavController) {
                 )
             }
         }
-
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.weight(1f) // Ocupa el espacio intermedio
@@ -188,7 +182,6 @@ private fun ProfileTabs(navController: NavController) {
                 }
             }
         }
-
         Button(
             onClick = {
                 navController.navigate("login") {
@@ -209,7 +202,6 @@ private fun ProfileTabs(navController: NavController) {
         }
     }
 }
-
 @Composable
 private fun MyRatingPage() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -223,7 +215,6 @@ private fun MyRatingPage() {
         Text("(120 Reviews)", style = MaterialTheme.typography.bodySmall)
     }
 }
-
 @Composable
 private fun PurchasesHistoryPage() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -232,7 +223,6 @@ private fun PurchasesHistoryPage() {
         Text("Aún no tienes compras.", style = MaterialTheme.typography.bodyMedium)
     }
 }
-
 @Composable
 private fun ReviewsHistoryPage() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -241,8 +231,6 @@ private fun ReviewsHistoryPage() {
         Text("Aún no has escrito reviews.", style = MaterialTheme.typography.bodyMedium)
     }
 }
-
-
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
