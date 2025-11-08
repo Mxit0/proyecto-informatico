@@ -17,7 +17,7 @@ import com.example.marketelectronico.ui.forum.CreatePostScreen
 import com.example.marketelectronico.ui.forum.ForumScreen
 import com.example.marketelectronico.ui.forum.PostDetailScreen
 import com.example.marketelectronico.ui.cart.PaymentScreen
-//import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
+import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
 import com.example.marketelectronico.ui.product.ProductReviewScreen
 //import com.example.marketelectronico.ui.product.CategoriesScreen
 //import com.example.marketelectronico.ui.product.PublishScreen
@@ -53,7 +53,7 @@ fun AppNavigation() {
         }
         composable("product_reviews/{productId}") { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")
-            // ProductReviewScreen(navController = navController, productId = productId)
+            ProductReviewScreen(navController = navController, productId = productId)
         }
         composable("categories") {
             // CategoriesScreen(navController = navController)
@@ -63,10 +63,10 @@ fun AppNavigation() {
         }
 
         composable("payment") {
-            // PaymentScreen(navController = navController)
+            PaymentScreen(navController = navController)
         }
         composable("add_payment_method") {
-            // AddPaymentMethodScreen(navController = navController)
+            AddPaymentMethodScreen(navController = navController)
         }
 
         // --- TUS PANTALLAS ---
