@@ -26,6 +26,9 @@ androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+retrofit = "com.squareup.retrofit2:retrofit:2.11.0"
+moshi.converter = "com.squareup.retrofit2:converter-moshi:2.11.0"
+okhttp.logging = "com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.11"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

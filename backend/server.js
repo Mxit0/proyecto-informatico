@@ -1,46 +1,44 @@
 // backend/server.js
-
 const express = require('express');
 const dotenv = require('dotenv');
-const { Client } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 
-// Carga las variables del archivo .env
 dotenv.config();
 
 const app = express();
-// Lee el puerto desde el .env, si no existe usa 3000
-const PORT = process.env.PORT || 3000; 
+const PORT = process.env.PORT || 3000;
 
-// Conexión a Supabase (PostgreSQL)
-const dbClient = new Client({
-    // Lee la URL de conexión desde .env (DATABASE_URL)
-    connectionString: process.env.DATABASE_URL,
-});
+// Supabase admin (SERVICE ROLE SOLO EN BACKEND)
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-// Middleware para JSON
 app.use(express.json());
 
-// --- Ruta de Prueba de Estado ---
-app.get('/', (req, res) => {
-    res.status(200).json({ 
-        status: 'Online', 
-        message: 'API de Compraventa de Electrónicos en línea y funcionando.'
-    });
+// Salud
+app.get('/', (_req, res) => {
+  res.status(200).json({ status: 'Online', message: 'API OK' });
 });
 
-// --- Ruta de Prueba de Conexión a Base de Datos ---
-app.get('/api/v1/db-status', async (req, res) => {
-    try {
-        await dbClient.connect();
-        await dbClient.end(); 
-        res.status(200).json({ status: 'Connected', database: 'Supabase/PostgreSQL' });
-    } catch (error) {
-        console.error('Error al conectar a la base de datos:', error.message);
-        res.status(500).json({ status: 'Error', message: 'Fallo al conectar a Supabase', error: error.message });
-    }
+// Endpoint simple: verificar conexión consultando 1
+app.get('/api/v1/db-status', async (_req, res) => {
+  const { error } = await supabase.from('usuario').select('id_usuario').limit(1);
+  if (error) return res.status(500).json({ status: 'Error', error: error.message });
+  res.json({ status: 'Connected', database: 'Supabase' });
 });
 
-// Iniciar el servidor
+// (Opcional) Login en backend, usando email/password de Supabase Auth
+app.post('/api/v1/login', async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: 'Faltan credenciales' });
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return res.status(401).json({ error: error.message });
+
+  res.json({ session: data.session, user: data.user });
+});
+
 app.listen(PORT, () => {
-    console.log(`Servidor de API corriendo en http://localhost:${PORT}`);
+  console.log(`API en http://localhost:${PORT}`);
 });
