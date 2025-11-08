@@ -16,7 +16,6 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 @Composable
 fun BaseScreen(
     title: String,
-    // El NavController es opcional (para la flecha de "Atrás")
     navController: NavController? = null,
     modifier: Modifier = Modifier,
     content: @Composable (padding: PaddingValues) -> Unit
@@ -30,9 +29,8 @@ fun BaseScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.primary
                 ),
-
+                
                 navigationIcon = {
-                    // Muestra la flecha de "atrás" si se pasó un NavController
                     if (navController != null && navController.previousBackStackEntry != null) {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
@@ -55,7 +53,7 @@ fun BaseScreenPreview() {
     MarketElectronicoTheme {
         BaseScreen(
             title = "Vista Previa",
-            navController = rememberNavController()
+            navController = rememberNavController() 
         ) { padding ->
             Text(
                 text = "El contenido de la pantalla va aquí.",
