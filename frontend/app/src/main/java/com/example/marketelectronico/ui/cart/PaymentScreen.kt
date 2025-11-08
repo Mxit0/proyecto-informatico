@@ -103,7 +103,14 @@ fun PaymentScreen(
             // El BottomBar contiene el botón de pago Y la navegación
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                 Button(
-                    onClick = { /* TODO: Procesar pago */ },
+                    onClick = {
+                        // Aquí iría tu lógica de pago (ej. llamar a una API).
+                        // Al ser exitoso, navegas a la pantalla de confirmación.
+                        navController.navigate("pay_confirm") {
+                            // Opcional: Evita que el usuario vuelva a la pantalla de pago
+                            popUpTo("cart") // O la ruta de tu carrito
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)

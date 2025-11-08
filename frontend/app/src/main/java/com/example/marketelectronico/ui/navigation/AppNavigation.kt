@@ -11,6 +11,7 @@ import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
 import com.example.marketelectronico.ui.main.MainScreen
 import com.example.marketelectronico.ui.product.ProductReviewScreen
 import com.example.marketelectronico.ui.product.ProductScreen
+import com.example.marketelectronico.ui.cart.PayConfirmScreen
 
 /**
  * Gestiona la navegación para el prototipo.
@@ -49,6 +50,10 @@ fun AppNavigation() {
 
         composable("payment") {
             PaymentScreen(navController = navController)
+        }
+
+        composable("pay_confirm") {
+            PayConfirmScreen(navController = navController)
         }
 
         // --- 2. AÑADIR NUEVA RUTA ---
