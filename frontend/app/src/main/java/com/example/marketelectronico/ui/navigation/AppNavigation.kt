@@ -10,12 +10,17 @@ import com.example.marketelectronico.ui.cart.CartScreen
 import com.example.marketelectronico.ui.main.MainScreen
 import com.example.marketelectronico.ui.product.ProductScreen
 
+<<<<<<< HEAD
+=======
+// Imports para tus 7 pantallas
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
 import com.example.marketelectronico.ui.profile.ProfileScreen
 import com.example.marketelectronico.ui.chat.ChatListScreen
 import com.example.marketelectronico.ui.chat.ConversationScreen
 import com.example.marketelectronico.ui.forum.CreatePostScreen
 import com.example.marketelectronico.ui.forum.ForumScreen
 import com.example.marketelectronico.ui.forum.PostDetailScreen
+<<<<<<< HEAD
 import com.example.marketelectronico.ui.cart.PaymentScreen
 import com.example.marketelectronico.ui.cart.AddPaymentMethodScreen
 import com.example.marketelectronico.ui.product.ProductReviewScreen
@@ -24,6 +29,15 @@ import com.example.marketelectronico.ui.product.PublishScreen
 import com.example.marketelectronico.ui.notifications.NotificationsScreen
 
 
+=======
+// (Faltarían imports de pantallas de compañeros)
+
+
+/**
+ * Gestiona la navegación para el prototipo.
+ * Define todas las rutas de la app.
+ */
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -33,13 +47,23 @@ fun AppNavigation() {
         startDestination = "login" // Empezamos en Login
     ) {
 
+<<<<<<< HEAD
         // --- PANTALLAS BASE ---
+=======
+        // --- PANTALLAS BASE (TUYAS Y DE COMPAÑEROS) ---
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
         composable("login") {
             LoginScreen(navController = navController)
         }
         composable("main") {
             MainScreen(navController = navController)
         }
+<<<<<<< HEAD
+=======
+        composable("product_detail/{productId}") {
+            ProductScreen(navController = navController)
+        }
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
         composable("cart") {
             CartScreen(navController = navController)
         }
@@ -65,6 +89,7 @@ fun AppNavigation() {
             // AddPaymentMethodScreen(navController = navController)
         }
 
+        // --- TUS PANTALLAS ---
         composable("profile") {
             ProfileScreen(navController = navController)
         }

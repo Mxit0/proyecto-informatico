@@ -1,9 +1,16 @@
 package com.example.marketelectronico.data.model
 
+<<<<<<< HEAD
 // --- 1. DEFINICIONES DE MODELOS (FUSIONADAS) ---
 
 /**
  * Modelo para un Producto (Versión de 'master', más completa)
+=======
+// --- 1. DEFINICIONES DE MODELOS (TODAS LAS DATA CLASSES) ---
+
+/**
+ * Modelo para un Producto (usado en MainScreen)
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
  * [cite: 3-13]
  */
 data class Product(
@@ -20,7 +27,11 @@ data class Product(
 )
 
 /**
+<<<<<<< HEAD
  * Modelo para la lista de Chats (Tus pantallas)
+=======
+ * Modelo para la lista de Chats (usado en ChatListScreen)
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
  */
 data class ChatPreview(
     val id: String,
@@ -30,7 +41,11 @@ data class ChatPreview(
 )
 
 /**
+<<<<<<< HEAD
  * Modelo para un Mensaje individual (Tus pantallas)
+=======
+ * Modelo para un Mensaje individual (usado en ConversationScreen)
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
  */
 data class Message(
     val id: String,
@@ -39,7 +54,11 @@ data class Message(
 )
 
 /**
+<<<<<<< HEAD
  * Modelo para un Hilo del Foro (Tus pantallas)
+=======
+ * Modelo para un Hilo del Foro (usado en ForumScreen y PostDetailScreen)
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
  */
 data class ForumThread(
     val id: String,
@@ -49,7 +68,11 @@ data class ForumThread(
 )
 
 /**
+<<<<<<< HEAD
  * Modelo para una Respuesta del Foro (Tus pantallas)
+=======
+ * Modelo para una Respuesta del Foro (usado en PostDetailScreen)
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
  */
 data class ForumReply(
     val id: String,
@@ -58,9 +81,15 @@ data class ForumReply(
 )
 
 
+<<<<<<< HEAD
 // --- 2. DATOS DE MUESTRA (FUSIONADOS) ---
 
 // --- Datos de Productos (de 'master') [cite: 16-107] ---
+=======
+// --- 2. DATOS DE MUESTRA (TODOS LOS VAL) ---
+
+// --- Datos de Productos (de tu amigo) [cite: 16-107] ---
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
 val sampleProduct1 = Product(
     id = "1",
     name = "CPU Intel Core i7",
@@ -93,7 +122,11 @@ val sampleOffers = listOf(sampleProduct7, sampleProduct8, sampleProduct9)
 
 val allSampleProducts = (sampleRecommendations + sampleNews + sampleOffers).distinctBy { it.id }
 
+<<<<<<< HEAD
 // --- Datos de Chat (Tus datos) ---
+=======
+// --- Datos de Chat (movidos aquí) ---
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
 val sampleChats = listOf(
     ChatPreview("1", "GamerZ", "Sí, la RTX 3080 aún está disponible.", "10:30 AM"),
     ChatPreview("2", "PartsWorld", "Tu pedido de RAM ha sido enviado.", "Ayer"),
@@ -103,10 +136,17 @@ val sampleMessages = listOf(
     Message("1", "Hola, ¿sigue disponible la RTX 3080?", true),
     Message("2", "¡Hola! Sí, aún la tengo.", false),
     Message("3", "Genial, ¿aceptas 650?", true),
+<<<<<<< HEAD
     Message("4. Lo siento, el precio es fijo en 700.", false)
 )
 
 // --- Datos de Foro (Tus datos) ---
+=======
+    Message("4. Lo siento, el precio es fijo en 700.", "false",true)
+)
+
+// --- Datos de Foro (movidos aquí) ---
+>>>>>>> 5c7e1bb (las cosas feas del commit anterior ya no son tan feas)
 val sampleThreads = listOf(
     ForumThread("1", "¿Es la RTX 4060 un buen upgrade desde la 2060?", "GamerZ", 12),
     ForumThread("2", "Problemas con socket LGA 1200", "TechTrader", 5),

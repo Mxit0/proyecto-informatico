@@ -16,11 +16,8 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 @Composable
 fun BaseScreen(
     title: String,
-    // --- INICIO DE LA CORRECCIÓN ---
-    // 1. Hacemos que el NavController sea "opcional" (nullable)
-    //    y tenga un valor por defecto de "null".
+    // El NavController es opcional (para la flecha de "Atrás")
     navController: NavController? = null,
-    // --- FIN DE LA CORRECCIÓN ---
     modifier: Modifier = Modifier,
     content: @Composable (padding: PaddingValues) -> Unit
 ) {
@@ -35,9 +32,7 @@ fun BaseScreen(
                 ),
 
                 navigationIcon = {
-                    // --- INICIO DE LA CORRECCIÓN ---
-                    // 2. Solo mostramos la flecha de "atrás" si el NavController
-                    //    NO es nulo Y si podemos volver atrás.
+                    // Muestra la flecha de "atrás" si se pasó un NavController
                     if (navController != null && navController.previousBackStackEntry != null) {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
@@ -46,7 +41,6 @@ fun BaseScreen(
                             )
                         }
                     }
-                    // --- FIN DE LA CORRECCIÓN ---
                 }
             )
         }
@@ -58,7 +52,6 @@ fun BaseScreen(
 @Preview(showBackground = true)
 @Composable
 fun BaseScreenPreview() {
-    // Le pasamos un NavController de prueba a la vista previa
     MarketElectronicoTheme {
         BaseScreen(
             title = "Vista Previa",
