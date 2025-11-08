@@ -1,6 +1,6 @@
 // supabaseClient.js
-import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
+const { createClient } = require("@supabase/supabase-js"); 
+const dotenv = require("dotenv");
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -10,4 +10,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error("Falta SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// CAMBIADO: de 'export' a 'module.exports'
+module.exports = { supabase };

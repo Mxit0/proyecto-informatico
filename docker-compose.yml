@@ -7,9 +7,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    # Mapea el puerto del contenedor (3000) al host (3000)
+    # Mapea el puerto del contenedor (4000) al host (4000)
     ports:
-      - "3000:3000"
+      - "4000:4000"
     # Monta el código local para desarrollo
     volumes:
       - ./backend:/usr/src/app

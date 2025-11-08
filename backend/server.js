@@ -2,8 +2,8 @@
 
 const express = require('express');
 const dotenv = require('dotenv');
-const { Client } = require('pg');
-
+//const { Client } = require('pg');
+const { supabase } = require('./supabaseClient.js');
 // Carga las variables del archivo .env
 dotenv.config();
 
@@ -12,10 +12,10 @@ const app = express();
 const PORT = process.env.PORT || 3000; 
 
 // Conexión a Supabase (PostgreSQL)
-const dbClient = new Client({
+/*const dbClient = new Client({
     // Lee la URL de conexión desde .env (DATABASE_URL)
     connectionString: process.env.DATABASE_URL,
-});
+});*/
 
 // Middleware para JSON
 app.use(express.json());
@@ -31,11 +31,20 @@ app.get('/', (req, res) => {
 // --- Ruta de Prueba de Conexión a Base de Datos ---
 app.get('/api/v1/db-status', async (req, res) => {
     try {
-        await dbClient.connect();
-        await dbClient.end(); 
-        res.status(200).json({ status: 'Connected', database: 'Supabase/PostgreSQL' });
+        
+        
+        
+        const { data, error } = await supabase
+            .from('carrito') 
+            .select('id') 
+            .limit(1);    
+        if (error) {
+            throw error;
+        }
+        res.status(200).json({ status: 'Connected', client: 'Supabase JS Client' });
+        
     } catch (error) {
-        console.error('Error al conectar a la base de datos:', error.message);
+        console.error('Error al conectar a Supabase (API):', error.message);
         res.status(500).json({ status: 'Error', message: 'Fallo al conectar a Supabase', error: error.message });
     }
 });
