@@ -6,16 +6,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ShoppingCart // Placeholder para Logo
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
@@ -24,17 +26,23 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 @Composable
 fun LoginScreen(
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    vm: AuthViewModel = viewModel(factory = AuthViewModelFactory())
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val ui by vm.ui.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Scaffold(modifier = modifier) { padding ->
+    Scaffold(
+        modifier = modifier,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp), // Espacio lateral
+                .padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -89,21 +97,33 @@ fun LoginScreen(
                 ),
                 shape = RoundedCornerShape(12.dp)
             )
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
-                    // TODO: Añadir lógica de autenticación
-                    navController.navigate("main") {
-                        popUpTo("login") { inclusive = true }
+                    vm.login(email.trim(), password) { _token ->
+                        // Aquí podrías guardar el token en DataStore si quisieras
+                        navController.navigate("main") {
+                            popUpTo("login") { inclusive = true }
+                        }
                     }
                 },
+                enabled = !ui.loading && email.isNotBlank() && password.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text(text = "Ingresar", style = MaterialTheme.typography.bodyLarge)
+                if (ui.loading) {
+                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
+                } else {
+                    Text(text = "Ingresar", style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+
+            // Errores del backend (snackbar)
+            LaunchedEffect(ui.error) {
+                ui.error?.let { snackbarHostState.showSnackbar(it) }
             }
         }
     }
