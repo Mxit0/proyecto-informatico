@@ -13,6 +13,6 @@ app.use('/auth', authRoutes);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-app.listen(process.env.PORT || 4000, () =>
+app.listen(process.env.PORT || 3000, () =>
   console.log(`API lista en http://localhost:${process.env.PORT}`)
 );
