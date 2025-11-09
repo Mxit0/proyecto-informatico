@@ -21,6 +21,7 @@ import com.example.marketelectronico.ui.product.ProductReviewScreen
 import com.example.marketelectronico.ui.cart.PayConfirmScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.example.marketelectronico.ui.review.ReviewScreen
 // import com.example.marketelectronico.ui.product.CategoriesScreen
 // import com.example.marketelectronico.ui.product.PublishScreen
 // import com.example.marketelectronico.ui.notifications.NotificationsScreen
@@ -55,11 +56,24 @@ fun AppNavigation() {
             ProductScreen(navController = navController, productId = productId)
         }
 
+
+
         // --- RUTA DESCOMENTADA ---
         composable("product_reviews/{productId}") { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")
             ProductReviewScreen(navController = navController, productId = productId)
         }
+
+        composable(
+            route = "add_review/{productId}",
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            ReviewScreen(
+                navController = navController,
+                productId = backStackEntry.arguments?.getString("productId")
+            )
+        }
+
         composable("categories") {
             // CategoriesScreen(navController = navController)
         }

@@ -35,6 +35,12 @@ import com.example.marketelectronico.data.repository.Order
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.marketelectronico.data.model.allSampleProducts
+import com.example.marketelectronico.data.repository.Review
+import com.example.marketelectronico.data.repository.ReviewRepository
+import androidx.compose.material.icons.filled.StarHalf
+import androidx.compose.material.icons.filled.StarOutline
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -246,15 +252,89 @@ private fun PurchasesHistoryPage() {
 }
 @Composable
 private fun ReviewsHistoryPage() {
+    // El autor "Asu" está hardcodeado, coincide con el autor en ReviewScreen
+    val myReviews = ReviewRepository.getReviewsByUser("Asu")
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Reviews que has Escrito", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Aún no has escrito reviews.", style = MaterialTheme.typography.bodyMedium)
+
+        if (myReviews.isEmpty()) {
+            Text("Aún no has escrito reviews.", style = MaterialTheme.typography.bodyMedium)
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(myReviews) { review ->
+                    MyReviewItem(review = review)
+                }
+            }
+        }
     }
 }
+
+@Composable
+private fun MyReviewItem(review: Review) {
+    // Buscar el producto asociado a esta reseña
+    val product = allSampleProducts.find { it.id == review.productId }
+
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            if (product != null) {
+                Text(
+                    text = "Reseña para: ${product.name}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Usamos el RatingBar de ProductReviewScreen (si lo hiciste público)
+            // o creamos uno simple aquí:
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // --- LÓGICA DE MEDIAS ESTRELLAS (COPIADA DE PRODUCTREVIEWSCREEN) ---
+                val rating = review.rating
+                val fullStars = rating.toInt()
+                val halfStar = (rating - fullStars) >= 0.5
+                val emptyStars = 5 - fullStars - (if (halfStar) 1 else 0)
+
+                repeat(fullStars) {
+                    Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                }
+                if (halfStar) {
+                    Icon(Icons.Default.StarHalf, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                }
+                repeat(emptyStars) {
+                    Icon(Icons.Default.StarOutline, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = ReviewRepository.formatDate(review.date),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = review.comment,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
+
     MarketElectronicoTheme {
         ProfileScreen(navController = rememberNavController())
     }
