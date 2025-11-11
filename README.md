@@ -14,7 +14,6 @@ Para configurar y ejecutar la aplicación de forma local, asegúrate de tener in
 | ------------------ | ----------------- | --------------------------------------------------------------------------- |
 | **Git**            | Última            | [Descargar Git](https://git-scm.com/downloads)                              |
 | **Node.js**        | Última LTS        | [Descargar Node.js](https://nodejs.org/)                                    |
-| **Docker Desktop** | Última            | [Descargar Docker Desktop](https://www.docker.com/products/docker-desktop/) |
 | **Android Studio** | Última            | [Descargar Android Studio](https://developer.android.com/studio)            |
 | **Java JDK**       | Version 11 o superior (creo) |         |
 
@@ -55,14 +54,6 @@ cd ..
 Las claves de seguridad (**Supabase URL**, **JWT Secret**, etc.) **no están incluidas** en el repositorio.
 
 Crea un archivo `.env` dentro de la carpeta `backend/` y añade las variables de entorno proporcionadas por el archivo `.env` original.
-
-### D. Levantar el Entorno con Docker
-
-Ejecuta el siguiente comando desde la raíz del proyecto:
-
-```bash
-docker-compose up --build
-```
 
 Esto construirá y levantará el entorno de desarrollo local.
 
