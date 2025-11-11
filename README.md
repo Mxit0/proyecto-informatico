@@ -25,7 +25,6 @@ Para configurar y ejecutar la aplicación de forma local, asegúrate de tener in
 | ------------------ | ----------------------- | -------------------------------------------------------------------------- |
 | **frontend-app/**  | Kotlin (Android Nativo) | Cliente móvil único para Usuarios, Vendedores y Administradores.           |
 | **backend/**       | Node.js (Express)       | API REST para lógica de negocio, autenticación y gestión de transacciones. |
-| **Docker Compose** | Docker & Redis          | Entorno de desarrollo contenedorizado.                                     |
 | **Base de Datos**  | Supabase (PostgreSQL)   | Servicio en la nube para persistencia y autenticación.                     |
 
 ---
