@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
     // Cambia a la IP de tu PC si pruebas en dispositivo físico (ej: http://192.168.1.10:4000/)
-    private const val BASE_URL = "http://10.0.2.2:4000/"
+    private const val BASE_URL = "http://10.0.2.2:3000/"
 
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY // cambia a NONE en prod
