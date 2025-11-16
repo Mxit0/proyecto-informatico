@@ -20,12 +20,12 @@ async function testGet() {
 
 // 1. Define el objeto JavaScript (¡limpio, sin comillas en las llaves!)
 const productoNuevo = {
-  nombre: "It´s over nine THOUSAND!!!",
-  precio: 9999,
-  descripcion: "Vegeta wekito",
+  nombre: "Cpu intel ",
+  precio: 250000,
+  descripcion: "Cpu intel i712700 hexacore",
   id_usuario: 4, // <-- ¡IMPORTANTE! Asegúrate que este ID exista en tu tabla 'usuario'
-  stock: 10,
-  categoria: "Figuras de acción"
+  stock: 2,
+  categoria: "procesador de alto rendimiento para tareas y jugadores gamers"
 };
 
 async function testInsert() {
