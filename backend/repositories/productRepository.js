@@ -1,27 +1,22 @@
-// Archivo: repository/productRepository.js
 import { supabase } from '../lib/supabaseClient.js';
 import redisClient from '../lib/redisClient.js';
+const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET;
 
 const TABLE = 'producto';
 const CACHE_EXPIRATION_SECONDS = 3600; 
 
 export async function getAllProducts(page, limit) {
-  
-   
   const CACHE_KEY = `productos:page:${page}:limit:${limit}`;
 
   try {
-    // --- 1. INTENTAR OBTENER DE CACHÉ ---
     const cachedProducts = await redisClient.get(CACHE_KEY);
     if (cachedProducts) {
       console.log(`Cache HIT: Sirviendo ${CACHE_KEY} desde Redis`);
       return JSON.parse(cachedProducts);
     }
 
-    // --- 2. CACHE MISS: OBTENER DE SUPABASE (CON PAGINACIÓN) ---
     console.log(`Cache MISS: Pidiendo ${CACHE_KEY} a Supabase`);
     
-    // Calcular el rango para Supabase
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
@@ -32,7 +27,6 @@ export async function getAllProducts(page, limit) {
 
     if (error) throw error;
 
-    // --- 3. GUARDAR EN CACHÉ ANTES DE DEVOLVER ---
     await redisClient.setEx(
       CACHE_KEY,
       CACHE_EXPIRATION_SECONDS,
@@ -47,7 +41,6 @@ export async function getAllProducts(page, limit) {
 }
 
 export async function createProduct(productData) {
- 
   const { 
     nombre, 
     descripcion, 
@@ -55,8 +48,7 @@ export async function createProduct(productData) {
     id_usuario, 
     stock, 
     categoria, 
-    imagen, // 'imagen' puede ir como 'null' si no se envía
-    fecha_publicacion // <-- Campo de fecha añadido
+    fecha_publicacion
   } = productData;
 
   const { data, error } = await supabase
@@ -68,7 +60,6 @@ export async function createProduct(productData) {
       id_usuario,
       stock, 
       categoria, 
-      imagen,
       fecha_publicacion
     }])
     .select()
@@ -76,7 +67,6 @@ export async function createProduct(productData) {
 
   if (error) throw error;
   
-  // --- INVALIDAR EL CACHÉ ---
   console.log('Invalidando TODOS los cachés de productos...');
   const keys = await redisClient.keys('productos:page:*');
   if (keys.length > 0) {
@@ -85,4 +75,37 @@ export async function createProduct(productData) {
   
   return data;
 }
-// Nota: También deberías invalidar (borrar) el caché si actualizas o eliminas un producto.
+
+export async function uploadProductImages(id_producto, files) {
+  const urls = [];
+
+  for (const file of files) {
+    const filePath = `public/${id_producto}/${Date.now()}-${file.originalname}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(filePath);
+    
+    const publicUrl = urlData.publicUrl;
+    urls.push(publicUrl);
+
+    const { error: dbError } = await supabase
+      .from('producto_imagenes')
+      .insert({
+        id_prod: id_producto,
+        url_imagen: publicUrl
+      });
+    
+    if (dbError) throw dbError;
+  }
+  
+  return urls;
+}
