@@ -3,6 +3,7 @@ import {
   listUsersService,
   getUserByIdService,
   updateReputationService,
+   updatePhotoService, 
 } from '../services/userService.js';
 
 export const getAllUsers = async (_req, res) => {
@@ -36,6 +37,24 @@ export const updateReputation = async (req, res) => {
     const usuario = await updateReputationService(req.params.id, reputacion);
     res.json({ ok: true, usuario });
   } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+};
+export const updatePhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "No se envió ningún archivo 'foto'" });
+    }
+
+    const usuario = await updatePhotoService(id, req.file);
+
+    res.json({ ok: true, usuario });
+  } catch (error) {
+    console.error("Error en updatePhoto:", error);
     res.status(500).json({ ok: false, message: error.message });
   }
 };

@@ -58,3 +58,14 @@ export async function updateUserReputation(id_usuario, reputacion) {
   if (error) throw error;
   return data;
 }
+export async function updateUserPhoto(id_usuario, fotoUrl) {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({ foto: fotoUrl })
+    .eq("id_usuario", id_usuario)
+    .select("id_usuario, nombre_usuario, correo, foto, reputacion, fecha_registro")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
