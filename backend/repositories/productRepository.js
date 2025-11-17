@@ -157,3 +157,38 @@ export async function uploadProductImages(id_producto, files) {
   
   return urls;
 }
+
+export async function getProductImages(id_producto) {
+  const CACHE_KEY = `imagenes_producto:${id_producto}`;
+
+  try {
+    // 1. Intentar obtener de Redis
+    const cachedImages = await redisClient.get(CACHE_KEY);
+    if (cachedImages) {
+      console.log(`Cache HIT: Imágenes para producto id ${id_producto} desde Redis`);
+      return JSON.parse(cachedImages);
+    }
+
+    // 2. Si no está en caché, pedir a Supabase
+    console.log(`Cache MISS: Pidiendo imágenes de producto id ${id_producto} a Supabase`);
+
+    const { data, error } = await supabase
+      .from('producto_imagenes') // Tu tabla de imágenes
+      .select('id_im, url_imagen')  // Seleccionamos ID y la URL
+      .eq('id_prod', id_producto); // Filtramos por el producto
+
+    if (error) throw error;
+
+    // 3. Guardar en Redis (1 hora)
+    await redisClient.setEx(
+      CACHE_KEY,
+      3600,
+      JSON.stringify(data)
+    );
+
+    return data;
+
+  } catch (err) {
+    throw err;
+  }
+}

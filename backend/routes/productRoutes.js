@@ -4,7 +4,8 @@ import {
   getAllProducts, 
   getProductById,
   createProduct, 
-  uploadProductImages 
+  uploadProductImages ,
+  getProductImages
 } from '../repositories/productRepository.js';
 
 const router = express.Router();
@@ -78,5 +79,18 @@ router.post(
     }
   }
 );
+
+router.get('/:id/imagenes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const images = await getProductImages(id);
+    
+    
+    res.json(images || []); 
+
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener las imágenes: ' + error.message });
+  }
+});
 
 export default router;
