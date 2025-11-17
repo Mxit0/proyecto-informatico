@@ -8,7 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack // <-- CORREGIDO
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -26,16 +26,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.currentBackStackEntryAsState // <-- IMPORTADO
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.data.model.Product
-import com.example.marketelectronico.data.model.allSampleProducts
+// import com.example.marketelectronico.data.model.allSampleProducts // Ya no se usa
 import com.example.marketelectronico.data.model.sampleProduct1
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
-// --- 1. IMPORTAMOS EL REPOSITORIO ---
 import com.example.marketelectronico.data.repository.CartRepository
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
+import androidx.lifecycle.viewmodel.compose.viewModel // <-- 1. IMPORTAR
+import coil.compose.AsyncImage // <-- 2. IMPORTAR COIL
 
 /**
  * Pantalla de Detalles del Producto.
@@ -45,26 +44,27 @@ import androidx.compose.material3.TextButton
 fun ProductScreen(
     navController: NavController,
     productId: String?,
-    modifier: Modifier = Modifier // <-- Añadido modifier
+    modifier: Modifier = Modifier,
+    viewModel: ProductViewModel = viewModel() // <-- 3. ACEPTA EL VIEWMODEL
 ) {
-    val product = allSampleProducts.find { it.id == productId } ?: allSampleProducts.first()
-    var showDialog by remember { mutableStateOf(false) }
+    // --- 4. OBSERVAR ESTADO Y CARGAR DATOS ---
+    val uiState by viewModel.uiState.collectAsState()
 
-    // --- 2. LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
+    LaunchedEffect(productId) {
+        if (productId != null) {
+            viewModel.fetchProduct(productId)
+        }
+    }
+    // ----------------------------------------
+
+    // --- Lógica de la Bottom Bar (sin cambios) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
-    val navIcons = listOf(
-        Icons.Default.Home,
-        Icons.AutoMirrored.Filled.List,
-        Icons.Default.AddCircle,
-        Icons.Default.Email,
-        Icons.Default.Person,
-        Icons.Default.Info
-    )
+    val navIcons = listOf(Icons.Default.Home, Icons.AutoMirrored.Filled.List, Icons.Default.AddCircle, Icons.Default.Email, Icons.Default.Person, Icons.Default.Info)
     val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
     // --- FIN LÓGICA BOTTOM BAR ---
 
     Scaffold(
-        modifier = modifier, // <-- Añadido modifier
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { },
@@ -87,22 +87,17 @@ fun ProductScreen(
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
-                // --- 3. LÓGICA DE SELECCIÓN DINÁMICA ---
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
                 navItems.forEachIndexed { index, label ->
                     val route = navRoutes[index]
-                    // Esta pantalla (product_detail) no está en la BottomBar,
-                    // así que 'selected' siempre será 'false', que es lo correcto.
                     val selected = currentRoute == route
 
                     NavigationBarItem(
                         icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
                         label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
                         selected = selected,
-
-                        // --- 4. LÓGICA DE NAVEGACIÓN COMPLETA ---
                         onClick = {
                             navController.navigate(route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -118,209 +113,244 @@ fun ProductScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Image(
-                painter = painterResource(id = android.R.drawable.ic_menu_gallery), // Placeholder
-                contentDescription = product.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(250.dp)
-                    .background(Color.DarkGray)
-            )
 
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = product.name,
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "$${product.price}",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = product.status,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Sección del Vendedor
-                Text(
-                    text = "Vendedor",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Image(
-                        painter = painterResource(id = android.R.drawable.ic_menu_gallery), // Avatar placeholder
-                        contentDescription = "Avatar del vendedor",
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(Color.Gray),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = product.sellerName,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${product.sellerRating} (${product.sellerReviews} reviews)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = { /* TODO: Reportar vendedor */ },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.error))
-                    ) {
-                        Text("Reportar")
-                    }
+        // --- 5. MANEJO DE ESTADO ---
+        when (val state = uiState) {
+            is ProductDetailUiState.Loading -> {
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Button(
-                        onClick = {
-                            // --- 5. ¡AHORA ESTA LÍNEA FUNCIONA! ---
-                            CartRepository.addToCart(product)
-                            showDialog = true
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Añadir al Carrito")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedButton(
-                        onClick = { /* TODO: Mensaje al vendedor */ },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Mensaje al Vendedor")
-                    }
+            }
+            is ProductDetailUiState.Error -> {
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                    Text(text = state.message, color = MaterialTheme.colorScheme.error)
                 }
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Sección de Descripción
-                Text(
-                    text = "Descripción",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground
+            }
+            is ProductDetailUiState.Success -> {
+                ProductDetailsContent(
+                    product = state.product,
+                    navController = navController,
+                    paddingValues = innerPadding
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = product.description,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Sección de Especificaciones
-                Text(
-                    text = "Especificaciones",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                val specsList = product.specifications.entries.toList()
-                specsList.chunked(2).forEach { rowSpecs ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        rowSpecs.forEach { (key, value) ->
-                            SpecificationItem(label = key, value = value, modifier = Modifier.weight(1f))
-                        }
-                        if (rowSpecs.size == 1) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Botones de reviews
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    OutlinedButton(
-                        onClick = { navController.navigate("product_reviews/${product.id}") },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Ver reviews del producto")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedButton(
-                        onClick = { /* TODO: Ver review del vendedor */ },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Ver reviews del vendedor")
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp)) // Espacio extra al final
             }
         }
+    }
+}
 
-        // --- DIÁLOGO DE "AÑADIDO AL CARRITO" ---
-        if (showDialog) {
-            AlertDialog(
-                onDismissRequest = { showDialog = false },
-                title = { Text(text = "¡Producto Añadido!") },
-                text = { Text(text = "El producto ha sido añadido a tu carrito.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showDialog = false
-                            navController.navigate("cart") // Navega al carrito
-                        }
-                    ) {
-                        Text("Ir al Carrito")
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { showDialog = false } // Solo cierra el diálogo
-                    ) {
-                        Text("Seguir Comprando")
+@Composable
+private fun ProductDetailsContent(
+    product: Product,
+    navController: NavController,
+    paddingValues: PaddingValues
+) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues) // <-- Usa el padding del Scaffold
+            .verticalScroll(rememberScrollState())
+    ) {
+        // --- 6. USAR COIL PARA CARGAR IMAGEN REAL ---
+        AsyncImage(
+            model = product.imageUrl,
+            contentDescription = product.name,
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+            error = painterResource(id = android.R.drawable.ic_menu_gallery),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp)
+                .background(Color.DarkGray)
+        )
+        // -------------------------------------------
+
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = product.name,
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "$${product.price}",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = product.status,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // --- El resto de tu UI (Vendedor, Botones, etc.) no cambia ---
+            // Sección del Vendedor
+            Text(
+                text = "Vendedor",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Image(
+                    painter = painterResource(id = android.R.drawable.ic_menu_gallery), // Avatar placeholder
+                    contentDescription = "Avatar del vendedor",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color.Gray),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = product.sellerName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${product.sellerRating} (${product.sellerReviews} reviews)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                        )
                     }
                 }
+                OutlinedButton(
+                    onClick = { /* TODO: Reportar vendedor */ },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.error))
+                ) {
+                    Text("Reportar")
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(
+                    onClick = {
+                        CartRepository.addToCart(product)
+                        showDialog = true
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Añadir al Carrito")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = { /* TODO: Mensaje al vendedor */ },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Mensaje al Vendedor")
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Sección de Descripción
+            Text(
+                text = "Descripción",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = product.description,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Sección de Especificaciones
+            Text(
+                text = "Especificaciones",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            val specsList = product.specifications.entries.toList()
+            specsList.chunked(2).forEach { rowSpecs ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    rowSpecs.forEach { (key, value) ->
+                        SpecificationItem(label = key, value = value, modifier = Modifier.weight(1f))
+                    }
+                    if (rowSpecs.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Botones de reviews
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                OutlinedButton(
+                    onClick = { navController.navigate("product_reviews/${product.id}") },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Ver reviews del producto")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = { /* TODO: Ver review del vendedor */ },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Ver reviews del vendedor")
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp)) // Espacio extra al final
         }
+    }
+
+    // --- DIÁLOGO DE "AÑADIDO AL CARRITO" ---
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(text = "¡Producto Añadido!") },
+            text = { Text(text = "El producto ha sido añadido a tu carrito.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDialog = false
+                        navController.navigate("cart") // Navega al carrito
+                    }
+                ) {
+                    Text("Ir al Carrito")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDialog = false } // Solo cierra el diálogo
+                ) {
+                    Text("Seguir Comprando")
+                }
+            }
+        )
     }
 }
 
@@ -347,9 +377,10 @@ fun SpecificationItem(label: String, value: String, modifier: Modifier = Modifie
 @Composable
 fun ProductScreenPreview() {
     MarketElectronicoTheme {
-        ProductScreen(
+        ProductDetailsContent(
+            product = sampleProduct1, // Usa el producto de SampleData
             navController = rememberNavController(),
-            productId = sampleProduct1.id
+            paddingValues = PaddingValues(0.dp)
         )
     }
 }

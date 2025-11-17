@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { 
   getAllProducts, 
+  getProductById,
   createProduct, 
   uploadProductImages 
 } from '../repositories/productRepository.js';
@@ -17,6 +18,19 @@ router.get('/', async (req, res) => {
     res.json(products);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener productos: ' + error.message });
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await getProductById(id);
+    if (!product) {
+      return res.status(404).json({ error: 'Producto no encontrado' });
+    }
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el producto: ' + error.message });
   }
 });
 

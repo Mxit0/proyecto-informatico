@@ -5,8 +5,11 @@ const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET;
 const TABLE = 'producto';
 const CACHE_EXPIRATION_SECONDS = 3600; 
 
+/**
+ * Obtiene todos los productos (SIN IMÁGENES)
+ */
 export async function getAllProducts(page, limit) {
-  const CACHE_KEY = `productos:page:${page}:limit:${limit}`;
+  const CACHE_KEY = `productos_simple:page:${page}:limit:${limit}`;
 
   try {
     const cachedProducts = await redisClient.get(CACHE_KEY);
@@ -15,15 +18,18 @@ export async function getAllProducts(page, limit) {
       return JSON.parse(cachedProducts);
     }
 
-    console.log(`Cache MISS: Pidiendo ${CACHE_KEY} a Supabase`);
+    console.log(`Cache MISS: Pidiendo ${CACHE_KEY} a Supabase (solo tabla 'producto')`);
     
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
+    // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
+    // Pedimos SOLO la tabla 'producto', ignorando las imágenes
     const { data, error } = await supabase
       .from(TABLE)
       .select('*')
       .range(from, to);
+    // ----------------------------
 
     if (error) throw error;
 
@@ -40,6 +46,47 @@ export async function getAllProducts(page, limit) {
   }
 }
 
+/**
+ * Obtiene un producto por su ID (SIN IMÁGENES)
+ */
+export async function getProductById(id) {
+  const CACHE_KEY = `producto_simple:${id}`;
+
+  try {
+    const cachedProduct = await redisClient.get(CACHE_KEY);
+    if (cachedProduct) {
+      console.log(`Cache HIT: Sirviendo ${CACHE_KEY} desde Redis`);
+      return JSON.parse(cachedProduct);
+    }
+
+    console.log(`Cache MISS: Pidiendo ${CACHE_KEY} a Supabase (solo tabla 'producto')`);
+
+    // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('*')
+      .eq('id', id)
+      .single();
+    // ----------------------------
+
+    if (error) throw error;
+    
+    if (data) {
+      await redisClient.setEx(
+        CACHE_KEY,
+        CACHE_EXPIRATION_SECONDS,
+        JSON.stringify(data)
+      );
+    }
+
+    return data;
+  } catch (err) {
+    throw err;
+  }
+}
+
+// --- El resto de tus funciones (createProduct, uploadProductImages) ---
+// Las dejamos, aunque 'uploadProductImages' ya no se usa por ahora.
 export async function createProduct(productData) {
   const { 
     nombre, 
@@ -67,8 +114,8 @@ export async function createProduct(productData) {
 
   if (error) throw error;
   
-  console.log('Invalidando TODOS los cachés de productos...');
-  const keys = await redisClient.keys('productos:page:*');
+  console.log('Invalidando cachés...');
+  const keys = await redisClient.keys('productos*:'); // Invalida todos los cachés de productos
   if (keys.length > 0) {
     await redisClient.del(keys);
   }
@@ -97,6 +144,7 @@ export async function uploadProductImages(id_producto, files) {
     const publicUrl = urlData.publicUrl;
     urls.push(publicUrl);
 
+    // Esta es tu tabla 'producto_imagenes'
     const { error: dbError } = await supabase
       .from('producto_imagenes')
       .insert({
