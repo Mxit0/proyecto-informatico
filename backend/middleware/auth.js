@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-export function requireAuth(req, res, next) {
+function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'No autorizado' });
@@ -13,3 +13,5 @@ export function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 }
+
+export default requireAuth;

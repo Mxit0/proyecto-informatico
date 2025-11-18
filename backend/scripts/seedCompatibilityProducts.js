@@ -1,16 +1,41 @@
-import productRepository2 from '../repositories/productRepository2.js';
 import { supabase } from '../lib/supabaseClient.js';
 
-// ID de usuario de prueba (debes usar uno real de tu base de datos)
-// Puedes obtenerlo de la tabla auth.users en Supabase
-const USER_ID = '1'; // REEMPLAZA ESTO
+// Función para obtener un ID de usuario real de tu tabla "usuario"
+async function getRealUserId() {
+  try {
+    console.log('🔍 Buscando usuarios en la tabla "usuario"...');
+    
+    const { data, error } = await supabase
+      .from('usuario')
+      .select('id_usuario')
+      .limit(1);
+
+    if (error) {
+      console.error('❌ Error obteniendo usuarios:', error);
+      return null;
+    }
+
+    if (!data || data.length === 0) {
+      console.log('⚠️ No hay usuarios en la tabla "usuario"');
+      console.log('💡 Crea un usuario primero mediante el registro en tu app');
+      return null;
+    }
+
+    const userId = data[0].id_usuario;
+    console.log(`✅ ID_USUARIO obtenido: ${userId}`);
+    return userId;
+
+  } catch (error) {
+    console.error('❌ Error inesperado:', error);
+    return null;
+  }
+}
 
 const sampleProducts = [
   {
     nombre: "Intel Core i7-12700K",
     descripcion: "Procesador Intel Core i7 12ma generación, excelente estado",
     precio: 350.00,
-    id_usuario: USER_ID,
     stock: 5,
     categoria: "procesador",
     especificaciones: {
@@ -29,7 +54,6 @@ const sampleProducts = [
     nombre: "ASUS ROG STRIX Z690-F GAMING",
     descripcion: "Placa madre ASUS ROG Z690, casi nueva con garantía",
     precio: 450.00,
-    id_usuario: USER_ID,
     stock: 3,
     categoria: "placa_madre",
     especificaciones: {
@@ -48,7 +72,6 @@ const sampleProducts = [
     nombre: "Corsair Vengeance RGB DDR5 32GB (2x16GB)",
     descripcion: "Kit de memoria DDR5 5600MHz con iluminación RGB",
     precio: 180.00,
-    id_usuario: USER_ID,
     stock: 10,
     categoria: "memoria_ram",
     especificaciones: {
@@ -66,7 +89,6 @@ const sampleProducts = [
     nombre: "AMD Ryzen 7 5800X",
     descripcion: "Procesador AMD Ryzen 7, 8 núcleos, usado 6 meses",
     precio: 280.00,
-    id_usuario: USER_ID,
     stock: 4,
     categoria: "procesador",
     especificaciones: {
@@ -85,7 +107,6 @@ const sampleProducts = [
     nombre: "MSI B550 TOMAHAWK",
     descripcion: "Placa madre MSI B550, perfecto estado",
     precio: 220.00,
-    id_usuario: USER_ID,
     stock: 2,
     categoria: "placa_madre",
     especificaciones: {
@@ -101,9 +122,8 @@ const sampleProducts = [
   },
   {
     nombre: "NVIDIA GeForce RTX 4070 Ti",
-    descripcion: "Tarjeta gráfica NVIDIA RTX 4070 Ti, usada para mining 3 meses",
+    descripcion: "Tarjeta gráfica NVIDIA RTX 4070 Ti, excelente estado",
     precio: 750.00,
-    id_usuario: USER_ID,
     stock: 1,
     categoria: "tarjeta_grafica",
     especificaciones: {
@@ -115,29 +135,127 @@ const sampleProducts = [
       consumo: "285W",
       longitud: "336mm"
     }
+  },
+  {
+    nombre: "EVGA 750W 80+ Gold",
+    descripcion: "Fuente de poder EVGA 750W certificación Gold",
+    precio: 120.00,
+    stock: 3,
+    categoria: "fuente_poder",
+    especificaciones: {
+      potencia: "750W",
+      certificacion: "80+ Gold",
+      modular: "Semi-modular",
+      conectores_pcie: "4x 8-pin",
+      conectores_sata: "8x SATA",
+      eficiencia: "90%"
+    }
   }
 ];
 
-async function seedProducts() {
+async function createProductDirect(productData, userId) {
+  const productWithUser = {
+    ...productData,
+    id_usuario: userId
+  };
+
+  const { data, error } = await supabase
+    .from('producto_compatibilidad')
+    .insert([productWithUser])
+    .select()
+    .single();
+
+  if (error) {
+    console.error(`❌ Error creando producto ${productData.nombre}:`, error);
+    throw error;
+  }
+  return data;
+}
+
+async function seedProducts(userId) {
   try {
-    console.log('Iniciando inserción de productos de prueba...');
+    console.log('📦 Iniciando inserción de productos de prueba...');
     
-    for (const product of sampleProducts) {
-      await productRepository2.createProduct(product);
-      console.log(`✅ Producto creado: ${product.nombre}`);
+    // Verificar que la tabla producto_compatibilidad existe
+    const { data: tableCheck, error: tableError } = await supabase
+      .from('producto_compatibilidad')
+      .select('id')
+      .limit(1);
+    
+    if (tableError) {
+      console.error('❌ Error accediendo a la tabla producto_compatibilidad:');
+      console.error('💡 Asegúrate de que la tabla existe en Supabase');
+      console.error('💡 Ejecuta este SQL primero en el editor de Supabase:');
+      console.log(`
+        CREATE TABLE producto_compatibilidad (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          nombre VARCHAR(255) NOT NULL,
+          descripcion TEXT,
+          precio DECIMAL(10,2),
+          id_usuario BIGINT NOT NULL,
+          stock INTEGER DEFAULT 1,
+          categoria VARCHAR(100) NOT NULL,
+          fecha_publicacion TIMESTAMP DEFAULT NOW(),
+          especificaciones JSONB NOT NULL DEFAULT '{}',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        );
+      `);
+      return;
     }
     
-    console.log('🎉 Todos los productos de prueba han sido creados exitosamente');
-    process.exit(0);
+    console.log('✅ Tabla producto_compatibilidad encontrada');
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const product of sampleProducts) {
+      try {
+        const createdProduct = await createProductDirect(product, userId);
+        console.log(`✅ Producto creado: ${product.nombre} (ID: ${createdProduct.id})`);
+        successCount++;
+      } catch (error) {
+        console.log(`❌ Error con ${product.nombre}:`, error.message);
+        errorCount++;
+      }
+      
+      // Pequeña pausa para no saturar
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log('\n🎉 Resumen de la inserción:');
+    console.log(`✅ Productos creados exitosamente: ${successCount}`);
+    console.log(`❌ Errores: ${errorCount}`);
+    console.log(`📊 Total procesado: ${sampleProducts.length}`);
+    
   } catch (error) {
-    console.error('❌ Error creando productos:', error);
-    process.exit(1);
+    console.error('❌ Error inesperado en seedProducts:', error);
   }
 }
 
-// Ejecutar solo si se llama directamente
-if (import.meta.url === `file://${process.argv[1]}`) {
-  seedProducts();
+// Función principal
+async function main() {
+  console.log('🚀 Iniciando script de inserción de productos...\n');
+  
+  const userId = await getRealUserId();
+  
+  if (!userId) {
+    console.log('\n💡 Soluciones posibles:');
+    console.log('1. Crea un usuario manualmente en tu app');
+    console.log('2. O usa este comando SQL en Supabase para obtener un ID:');
+    console.log('   SELECT id_usuario FROM usuario LIMIT 1;');
+    console.log('3. Si no hay usuarios, crea uno con este SQL:');
+    console.log(`
+      INSERT INTO usuario (nombre_usuario, correo, password) 
+      VALUES ('usuario_prueba', 'test@example.com', 'password123');
+    `);
+    return;
+  }
+  
+  await seedProducts(userId);
+  
+  console.log('\n✨ Script completado');
 }
 
-export default seedProducts;
+// Ejecutar el script
+main().catch(console.error);
