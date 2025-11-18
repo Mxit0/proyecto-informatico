@@ -1,4 +1,11 @@
 import productRepository2 from '../repositories/productRepository2.js';
+import { GoogleGenAI } from '@google/genai'; // 👈 1. Importar el SDK de Gemini
+
+// 2. Inicializar el Cliente
+// El SDK busca automáticamente la variable de entorno GEMINI_API_KEY
+// Asegúrate de definirla en tu archivo .env: GEMINI_API_KEY="TU_CLAVE_AQUI"
+const ai = new GoogleGenAI({}); 
+const MODEL = 'gemini-2.5-flash'; // 👈 Modelo rápido y rentable
 
 class CompatibilityService {
   async checkCompatibility(cartItems, userId = null) {
@@ -6,8 +13,8 @@ class CompatibilityService {
       // 1. Enriquecer datos de productos
       const enrichedItems = await this.enrichProductData(cartItems);
       
-      // 2. Llamar a DeepSeek API
-      const compatibilityResult = await this.callDeepSeekAPI(enrichedItems);
+      // 2. Llamar a la API de Gemini
+      const compatibilityResult = await this.callGeminiAPI(enrichedItems); // 👈 Cambiado el nombre de la función
       
       return compatibilityResult;
     } catch (error) {
@@ -16,6 +23,7 @@ class CompatibilityService {
     }
   }
 
+  // ... (La función enrichProductData queda igual)
   async enrichProductData(items) {
     const enriched = [];
     for (const item of items) {
@@ -29,53 +37,36 @@ class CompatibilityService {
     return enriched;
   }
 
-  async callDeepSeekAPI(items) {
+  // 👈 Esta es la función clave modificada
+  async callGeminiAPI(items) { 
     const prompt = this.buildCompatibilityPrompt(items);
     
-    // TODO: Implementar llamada real a DeepSeek API
-    // Por ahora simulamos una respuesta
-    
-    console.log('📝 Prompt para DeepSeek:', prompt);
-    
-    // Simulación de respuesta
-    return {
-      compatible: true,
-      issues: [],
-      recommendations: ["Todos los componentes son compatibles"],
-      explanation: "Los componentes seleccionados son técnicamente compatibles entre sí.",
-      compatibility_score: 95
-    };
-    
-    /*
-    // Código real para cuando tengas la API key:
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content: "Eres un experto en compatibilidad de componentes electrónicos. Analiza si los componentes son compatibles técnicamente."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        response_format: { type: "json_object" }
-      })
-    });
+    console.log('📝 Prompt para Gemini:', prompt);
 
-    const data = await response.json();
-    return JSON.parse(data.choices[0].message.content);
-    */
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL,
+        contents: prompt,
+        config: {
+          // Indicamos a Gemini que la respuesta debe ser un objeto JSON válido.
+          responseMimeType: "application/json", 
+          // Opcional: ajusta la temperatura para respuestas más precisas (cercanas a 0)
+          temperature: 0.2
+        },
+      });
+
+      // El SDK de Gemini retorna la respuesta como una cadena JSON que debemos parsear.
+      const jsonText = response.text.trim();
+      return JSON.parse(jsonText);
+      
+    } catch (error) {
+      console.error('Error llamando a la API de Gemini:', error);
+      // Lanzamos un error más específico si la API falla.
+      throw new Error('Fallo al conectar con la API de Gemini. Verifique la clave y el servicio.');
+    }
   }
 
+  // ... (La función buildCompatibilityPrompt queda igual)
   buildCompatibilityPrompt(items) {
     let prompt = `Analiza la compatibilidad técnica de estos componentes electrónicos:
 
