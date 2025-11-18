@@ -4,7 +4,7 @@ import {
   getAllProducts, 
   getProductById,
   createProduct, 
-  uploadProductImages ,
+  uploadProductImages,
   getProductImages
 } from '../repositories/productRepository.js';
 

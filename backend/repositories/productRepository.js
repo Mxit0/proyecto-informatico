@@ -130,7 +130,7 @@ export async function uploadProductImages(id_producto, files) {
     const filePath = `public/${id_producto}/${Date.now()}-${file.originalname}`;
 
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from(BUCKET_NAME)
+      .from(BUCKET_NAME) // Asegúrate de que BUCKET_NAME esté definido arriba
       .upload(filePath, file.buffer, {
         contentType: file.mimetype,
       });
@@ -144,7 +144,6 @@ export async function uploadProductImages(id_producto, files) {
     const publicUrl = urlData.publicUrl;
     urls.push(publicUrl);
 
-    // Esta es tu tabla 'producto_imagenes'
     const { error: dbError } = await supabase
       .from('producto_imagenes')
       .insert({
