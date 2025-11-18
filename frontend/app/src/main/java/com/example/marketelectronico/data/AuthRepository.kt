@@ -4,6 +4,7 @@ import com.example.marketelectronico.data.remote.AuthService
 import com.example.marketelectronico.data.remote.LoginRequest
 // --- NOVEDAD: Importar el nuevo modelo de request ---
 import com.example.marketelectronico.data.remote.RegisterRequest
+import com.example.marketelectronico.utils.TokenManager
 
 class AuthRepository {
     /**
@@ -15,6 +16,12 @@ class AuthRepository {
         return try {
             val res = AuthService.api.login(LoginRequest(correo, password))
             if (res.ok && !res.token.isNullOrBlank()) {
+                // Guardar token e información del usuario
+                TokenManager.saveToken(res.token)
+                if (res.user != null) {
+                    TokenManager.saveUserId(res.user.id_usuario)
+                    TokenManager.saveUsername(res.user.nombre_usuario)
+                }
                 Pair(res.token, null)
             } else {
                 Pair(null, res.message ?: "Correo o contraseña incorrectos")

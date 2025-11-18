@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,13 +42,21 @@ import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
 import androidx.compose.material.icons.filled.StarHalf
 import androidx.compose.material.icons.filled.StarOutline
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: ProfileViewModel = viewModel()
 ) {
+    val userProfile by viewModel.userProfile.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+    
     // --- LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
@@ -115,49 +124,92 @@ fun ProfileScreen(
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            UserInfoSection()
-            ProfileTabs(navController = navController)
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            error != null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Error: $error", color = MaterialTheme.colorScheme.error)
+                        Button(onClick = { viewModel.loadUserProfile() }) {
+                            Text("Reintentar")
+                        }
+                    }
+                }
+            }
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    UserInfoSection(userProfile = userProfile)
+                    ProfileTabs(navController = navController, userProfile = userProfile)
+                }
+            }
         }
     }
 }
 
 // --- PÁGINAS DE CONTENIDO (Sin cambios) ---
 @Composable
-private fun UserInfoSection() {
+private fun UserInfoSection(userProfile: com.example.marketelectronico.data.remote.UserProfileDto?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 24.dp, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Image(
-            painter = painterResource(id = android.R.drawable.ic_menu_camera), // Placeholder
-            contentDescription = "Foto de Perfil",
-            modifier = Modifier
-                .size(100.dp)
-                .clip(CircleShape)
-        )
+        if (userProfile?.foto != null) {
+            AsyncImage(
+                model = userProfile.foto,
+                contentDescription = "Foto de Perfil",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Image(
+                painter = painterResource(id = android.R.drawable.ic_menu_camera),
+                contentDescription = "Foto de Perfil",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+            )
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Asu", // Mock data
+            text = userProfile?.nombre_usuario ?: "Usuario",
             style = MaterialTheme.typography.titleLarge
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "asu@mail.com", // Mock data
+            text = userProfile?.correo ?: "correo@mail.com",
             style = MaterialTheme.typography.bodyMedium
         )
     }
 }
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ProfileTabs(navController: NavController) {
+private fun ProfileTabs(
+    navController: NavController,
+    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?
+) {
     val pagerState = rememberPagerState { 3 } // 3 pestañas
     val coroutineScope = rememberCoroutineScope()
     val tabTitles = listOf("Mi Nota", "Compras", "Reviews")
@@ -189,7 +241,7 @@ private fun ProfileTabs(navController: NavController) {
                 contentAlignment = Alignment.TopCenter
             ) {
                 when (pageIndex) {
-                    0 -> MyRatingPage()
+                    0 -> MyRatingPage(reputation = userProfile?.reputacion)
                     1 -> PurchasesHistoryPage()
                     2 -> ReviewsHistoryPage()
                 }
@@ -216,16 +268,19 @@ private fun ProfileTabs(navController: NavController) {
     }
 }
 @Composable
-private fun MyRatingPage() {
+private fun MyRatingPage(reputation: Double?) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Tu Reputación como Vendedor", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(40.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("4.8", style = MaterialTheme.typography.headlineLarge)
+            Text(
+                text = String.format("%.1f", reputation ?: 0.0),
+                style = MaterialTheme.typography.headlineLarge
+            )
         }
-        Text("(120 Reviews)", style = MaterialTheme.typography.bodySmall)
+        Text("(De 5.0)", style = MaterialTheme.typography.bodySmall)
     }
 }
 @Composable
