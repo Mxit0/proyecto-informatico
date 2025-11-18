@@ -1,28 +1,29 @@
 package com.example.marketelectronico.data.repository
 
 import com.example.marketelectronico.data.model.Product
+import com.example.marketelectronico.data.remote.ImageResponse
 import com.example.marketelectronico.data.remote.ProductResponse
 import com.example.marketelectronico.data.remote.ProductService
 
-/**
- * Repositorio de Frontend para obtener productos.
- * Llama a la API (ProductService) y mapea los datos al modelo de UI (Product).
- */
 class ProductRepository {
 
     private val api = ProductService.api
 
     suspend fun getAllProducts(): List<Product> {
         return try {
+            // --- ¡MÁS SIMPLE! ---
+            // Llama a GET /productos y el backend ya incluye las imágenes
             api.getAllProducts().map { it.toProduct() }
         } catch (e: Exception) {
-            e.printStackTrace() // Revisa el Logcat aquí si sigue fallando
+            e.printStackTrace()
             emptyList()
         }
     }
 
     suspend fun getProductById(id: String): Product? {
         return try {
+            // --- ¡MÁS SIMPLE! ---
+            // Llama a GET /productos/:id y el backend ya incluye las imágenes
             api.getProductById(id).toProduct()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -32,8 +33,9 @@ class ProductRepository {
 }
 
 /**
- * Función "Mapper" que convierte el DTO de red (ProductResponse)
- * al modelo de UI que tu app ya usa (Product).
+ * Función "Mapper" que convierte el DTO
+ * al modelo de UI (Product).
+ * Ahora SIEMPRE espera una respuesta con imágenes.
  */
 private fun ProductResponse.toProduct(): Product {
     return Product(
@@ -42,8 +44,8 @@ private fun ProductResponse.toProduct(): Product {
         price = this.precio,
 
         // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
-        // Asignamos un placeholder fijo ya que no recibimos imágenes
-        imageUrl = "https://placehold.co/300x300/CCCCCC/FFFFFF?text=No+Imagen",
+        // Usa la primera imagen si existe, si no, un placeholder
+        imageUrl = this.imagenes.firstOrNull()?.urlImagen ?: "https://placehold.co/300x300/CCCCCC/FFFFFF?text=No+Imagen",
         // ----------------------------
 
         status = this.categoria,
