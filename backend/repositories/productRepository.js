@@ -234,3 +234,29 @@ export async function getProductImages(id_producto) {
     throw err;
   }
 }
+
+export const updateProduct = async (id, updates) => {
+  // 1. Actualizamos en Supabase usando la constante TABLE correcta
+  const { data, error } = await supabase
+    .from(TABLE) // 👈 CORREGIDO: Usar la constante (era 'productos')
+    .update(updates)
+    .eq('id', id)
+    .select();
+
+  if (error) throw new Error(error.message);
+
+  // 2. 🧹 LIMPIEZA DE CACHÉ REDIS (¡Muy Importante!)
+  // Borramos la caché de este producto específico para que el próximo GET traiga el dato nuevo
+  const cacheKeyIndividual = `producto_con_imagenes:${id}`;
+  await redisClient.del(cacheKeyIndividual);
+  console.log(`Cache invalidada para: ${cacheKeyIndividual}`);
+
+  // Opcional: Borrar también las listas de productos para que se actualicen los listados
+  // (Esto es un poco más agresivo, borra todas las keys que empiecen con 'productos_con_imagenes')
+  const listKeys = await redisClient.keys('productos_con_imagenes*');
+  if (listKeys.length > 0) {
+    await redisClient.del(listKeys);
+  }
+
+  return data[0];
+};
