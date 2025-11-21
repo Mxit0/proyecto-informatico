@@ -272,7 +272,14 @@ private fun MyRatingPage(reputation: Double?) {
 
 @Composable
 private fun PurchasesHistoryPage() {
-    val orders = OrderRepository.orders
+    // --- OBTENER USUARIO ACTUAL ---
+    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
+    val currentUserId = currentUser?.id_usuario?.toString() ?: "invitado"
+
+    // --- FILTRAR ÓRDENES POR USUARIO ---
+    // Ahora usamos la nueva función del repositorio
+    val orders = OrderRepository.getOrdersByUser(currentUserId)
+    // -----------------------------------
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Historial de Compras", style = MaterialTheme.typography.titleMedium)
