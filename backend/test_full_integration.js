@@ -21,10 +21,11 @@ async function runFullIntegrationTest() {
     
     // 🛑 ATENCIÓN: REEMPLAZA estos strings con IDs UUID REALES de tu tabla producto_compatibilidad.
     // Los IDs deben ser cadenas de texto.
-    const REAL_CPU_ID = "1489e02e-8ae7-4b33-b05c-cf3320242455"; 
-    const REAL_MB_ID = "0d00d8b4-4cb7-45b8-918f-0d14d5dbb524";
+    const REAL_CPU_ID = "1"; 
+    const REAL_MB_ID = "2";
 
-    const cartItems = [{ product_id: REAL_CPU_ID }, { product_id: REAL_MB_ID }];
+
+    const cartItems = [{ product_id: REAL_CPU_ID }, { product_id: REAL_MB_ID },];
     
     try {
         console.log(`🔍 1. Buscando productos con IDs ${REAL_CPU_ID} y ${REAL_MB_ID} en Supabase...`);

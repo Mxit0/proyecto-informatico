@@ -28,8 +28,16 @@ class CompatibilityService {
     const enriched = [];
     for (const item of items) {
       const productDetails = await productRepository2.getProductById(item.product_id);
+      
+      // 🛑 NECESITAS ESTA LÍNEA AQUÍ
+      if (!productDetails) {
+        console.warn(`⚠️ Producto con ID ${item.product_id} no pudo ser enriquecido y fue saltado.`);
+        continue; // Esto evita que el código llegue a la línea 32 y crashée.
+      }
+      
+      // Si llegamos aquí, productDetails NO es null, y la lectura funciona.
       enriched.push({
-        name: productDetails.nombre,
+        name: productDetails.nombre, // Ahora es seguro leer 'nombre'
         category: productDetails.categoria,
         specifications: productDetails.especificaciones
       });
