@@ -2,7 +2,10 @@ package com.example.marketelectronico.ui.profile
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,14 +39,11 @@ import com.example.marketelectronico.data.repository.OrderRepository
 import com.example.marketelectronico.data.repository.Order
 import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
+import com.example.marketelectronico.data.repository.UserRepository
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.background
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -293,8 +293,12 @@ private fun PurchasesHistoryPage() {
 
 @Composable
 private fun ReviewsHistoryPage() {
-    // Obtenemos las reviews del usuario actual ("Asu")
-    val myReviews = ReviewRepository.getReviewsByUser("Asu")
+    // Obtenemos el usuario actual para filtrar sus reseñas
+    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
+    // Si hay usuario logueado usamos su nombre, si no "Asu" como fallback
+    val userName = currentUser?.nombre_usuario ?: "Asu"
+
+    val myReviews = ReviewRepository.getReviewsByUser(userName)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Reviews que has Escrito", style = MaterialTheme.typography.titleMedium)
@@ -321,8 +325,7 @@ private fun MyReviewItem(review: Review) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(modifier = Modifier.padding(16.dp)) {
-            // --- IMAGEN REAL DEL PRODUCTO ---
-            // Ahora usamos la URL guardada en la reseña
+            // Imagen del producto (usando Coil)
             AsyncImage(
                 model = review.productImageUrl,
                 contentDescription = null,
@@ -337,7 +340,6 @@ private fun MyReviewItem(review: Review) {
             Spacer(modifier = Modifier.width(16.dp))
 
             Column {
-                // --- NOMBRE REAL DEL PRODUCTO ---
                 Text(
                     text = "Para: ${review.productName}",
                     style = MaterialTheme.typography.bodyMedium,
@@ -347,7 +349,7 @@ private fun MyReviewItem(review: Review) {
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Estrellas (Lógica de medias estrellas)
+                // Estrellas
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val rating = review.rating
                     val fullStars = rating.toInt()

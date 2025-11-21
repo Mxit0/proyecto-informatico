@@ -1,21 +1,36 @@
 package com.example.marketelectronico.data.repository
 
-import com.example.marketelectronico.data.remote.UserService
-import com.example.marketelectronico.data.remote.UserProfileDto
-import com.example.marketelectronico.utils.TokenManager
 import android.util.Log
+import com.example.marketelectronico.data.remote.UserProfileDto
+import com.example.marketelectronico.data.remote.UserService
+import com.example.marketelectronico.utils.TokenManager
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class UserRepository {
     private val userApi = UserService.api
+
+    // --- NUEVO: Estado para guardar el usuario en memoria ---
+    private val _currentUser = MutableStateFlow<UserProfileDto?>(null)
+    val currentUser: StateFlow<UserProfileDto?> = _currentUser.asStateFlow()
+    // --------------------------------------------------------
 
     suspend fun getUserProfile(): UserProfileDto? {
         return try {
             val userId = TokenManager.getUserId()
             Log.d("UserRepository", "Obteniendo perfil del usuario: $userId")
-            
+
             if (userId != null) {
                 val response = userApi.getUserById(userId)
                 Log.d("UserRepository", "Respuesta recibida: $response")
+
+                // --- NUEVO: Actualizamos el estado en memoria ---
+                if (response.ok && response.user != null) {
+                    _currentUser.value = response.user
+                }
+                // ------------------------------------------------
+
                 response.user
             } else {
                 Log.e("UserRepository", "No hay ID de usuario guardado")
@@ -26,6 +41,17 @@ class UserRepository {
             e.printStackTrace()
             null
         }
+    }
+
+    // --- NUEVO: Función para setear manualmente (usada en Login) ---
+    fun setUser(user: UserProfileDto?) {
+        _currentUser.value = user
+    }
+
+    fun clearSession() {
+        _currentUser.value = null
+        // Aquí también podrías limpiar el TokenManager
+        TokenManager.clear()
     }
 
     companion object {

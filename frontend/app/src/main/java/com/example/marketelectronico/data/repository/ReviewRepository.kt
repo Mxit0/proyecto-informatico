@@ -14,6 +14,7 @@ data class Review(
     val productName: String, // <-- NUEVO CAMPO
     val productImageUrl: String, // <-- NUEVO CAMPO
     val author: String,
+    val authorImageUrl: String? = null,
     val date: Date = Date(),
     val rating: Double,
     val comment: String
@@ -62,6 +63,10 @@ object ReviewRepository {
 
     fun getReviewsByUser(authorName: String): List<Review> {
         return allReviews.filter { it.author == authorName }.sortedByDescending { it.date }
+    }
+
+    fun hasUserReviewedProduct(productId: String, authorName: String): Boolean {
+        return allReviews.any { it.productId == productId && it.author == authorName }
     }
 
     fun formatDate(date: Date): String {

@@ -32,6 +32,7 @@ import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import java.util.Locale
+import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -187,15 +188,29 @@ fun SortByChips(
 fun ReviewItem(review: Review) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painter = painterResource(id = android.R.drawable.ic_menu_gallery),
-                contentDescription = review.author,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color.Gray),
-                contentScale = ContentScale.Crop
-            )
+            if (review.authorImageUrl != null) {
+                AsyncImage(
+                    model = review.authorImageUrl,
+                    contentDescription = review.author,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    error = painterResource(id = android.R.drawable.ic_menu_gallery)
+                )
+            } else {
+                // Fallback si no tiene foto (Avatar genérico o iniciales)
+                Image(
+                    painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    contentDescription = review.author,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.Gray),
+                    contentScale = ContentScale.Crop
+                )
+            }
             Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

@@ -27,6 +27,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
+import com.example.marketelectronico.data.repository.UserRepository // <-- Tu repo existente
 import com.example.marketelectronico.ui.product.ProductDetailUiState
 import com.example.marketelectronico.ui.product.ProductViewModel
 
@@ -40,6 +41,11 @@ fun ReviewScreen(
     var rating by remember { mutableDoubleStateOf(0.0) }
     var comment by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
+
+    // --- 1. OBTENER USUARIO ACTUAL ---
+    // Observamos el StateFlow que añadimos a tu UserRepository
+    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
+    // ---------------------------------
 
     LaunchedEffect(productId) {
         if (productId != null) {
@@ -110,8 +116,17 @@ fun ReviewScreen(
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
-                    Divider()
-                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // --- 2. MOSTRAR USUARIO REAL EN PANTALLA ---
+                    if (currentUser != null) {
+                        Text(
+                            text = "Escribiendo como: ${currentUser?.nombre_usuario}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    // ------------------------------------------
 
                     Text("Your Rating", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
@@ -122,20 +137,22 @@ fun ReviewScreen(
                         value = comment,
                         onValueChange = { comment = it },
                         label = { Text("Your Review") },
-                        placeholder = { Text("Share your thoughts...") },
                         modifier = Modifier.fillMaxWidth().height(150.dp)
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
                         onClick = {
+                            // --- 3. GUARDAR LA RESEÑA CON EL USUARIO REAL ---
+                            val authorName = currentUser?.nombre_usuario ?: "Usuario Anónimo"
+                            val authorPhoto = currentUser?.foto
+
                             val newReview = Review(
                                 productId = product.id,
-                                // --- ¡AQUÍ GUARDAMOS LOS DATOS REALES! ---
                                 productName = product.name,
                                 productImageUrl = product.imageUrl,
-                                // -----------------------------------------
-                                author = "Asu",
+                                author = authorName, // <-- ¡Nombre correcto!
+                                authorImageUrl = authorPhoto,
                                 rating = rating,
                                 comment = comment
                             )
@@ -153,6 +170,7 @@ fun ReviewScreen(
     }
 }
 
+// ... (RatingInput se queda igual) ...
 @Composable
 fun RatingInput(currentRating: Double, onRatingChanged: (Double) -> Unit) {
     Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
