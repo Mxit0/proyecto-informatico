@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.update
 
 // Estado para la lista de productos
 sealed class ProductListUiState {
@@ -27,8 +28,18 @@ class MainViewModel(
     private val _uiState = MutableStateFlow<ProductListUiState>(ProductListUiState.Loading)
     val uiState: StateFlow<ProductListUiState> = _uiState.asStateFlow()
 
+    // Lista de categorías obtenida desde el backend
+    private val _categories = MutableStateFlow<List<com.example.marketelectronico.data.model.Category>>(emptyList())
+    val categories: StateFlow<List<com.example.marketelectronico.data.model.Category>> = _categories.asStateFlow()
+
     // init se llama en cuanto el ViewModel es creado
     init {
+        fetchProducts()
+        fetchCategories()
+    }
+
+    // Public refresh method para que otras pantallas soliciten recargar la lista
+    fun refreshProducts() {
         fetchProducts()
     }
 
@@ -45,6 +56,18 @@ class MainViewModel(
                 _uiState.value = ProductListUiState.Success(products)
             } catch (e: Exception) {
                 _uiState.value = ProductListUiState.Error(e.message ?: "Error desconocido")
+            }
+        }
+    }
+
+    private fun fetchCategories() {
+        viewModelScope.launch {
+            try {
+                val cats = productRepository.getCategories()
+                _categories.value = cats
+            } catch (e: Exception) {
+                // deja la lista vacía si falla
+                e.printStackTrace()
             }
         }
     }

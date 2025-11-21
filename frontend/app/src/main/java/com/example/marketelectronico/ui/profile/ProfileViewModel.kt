@@ -7,6 +7,8 @@ import com.example.marketelectronico.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import com.example.marketelectronico.data.repository.ProductRepository
+import com.example.marketelectronico.data.model.Product
 
 class ProfileViewModel : ViewModel() {
     private val userRepository = UserRepository.getInstance()
@@ -19,6 +21,11 @@ class ProfileViewModel : ViewModel() {
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
+
+    private val _userProducts = MutableStateFlow<List<Product>>(emptyList())
+    val userProducts: StateFlow<List<Product>> = _userProducts
+
+    private val productRepository = ProductRepository()
 
     init {
         loadUserProfile()
@@ -34,10 +41,26 @@ class ProfileViewModel : ViewModel() {
                 if (profile == null) {
                     _error.value = "No se pudo cargar el perfil"
                 }
+                // Si cargó el perfil, también cargamos sus publicaciones
+                profile?.let {
+                    loadUserProducts(it.id_usuario.toInt())
+                }
             } catch (e: Exception) {
                 _error.value = e.message ?: "Error al cargar perfil"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    private fun loadUserProducts(userId: Int) {
+        viewModelScope.launch {
+            try {
+                val products = productRepository.getProductsByUser(userId)
+                _userProducts.value = products
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _userProducts.value = emptyList()
             }
         }
     }

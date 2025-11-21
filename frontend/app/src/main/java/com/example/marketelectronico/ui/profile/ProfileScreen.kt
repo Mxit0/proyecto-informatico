@@ -37,6 +37,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import com.example.marketelectronico.data.model.allSampleProducts
 import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
@@ -45,17 +46,33 @@ import androidx.compose.material.icons.filled.StarOutline
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.LaunchedEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(
-    navController: NavController,
-    modifier: Modifier = Modifier,
-    viewModel: ProfileViewModel = viewModel()
+fun ProfileScreen(    navController: NavController,
+                      modifier: Modifier = Modifier,
+                      viewModel: ProfileViewModel = viewModel()
 ) {
     val userProfile by viewModel.userProfile.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+
+    // --- FIX STARTS HERE ---
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val savedStateHandle = navBackStackEntry?.savedStateHandle
+
+    // Use LaunchedEffect to collect the flow from the SavedStateHandle in a coroutine
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.getStateFlow("refresh", false)?.collect { needsRefresh ->
+            if (needsRefresh) {
+                viewModel.loadUserProfile()
+                // Reset the flag after refreshing
+                savedStateHandle.set("refresh", false)
+            }
+        }
+    }
     
     // --- LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
@@ -108,8 +125,6 @@ fun ProfileScreen(
                         icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
                         label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
                         selected = selected, // <-- Usa el valor dinámico
-
-                        // --- 4. LÓGICA DE NAVEGACIÓN CORREGIDA ---
                         onClick = {
                             navController.navigate(route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -168,12 +183,14 @@ fun ProfileScreen(
 // --- PÁGINAS DE CONTENIDO (Sin cambios) ---
 @Composable
 private fun UserInfoSection(userProfile: com.example.marketelectronico.data.remote.UserProfileDto?) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 24.dp, bottom = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
+        // Avatar
         if (userProfile?.foto != null) {
             AsyncImage(
                 model = userProfile.foto,
@@ -192,19 +209,34 @@ private fun UserInfoSection(userProfile: com.example.marketelectronico.data.remo
                     .clip(CircleShape)
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = userProfile?.nombre_usuario ?: "Usuario",
-            style = MaterialTheme.typography.titleLarge
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = userProfile?.correo ?: "correo@mail.com",
-            style = MaterialTheme.typography.bodyMedium
-        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Nombre, correo y reputación a la derecha de la imagen
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = userProfile?.nombre_usuario ?: "Usuario",
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = userProfile?.correo ?: "correo@mail.com",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        // Puntuación del usuario junto a la imagen (a la derecha)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "Puntuación", style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(text = String.format("%.1f", userProfile?.reputacion ?: 0.0), style = MaterialTheme.typography.titleMedium)
+            }
+        }
     }
 }
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ProfileTabs(
     navController: NavController,
@@ -212,7 +244,7 @@ private fun ProfileTabs(
 ) {
     val pagerState = rememberPagerState { 3 } // 3 pestañas
     val coroutineScope = rememberCoroutineScope()
-    val tabTitles = listOf("Mi Nota", "Compras", "Reviews")
+    val tabTitles = listOf("Mis Publicaciones", "Compras", "Reviews")
     Column(modifier = Modifier.fillMaxHeight()) {
         TabRow(
             selectedTabIndex = pagerState.currentPage,
@@ -232,16 +264,13 @@ private fun ProfileTabs(
         }
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.weight(1f) // Ocupa el espacio intermedio
+            modifier = Modifier.weight(1f)
         ) { pageIndex ->
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                contentAlignment = Alignment.TopCenter
+                // ...
             ) {
                 when (pageIndex) {
-                    0 -> MyRatingPage(reputation = userProfile?.reputacion)
+                    0 -> UserPostsPage()
                     1 -> PurchasesHistoryPage()
                     2 -> ReviewsHistoryPage()
                 }
@@ -292,7 +321,13 @@ private fun PurchasesHistoryPage() {
         Spacer(modifier = Modifier.height(16.dp))
 
         if (orders.isEmpty()) {
-            Text("Aún no tienes compras.", style = MaterialTheme.typography.bodyMedium)
+            Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.TopCenter) {
+                Text(
+                    "Aún no tienes compras.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -315,7 +350,13 @@ private fun ReviewsHistoryPage() {
         Spacer(modifier = Modifier.height(16.dp))
 
         if (myReviews.isEmpty()) {
-            Text("Aún no has escrito reviews.", style = MaterialTheme.typography.bodyMedium)
+            Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.TopCenter) {
+                Text(
+                    "Aún no has escrito reviews.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -438,6 +479,21 @@ private fun OrderHistoryItem(order: Order) {
                     )
                 }
             }
+        }
+    }
+}
+@Composable
+private fun UserPostsPage() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Mis Publicaciones", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.TopCenter) {
+            Text(
+                "Aún no tienes publicaciones.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

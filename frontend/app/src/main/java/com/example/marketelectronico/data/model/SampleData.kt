@@ -102,3 +102,18 @@ val sampleReplies = listOf(
     ForumReply("1", "TechTrader", "Depende de tu monitor. Para 1080p, la 4060 es genial."),
     ForumReply("2", "User123", "Yo ahorraría para la 4070, mucho más futuro.")
 )
+
+// --- Modelo y datos de muestra para Notificaciones ---
+data class Notification(
+    val id: String,
+    val title: String,
+    val body: String,
+    val timestamp: String,
+    val read: Boolean = false
+)
+
+val sampleNotifications = listOf(
+    Notification(id = "n1", title = "Venta aceptada", body = "Tu oferta por la RTX 3080 fue aceptada.", timestamp = "Hoy 10:12", read = false),
+    Notification(id = "n2", title = "Mensaje nuevo", body = "GamerZ: ¿puedes mostrar fotos del producto?", timestamp = "Ayer 18:45", read = false),
+    Notification(id = "n3", title = "Recordatorio de pago", body = "Tienes un pago pendiente para el pedido #1234.", timestamp = "2 días", read = true)
+)

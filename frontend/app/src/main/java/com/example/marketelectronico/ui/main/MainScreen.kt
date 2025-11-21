@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -29,6 +31,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.marketelectronico.data.model.sampleProduct1
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
@@ -42,10 +49,11 @@ fun MainScreen(
     viewModel: MainViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
+    val categories by viewModel.categories.collectAsState()
+    val navItems = listOf("Inicio", "Compatibilidad", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
-        Icons.AutoMirrored.Filled.List,
+        Icons.Default.CheckCircle,
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
@@ -58,7 +66,7 @@ fun MainScreen(
         topBar = {
             TechTradeTopBar(
                 onCartClick = { navController.navigate("cart") },
-                onNotificationsClick = { /* navController.navigate("notifications") */ }
+                onNotificationsClick = { navController.navigate("notifications") }
             )
         },
         bottomBar = {
@@ -92,6 +100,23 @@ fun MainScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
 
+        // Observa la señal de refresco desde la pila de navegación de forma segura
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val savedStateHandle = navBackStackEntry?.savedStateHandle
+        LaunchedEffect(savedStateHandle) {
+            // Usamos getStateFlow para poder recolectar en un coroutine y evitar observeForever
+            val flow = savedStateHandle?.getStateFlow("refresh", false)
+            if (flow != null) {
+                // Coleccionar cambios: cuando sea true, refrescamos y limpiamos la bandera
+                flow.collect { needsRefresh ->
+                    if (needsRefresh) {
+                        viewModel.refreshProducts()
+                        savedStateHandle.set("refresh", false)
+                    }
+                }
+            }
+        }
+
         when (val state = uiState) {
             is ProductListUiState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
@@ -106,6 +131,7 @@ fun MainScreen(
             is ProductListUiState.Success -> {
                 MainScreenContent(
                     products = state.products,
+                    categories = categories,
                     modifier = Modifier.padding(innerPadding),
                     navController = navController
                 )
@@ -138,6 +164,7 @@ private fun TechTradeTopBar(onCartClick: () -> Unit, onNotificationsClick: () ->
 @Composable
 private fun MainScreenContent(
     products: List<Product>,
+    categories: List<com.example.marketelectronico.data.model.Category>,
     modifier: Modifier = Modifier,
     navController: NavController
 ) {
@@ -181,6 +208,56 @@ private fun MainScreenContent(
         item {
             Spacer(modifier = Modifier.height(16.dp))
         }
+        // Categorías: solo si hay alguna (grid 2 columnas)
+        if (categories.isNotEmpty()) {
+            item { SectionTitle("Categorías") }
+            item {
+                CategoriesGrid(categories = categories, navController = navController)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoriesGrid(categories: List<com.example.marketelectronico.data.model.Category>, navController: NavController) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        val rows = categories.chunked(2)
+        rows.forEach { pair ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Cada fila tiene dos celdas; si falta, se añade un Spacer para mantener el layout
+                for (i in 0..1) {
+                    val cat = pair.getOrNull(i)
+                    if (cat != null) {
+                        Button(
+                            onClick = { /* no-op por ahora */ },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text(
+                                text = cat.nombre,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -222,12 +299,14 @@ private fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit
 
     // Comprueba si la lista está vacía
     if (products.isEmpty()) {
-        Text(
-            text = "No hay productos en esta categoría.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        Box(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
+            Text(
+                text = "No hay productos en esta categoría.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
+            )
+        }
     } else {
         // Si no está vacía, muestra la fila
         LazyRow(
@@ -293,6 +372,11 @@ fun MainScreenPreview() {
     MarketElectronicoTheme {
         MainScreenContent(
             products = listOf(sampleProduct1),
+            categories = listOf(
+                com.example.marketelectronico.data.model.Category(1, "Figuras de acción"),
+                com.example.marketelectronico.data.model.Category(2, "Procesador de alto rendimiento"),
+                com.example.marketelectronico.data.model.Category(3, "Componentes PC")
+            ),
             navController = rememberNavController(),
             modifier = Modifier
         )
