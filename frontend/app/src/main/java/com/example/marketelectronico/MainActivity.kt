@@ -24,6 +24,7 @@ class MainActivity : ComponentActivity() {
         
         // Inicializar TokenManager
         TokenManager.init(this)
+        SocketChatManager.connect()
         
         setContent {
             MarketElectronicoTheme {
