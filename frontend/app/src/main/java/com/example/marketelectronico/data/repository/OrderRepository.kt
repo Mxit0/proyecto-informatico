@@ -8,7 +8,6 @@ import java.util.UUID
 // 1. Define qué es una "Orden"
 data class Order(
     val id: String = UUID.randomUUID().toString(),
-    val userId: String,
     val items: List<Product>,
     val date: Date = Date(),
     val totalAmount: Double
@@ -35,9 +34,5 @@ object OrderRepository {
      */
     fun findOrderById(orderId: String?): Order? {
         return orders.find { it.id == orderId }
-    }
-
-    fun getOrdersByUser(userId: String): List<Order> {
-        return orders.filter { it.userId == userId }
     }
 }
