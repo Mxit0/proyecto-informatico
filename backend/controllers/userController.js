@@ -3,8 +3,8 @@ import {
   listUsersService,
   getUserByIdService,
   updateReputationService,
-   updatePhotoService, 
-} from '../services/userService.js';
+  updatePhotoService,
+} from "../services/userService.js";
 
 export const getAllUsers = async (_req, res) => {
   try {
@@ -17,12 +17,17 @@ export const getAllUsers = async (_req, res) => {
 
 export const getUserById = async (req, res) => {
   try {
+    console.log(`Buscando usuario con ID: ${req.params.id}`);
     const usuario = await getUserByIdService(req.params.id);
+    console.log(`Usuario encontrado:`, usuario);
     if (!usuario) {
-      return res.status(404).json({ ok: false, message: 'Usuario no encontrado' });
+      return res
+        .status(404)
+        .json({ ok: false, message: "Usuario no encontrado" });
     }
-    res.json({ ok: true, usuario });
+    res.json({ ok: true, user: usuario });
   } catch (error) {
+    console.error("Error en getUserById:", error);
     res.status(500).json({ ok: false, message: error.message });
   }
 };
@@ -31,11 +36,13 @@ export const updateReputation = async (req, res) => {
   try {
     const { reputacion } = req.body;
     if (reputacion === undefined) {
-      return res.status(400).json({ ok: false, message: 'Reputación requerida' });
+      return res
+        .status(400)
+        .json({ ok: false, message: "Reputación requerida" });
     }
 
     const usuario = await updateReputationService(req.params.id, reputacion);
-    res.json({ ok: true, usuario });
+    res.json({ ok: true, user: usuario });
   } catch (error) {
     res.status(500).json({ ok: false, message: error.message });
   }
@@ -52,7 +59,7 @@ export const updatePhoto = async (req, res) => {
 
     const usuario = await updatePhotoService(id, req.file);
 
-    res.json({ ok: true, usuario });
+    res.json({ ok: true, user: usuario });
   } catch (error) {
     console.error("Error en updatePhoto:", error);
     res.status(500).json({ ok: false, message: error.message });

@@ -39,6 +39,10 @@ data class ForumReply(
     val content: String
 )
 
+// --- DATOS DE MUESTRA (RESTAURADOS) ---
+// Dejamos todos los datos de muestra para que las Previews
+// y las pantallas no migradas sigan funcionando.
+
 val sampleProduct1 = Product(
     id = "1",
     name = "CPU Intel Core i7",
@@ -69,8 +73,12 @@ val sampleRecommendations = listOf(sampleProduct1, sampleProduct2, sampleProduct
 val sampleNews = listOf(sampleProduct4, sampleProduct5, sampleProduct6)
 val sampleOffers = listOf(sampleProduct7, sampleProduct8, sampleProduct9)
 
+// --- ¡LISTA RESTAURADA! ---
+// Esta lista es la que causaba todos los errores
 val allSampleProducts = (sampleRecommendations + sampleNews + sampleOffers).distinctBy { it.id }
 
+
+// --- El resto de tus datos de muestra ---
 val sampleChats = listOf(
     ChatPreview("1", "GamerZ", "Sí, la RTX 3080 aún está disponible.", "10:30 AM"),
     ChatPreview("2", "PartsWorld", "Tu pedido de RAM ha sido enviado.", "Ayer"),

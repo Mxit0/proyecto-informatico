@@ -7,10 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.marketelectronico.data.AuthRepository
+import com.example.marketelectronico.data.repository.UserRepository // <-- Importar
+import com.example.marketelectronico.utils.TokenManager // <-- Asegúrate de tener esto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.io.IOException
 
 data class AuthUiState(
     val loading: Boolean = false,
@@ -18,7 +19,8 @@ data class AuthUiState(
 )
 
 class AuthViewModel(
-    private val repo: AuthRepository
+    private val authRepo: AuthRepository,
+    private val userRepo: UserRepository // <-- Inyectamos UserRepository
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(AuthUiState())
@@ -32,12 +34,21 @@ class AuthViewModel(
     fun login(onSuccess: (token: String) -> Unit) {
         viewModelScope.launch {
             _ui.value = AuthUiState(loading = true)
-            val (token, error) = repo.login(email, password)
-            _ui.value = if (token != null) {
-                onSuccess(token)
-                AuthUiState(loading = false)
+
+            val (token, error) = authRepo.login(email, password)
+
+            if (token != null) {
+                val userProfile = userRepo.getUserProfile()
+
+                if (userProfile != null) {
+                    onSuccess(token)
+                    _ui.value = AuthUiState(loading = false)
+                } else {
+                    // Si hay token pero falla al traer el perfil
+                    _ui.value = AuthUiState(loading = false, error = "Error al cargar perfil de usuario")
+                }
             } else {
-                AuthUiState(loading = false, error = error ?: "Error de login")
+                _ui.value = AuthUiState(loading = false, error = error ?: "Error de login")
             }
         }
     }
@@ -45,12 +56,15 @@ class AuthViewModel(
     fun register(onSuccess: (token: String) -> Unit) {
         viewModelScope.launch {
             _ui.value = AuthUiState(loading = true)
-            val (token, error) = repo.register(nombre, email, password)
-            _ui.value = if (token != null) {
+            val (token, error) = authRepo.register(nombre, email, password)
+
+            if (token != null) {
+                // Al registrar, idealmente también cargamos el perfil
+                userRepo.getUserProfile()
                 onSuccess(token)
-                AuthUiState(loading = false)
+                _ui.value = AuthUiState(loading = false)
             } else {
-                AuthUiState(loading = false, error = error ?: "Error de registro")
+                _ui.value = AuthUiState(loading = false, error = error ?: "Error de registro")
             }
         }
     }
@@ -63,7 +77,8 @@ class AuthViewModel(
 class AuthViewModelFactory : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        val repo = AuthRepository()
-        return AuthViewModel(repo) as T
+        val authRepo = AuthRepository()
+        val userRepo = UserRepository.getInstance()
+        return AuthViewModel(authRepo, userRepo) as T
     }
 }

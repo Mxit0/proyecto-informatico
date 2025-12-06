@@ -1,5 +1,6 @@
 package com.example.marketelectronico.ui.main
 
+// ... (Todos tus imports: Image, Layout, LazyColumn, Icons, etc.)
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,16 +25,23 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.marketelectronico.data.model.Product
-import com.example.marketelectronico.data.model.sampleNews
-import com.example.marketelectronico.data.model.sampleOffers
-import com.example.marketelectronico.data.model.sampleRecommendations
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import com.example.marketelectronico.data.model.sampleProduct1
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
+import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 
+// ... (Tu Composable MainScreen, TechTradeTopBar no cambian)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: MainViewModel = viewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -57,21 +65,17 @@ fun MainScreen(
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
-                // --- 2. OBTENER RUTA ACTUAL ---
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
                 navItems.forEachIndexed { index, label ->
                     val route = navRoutes[index]
-                    // --- 3. 'selected' AHORA ES DINÁMICO ---
                     val selected = currentRoute == route
 
                     NavigationBarItem(
                         icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
                         label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
-                        selected = selected, // <-- Usa el valor dinámico
-
-                        // --- 4. LÓGICA DE NAVEGACIÓN CORREGIDA ---
+                        selected = selected,
                         onClick = {
                             navController.navigate(route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -87,14 +91,29 @@ fun MainScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        MainScreenContent(
-            modifier = Modifier.padding(innerPadding),
-            navController = navController
-        )
+
+        when (val state = uiState) {
+            is ProductListUiState.Loading -> {
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            is ProductListUiState.Error -> {
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                    Text(text = state.message, color = MaterialTheme.colorScheme.error)
+                }
+            }
+            is ProductListUiState.Success -> {
+                MainScreenContent(
+                    products = state.products,
+                    modifier = Modifier.padding(innerPadding),
+                    navController = navController
+                )
+            }
+        }
     }
 }
 
-// --- BARRA SUPERIOR  ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TechTradeTopBar(onCartClick: () -> Unit, onNotificationsClick: () -> Unit) {
@@ -116,10 +135,17 @@ private fun TechTradeTopBar(onCartClick: () -> Unit, onNotificationsClick: () ->
     )
 }
 
-// --- CONTENIDO Y COMPONENTES ---
-// (MainScreenContent, SearchBar, SectionTitle, ProductRow, ProductCard)
 @Composable
-private fun MainScreenContent(modifier: Modifier = Modifier, navController: NavController) {
+private fun MainScreenContent(
+    products: List<Product>,
+    modifier: Modifier = Modifier,
+    navController: NavController
+) {
+    // ... (Tu lógica de 'recommendations', 'news', 'offers' no cambia)
+    val recommendations = products.take(5)
+    val news = products.drop(5).take(5)
+    val offers = products.drop(10)
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -129,7 +155,7 @@ private fun MainScreenContent(modifier: Modifier = Modifier, navController: NavC
         item { SectionTitle("Recomendaciones para ti") }
         item {
             ProductRow(
-                products = sampleRecommendations,
+                products = recommendations,
                 onProductClick = { productId ->
                     navController.navigate("product_detail/$productId")
                 }
@@ -138,7 +164,7 @@ private fun MainScreenContent(modifier: Modifier = Modifier, navController: NavC
         item { SectionTitle("Novedades") }
         item {
             ProductRow(
-                products = sampleNews,
+                products = news,
                 onProductClick = { productId ->
                     navController.navigate("product_detail/$productId")
                 }
@@ -147,7 +173,7 @@ private fun MainScreenContent(modifier: Modifier = Modifier, navController: NavC
         item { SectionTitle("Ofertas destacadas") }
         item {
             ProductRow(
-                products = sampleOffers,
+                products = offers,
                 onProductClick = { productId ->
                     navController.navigate("product_detail/$productId")
                 })
@@ -157,6 +183,8 @@ private fun MainScreenContent(modifier: Modifier = Modifier, navController: NavC
         }
     }
 }
+
+// ... (Tu Composable SearchBar y SectionTitle no cambian)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchBar(modifier: Modifier = Modifier) {
@@ -187,22 +215,39 @@ private fun SectionTitle(title: String) {
         modifier = Modifier.padding(top = 24.dp, bottom = 16.dp)
     )
 }
+
+// --- ¡AQUÍ ESTÁ LA MEJORA! ---
 @Composable
 private fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(products) { product ->
-            ProductCard(
-                product = product,
-                onClick = { onProductClick(product.id) }
-            )
+
+    // Comprueba si la lista está vacía
+    if (products.isEmpty()) {
+        Text(
+            text = "No hay productos en esta categoría.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+    } else {
+        // Si no está vacía, muestra la fila
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(products) { product ->
+                ProductCard(
+                    product = product,
+                    onClick = { onProductClick(product.id) }
+                )
+            }
         }
     }
 }
+// ------------------------------
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProductCard(product: Product, onClick: () -> Unit) {
+    // ... (Tu Composable ProductCard con AsyncImage no cambia)
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
@@ -210,16 +255,19 @@ private fun ProductCard(product: Product, onClick: () -> Unit) {
         modifier = Modifier.width(150.dp)
     ) {
         Column {
-            Image(
-                painter = painterResource(id = android.R.drawable.ic_menu_gallery), // Placeholder
+            AsyncImage(
+                model = product.imageUrl,
                 contentDescription = product.name,
                 contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                error = painterResource(id = android.R.drawable.ic_menu_gallery),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(110.dp)
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                     .align(Alignment.CenterHorizontally)
             )
+
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
                     text = product.name,
@@ -236,5 +284,17 @@ private fun ProductCard(product: Product, onClick: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
+@Composable
+fun MainScreenPreview() {
+    MarketElectronicoTheme {
+        MainScreenContent(
+            products = listOf(sampleProduct1),
+            navController = rememberNavController(),
+            modifier = Modifier
+        )
     }
 }

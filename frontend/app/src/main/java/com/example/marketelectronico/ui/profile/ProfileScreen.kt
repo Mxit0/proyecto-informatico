@@ -2,7 +2,10 @@ package com.example.marketelectronico.ui.profile
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -14,41 +17,47 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.currentBackStackEntryAsState // <-- 1. IMPORTAR
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
-import kotlinx.coroutines.launch
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.marketelectronico.data.repository.OrderRepository
 import com.example.marketelectronico.data.repository.Order
-import java.text.SimpleDateFormat
-import java.util.Locale
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import com.example.marketelectronico.data.model.allSampleProducts
 import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
-import androidx.compose.material.icons.filled.StarHalf
-import androidx.compose.material.icons.filled.StarOutline
-
+import com.example.marketelectronico.data.repository.UserRepository
+import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // Usamos el ViewModel que creó tu compañero
+    viewModel: ProfileViewModel = viewModel()
 ) {
-    // --- LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
+    // Observamos el estado del perfil del usuario real
+    val userProfile by viewModel.userProfile.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+
+    // --- LÓGICA DE LA BOTTOM BAR ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -56,10 +65,9 @@ fun ProfileScreen(
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
-        Icons.Default.Chat // Ícono para 'Foro'
+        Icons.Default.Info // O Icons.Default.Chat si lo prefieres
     )
     val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
-    // --- FIN LÓGICA BOTTOM BAR ---
 
     Scaffold(
         modifier = modifier,
@@ -83,29 +91,21 @@ fun ProfileScreen(
             )
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                // --- 2. OBTENER RUTA ACTUAL ---
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
                 navItems.forEachIndexed { index, label ->
                     val route = navRoutes[index]
-                    // --- 3. 'selected' AHORA ES DINÁMICO ---
                     val selected = currentRoute == route
 
                     NavigationBarItem(
                         icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
                         label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
-                        selected = selected, // <-- Usa el valor dinámico
-
-                        // --- 4. LÓGICA DE NAVEGACIÓN CORREGIDA ---
+                        selected = selected,
                         onClick = {
                             navController.navigate(route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
                             }
@@ -115,52 +115,95 @@ fun ProfileScreen(
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            UserInfoSection()
-            ProfileTabs(navController = navController)
+        // Manejo de estados (Carga, Error, Éxito) del perfil
+        when {
+            isLoading -> {
+                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            error != null -> {
+                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Error: $error", color = MaterialTheme.colorScheme.error)
+                        Button(onClick = { viewModel.loadUserProfile() }) {
+                            Text("Reintentar")
+                        }
+                    }
+                }
+            }
+            else -> {
+                // Si carga bien, mostramos la info del usuario y las pestañas
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    UserInfoSection(userProfile = userProfile)
+                    ProfileTabs(navController = navController, userProfile = userProfile)
+                }
+            }
         }
     }
 }
 
-// --- PÁGINAS DE CONTENIDO (Sin cambios) ---
+// --- SECCIÓN DE INFORMACIÓN DEL USUARIO (De tu compañero) ---
 @Composable
-private fun UserInfoSection() {
+private fun UserInfoSection(userProfile: com.example.marketelectronico.data.remote.UserProfileDto?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 24.dp, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Image(
-            painter = painterResource(id = android.R.drawable.ic_menu_camera), // Placeholder
-            contentDescription = "Foto de Perfil",
-            modifier = Modifier
-                .size(100.dp)
-                .clip(CircleShape)
-        )
+        // Foto de perfil (con fallback si es nula)
+        if (userProfile?.foto != null) {
+            AsyncImage(
+                model = userProfile.foto,
+                contentDescription = "Foto de Perfil",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
+                error = painterResource(id = android.R.drawable.ic_menu_camera)
+            )
+        } else {
+            Image(
+                painter = painterResource(id = android.R.drawable.ic_menu_camera),
+                contentDescription = "Foto de Perfil",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+            )
+        }
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Nombre y correo
         Text(
-            text = "Asu", // Mock data
+            text = userProfile?.nombre_usuario ?: "Usuario",
             style = MaterialTheme.typography.titleLarge
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "asu@mail.com", // Mock data
+            text = userProfile?.correo ?: "correo@mail.com",
             style = MaterialTheme.typography.bodyMedium
         )
     }
 }
+
+// --- PESTAÑAS DEL PERFIL ---
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ProfileTabs(navController: NavController) {
-    val pagerState = rememberPagerState { 3 } // 3 pestañas
+private fun ProfileTabs(
+    navController: NavController,
+    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?
+) {
+    val pagerState = rememberPagerState { 3 }
     val coroutineScope = rememberCoroutineScope()
     val tabTitles = listOf("Mi Nota", "Compras", "Reviews")
+
     Column(modifier = Modifier.fillMaxHeight()) {
         TabRow(
             selectedTabIndex = pagerState.currentPage,
@@ -169,18 +212,15 @@ private fun ProfileTabs(navController: NavController) {
             tabTitles.forEachIndexed { index, title ->
                 Tab(
                     selected = pagerState.currentPage == index,
-                    onClick = {
-                        coroutineScope.launch {
-                            pagerState.animateScrollToPage(index)
-                        }
-                    },
+                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
                     text = { Text(text = title) }
                 )
             }
         }
+
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.weight(1f) // Ocupa el espacio intermedio
+            modifier = Modifier.weight(1f)
         ) { pageIndex ->
             Box(
                 modifier = Modifier
@@ -189,18 +229,15 @@ private fun ProfileTabs(navController: NavController) {
                 contentAlignment = Alignment.TopCenter
             ) {
                 when (pageIndex) {
-                    0 -> MyRatingPage()
+                    0 -> MyRatingPage(reputation = userProfile?.reputacion) // Pasamos la reputación real
                     1 -> PurchasesHistoryPage()
                     2 -> ReviewsHistoryPage()
                 }
             }
         }
+
         Button(
-            onClick = {
-                navController.navigate("login") {
-                    popUpTo(0) { inclusive = true }
-                }
-            },
+            onClick = { navController.navigate("login") { popUpTo(0) { inclusive = true } } },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
@@ -215,22 +252,34 @@ private fun ProfileTabs(navController: NavController) {
         }
     }
 }
+
 @Composable
-private fun MyRatingPage() {
+private fun MyRatingPage(reputation: Double?) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Tu Reputación como Vendedor", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(40.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("4.8", style = MaterialTheme.typography.headlineLarge)
+            Text(
+                text = String.format("%.1f", reputation ?: 0.0), // Mostramos la reputación real
+                style = MaterialTheme.typography.headlineLarge
+            )
         }
-        Text("(120 Reviews)", style = MaterialTheme.typography.bodySmall)
+        Text("(Basado en tus ventas)", style = MaterialTheme.typography.bodySmall)
     }
 }
+
 @Composable
 private fun PurchasesHistoryPage() {
-    val orders = OrderRepository.orders
+    // --- OBTENER USUARIO ACTUAL ---
+    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
+    val currentUserId = currentUser?.id_usuario?.toString() ?: "invitado"
+
+    // --- FILTRAR ÓRDENES POR USUARIO ---
+    // Ahora usamos la nueva función del repositorio
+    val orders = OrderRepository.getOrdersByUser(currentUserId)
+    // -----------------------------------
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Historial de Compras", style = MaterialTheme.typography.titleMedium)
@@ -243,17 +292,20 @@ private fun PurchasesHistoryPage() {
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(orders) { order ->
-                    OrderHistoryItem(order = order)
-                }
+                items(orders) { order -> OrderHistoryItem(order = order) }
             }
         }
     }
 }
+
 @Composable
 private fun ReviewsHistoryPage() {
-    // El autor "Asu" está hardcodeado, coincide con el autor en ReviewScreen
-    val myReviews = ReviewRepository.getReviewsByUser("Asu")
+    // Obtenemos el usuario actual para filtrar sus reseñas
+    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
+    // Si hay usuario logueado usamos su nombre, si no "Asu" como fallback
+    val userName = currentUser?.nombre_usuario ?: "Asu"
+
+    val myReviews = ReviewRepository.getReviewsByUser(userName)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Reviews que has Escrito", style = MaterialTheme.typography.titleMedium)
@@ -266,9 +318,7 @@ private fun ReviewsHistoryPage() {
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(myReviews) { review ->
-                    MyReviewItem(review = review)
-                }
+                items(myReviews) { review -> MyReviewItem(review = review) }
             }
         }
     }
@@ -276,72 +326,65 @@ private fun ReviewsHistoryPage() {
 
 @Composable
 private fun MyReviewItem(review: Review) {
-    // Buscar el producto asociado a esta reseña
-    val product = allSampleProducts.find { it.id == review.productId }
-
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            if (product != null) {
-                Text(
-                    text = "Reseña para: ${product.name}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Usamos el RatingBar de ProductReviewScreen (si lo hiciste público)
-            // o creamos uno simple aquí:
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // --- LÓGICA DE MEDIAS ESTRELLAS (COPIADA DE PRODUCTREVIEWSCREEN) ---
-                val rating = review.rating
-                val fullStars = rating.toInt()
-                val halfStar = (rating - fullStars) >= 0.5
-                val emptyStars = 5 - fullStars - (if (halfStar) 1 else 0)
-
-                repeat(fullStars) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                }
-                if (halfStar) {
-                    Icon(Icons.Default.StarHalf, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                }
-                repeat(emptyStars) {
-                    Icon(Icons.Default.StarOutline, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = ReviewRepository.formatDate(review.date),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = review.comment,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+        Row(modifier = Modifier.padding(16.dp)) {
+            // Imagen del producto (usando Coil)
+            AsyncImage(
+                model = review.productImageUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(Color.Gray),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                error = painterResource(id = android.R.drawable.ic_menu_gallery)
             )
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    text = "Para: ${review.productName}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Estrellas
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val rating = review.rating
+                    val fullStars = rating.toInt()
+                    val halfStar = (rating - fullStars) >= 0.5
+                    val emptyStars = 5 - fullStars - (if (halfStar) 1 else 0)
+
+                    repeat(fullStars) { Icon(Icons.Default.Star, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp)) }
+                    if (halfStar) { Icon(Icons.Default.StarHalf, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp)) }
+                    repeat(emptyStars) { Icon(Icons.Default.StarOutline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp)) }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = ReviewRepository.formatDate(review.date), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = review.comment,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun ProfileScreenPreview() {
-
-    MarketElectronicoTheme {
-        ProfileScreen(navController = rememberNavController())
-    }
-}
 @Composable
 private fun OrderHistoryItem(order: Order) {
-    // Formateador de fecha
     val dateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
 
     Surface(
@@ -376,7 +419,7 @@ private fun OrderHistoryItem(order: Order) {
             // Mostrar los productos en esta orden
             order.items.forEach { product ->
                 Row(modifier = Modifier.padding(bottom = 4.dp)) {
-                    Text("• ") // Viñeta
+                    Text("• ")
                     Text(
                         text = product.name,
                         style = MaterialTheme.typography.bodyMedium
@@ -384,5 +427,13 @@ private fun OrderHistoryItem(order: Order) {
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ProfileScreenPreview() {
+    MarketElectronicoTheme {
+        ProfileScreen(navController = rememberNavController())
     }
 }

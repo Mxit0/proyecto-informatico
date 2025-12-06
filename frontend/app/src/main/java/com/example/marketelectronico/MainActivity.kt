@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.example.marketelectronico.ui.navigation.AppNavigation
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+import com.example.marketelectronico.utils.TokenManager
 
 /**
  * Es el anfitrión de la aplicación de Jetpack Compose.
@@ -20,6 +21,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Inicializar TokenManager
+        TokenManager.init(this)
+        
         setContent {
             MarketElectronicoTheme {
                 Surface(
