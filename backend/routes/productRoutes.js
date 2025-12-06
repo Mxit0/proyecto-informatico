@@ -20,23 +20,82 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
- try {
-    const newProductData = req.body; 
-    const { nombre, precio, descripcion, id_usuario, stock, categoria } = newProductData;
+router.get('/tipos', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('componente_maestro')
+      .select('categoria');
 
-    if (!nombre || !precio || !descripcion || !id_usuario || !stock || !categoria) {
-      return res.status(400).json({ 
-        error: 'Datos incompletos. Se requieren: nombre, precio, descripcion, id_usuario, stock, categoria.' 
+    if (error) throw error;
+
+    const tipos = [...new Set(data.map(d => d.categoria))];
+
+    res.json(tipos);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/:tipo', async (req, res) => {
+  const { tipo } = req.params;
+
+  try {
+    const { data, error } = await supabase
+      .from('componente_maestro')
+      .select('id, nombre_componente, categoria')
+      .eq('categoria', tipo);
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/', async (req, res) => {
+  try {
+    const { 
+      id_componente_maestro,
+      precio,
+      descripcion,
+      id_usuario,
+      stock
+    } = req.body;
+
+    if (!id_componente_maestro || !precio || !id_usuario) {
+      return res.status(400).json({
+        error: "Faltan datos requeridos: id_componente_maestro, precio, id_usuario"
       });
     }
-    newProductData.fecha_publicacion = new Date().toISOString();
-    
-    const createdProduct = await createProduct(newProductData);
-    res.status(201).json(createdProduct); 
-  
+
+    // 1. Obtener maestro para autocompletar nombre + categoria
+    const { data: maestro, error: maestroErr } = await supabase
+      .from('componente_maestro')
+      .select('nombre_componente, categoria')
+      .eq('id', id_componente_maestro)
+      .single();
+
+    if (maestroErr || !maestro) {
+      return res.status(400).json({ error: "Componente maestro inválido" });
+    }
+
+    // 2. Crear producto final
+    const newProduct = {
+      nombre: maestro.nombre_componente,   // autocompletado
+      categoria: maestro.categoria,        // autocompletado
+      descripcion: descripcion || '',
+      precio,
+      id_usuario,
+      stock: stock ?? 1,
+      id_componente_maestro
+    };
+
+    const created = await createProduct(newProduct);
+    res.json(created);
+
   } catch (error) {
-    res.status(500).json({ error: 'Error al crear el producto: ' + error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
