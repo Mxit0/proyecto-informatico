@@ -37,6 +37,7 @@ import com.example.marketelectronico.data.repository.ReviewRepository
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import com.example.marketelectronico.data.repository.UserRepository
 
 /**
  * Pantalla de confirmación de pago exitoso.
@@ -58,6 +59,8 @@ fun PayConfirmScreen(
     }
     val purchasedItems = order.items
     val totalItems = purchasedItems.size
+    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
+    val userName = currentUser?.nombre_usuario ?: ""
     val userReviews by remember {
         derivedStateOf { ReviewRepository.getReviewsByUser("Asu") }
     }
@@ -189,14 +192,20 @@ fun PayConfirmScreen(
 
             // --- Lista de Items Comprados ---
             items(purchasedItems) { product ->
-                val hasBeenReviewed = userReviews.any { it.productId == product.id }
+                // --- VERIFICAR SI YA EXISTE RESEÑA ---
+                // Usamos un key para que se recomposicione si cambia algo
+                val hasReviewed = remember(product.id, userName, ReviewRepository.allReviews.size) {
+                    ReviewRepository.hasUserReviewedProduct(product.id, userName)
+                }
+
                 ProductSummaryItem(
                     product = product,
-                    hasBeenReviewed = hasBeenReviewed,
+                    showReviewButton = !hasReviewed, // <-- Ocultar si ya reseñó
                     onAddReviewClick = {
                         navController.navigate("add_review/${product.id}")
                     }
                 )
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // --- Botones de Acción ---
@@ -279,7 +288,7 @@ private fun PaymentDetailItem(
 @Composable
 private fun ProductSummaryItem(
     product: Product,
-    hasBeenReviewed: Boolean,
+    showReviewButton: Boolean,
     onAddReviewClick: () -> Unit
 ) {
     Surface(
@@ -316,7 +325,7 @@ private fun ProductSummaryItem(
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            if (!hasBeenReviewed) {
+            if (showReviewButton) {
                 Button(
                     onClick = onAddReviewClick,
                     shape = MaterialTheme.shapes.medium,
@@ -333,18 +342,21 @@ private fun ProductSummaryItem(
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun PayConfirmScreenPreview() {
-    val previewOrder = Order(
+    val mockProduct = Product(
+        id = "1", name = "CPU", price = 250.0, imageUrl = "",
+        status = "New", sellerName = "Tech", sellerRating = 4.5, sellerReviews = 10, description = "", specifications = emptyMap()
+    )
+
+    val mockOrder = Order(
         id = "preview123",
-        items = com.example.marketelectronico.data.model.allSampleProducts.take(2),
+        userId = "preview_user", // <-- AÑADIR USER ID FALSO
+        items = listOf(mockProduct),
         totalAmount = 250.0
     )
-    OrderRepository.addOrder(previewOrder)
+    OrderRepository.addOrder(mockOrder)
 
     MarketElectronicoTheme {
-        PayConfirmScreen(
-            navController = rememberNavController(),
-            orderId = "preview123"
-        )
+        PayConfirmScreen(navController = rememberNavController(), orderId = "preview123")
     }
 }
 
