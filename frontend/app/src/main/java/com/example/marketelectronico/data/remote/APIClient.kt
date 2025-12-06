@@ -24,10 +24,9 @@ class AuthInterceptor : Interceptor {
 }
 
 object ApiClient {
-    private const val BASE_URL = "http://10.0.2.2:3000/"
-    // Para DISPOSITIVO FÍSICO: usar la IP local de tu computadora en la red WiFi
-    // IP actual: 10.155.109.176 (si no funciona, verifica con: ipconfig en CMD)
-    //private const val BASE_URL = "http://10.155.109.176:3000/"
+    // Cambia a la IP de tu PC si pruebas en dispositivo físico (ej: http://192.168.1.10:4000/)
+    // private const val BASE_URL = "http://10.126.185.209:3000/"
+    private const val BASE_URL = "http://192.168.1.53:3000/"
 
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY // cambia a NONE en prod
