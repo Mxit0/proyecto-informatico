@@ -1,10 +1,11 @@
 package com.example.marketelectronico.data.repository
 
 import com.example.marketelectronico.data.model.Product
-import com.example.marketelectronico.data.model.Category
 import com.example.marketelectronico.data.remote.ImageResponse
 import com.example.marketelectronico.data.remote.ProductResponse
 import com.example.marketelectronico.data.remote.ProductService
+import com.example.marketelectronico.data.model.Category
+import com.example.marketelectronico.data.remote.CategoryResponse
 
 class ProductRepository {
 
@@ -32,48 +33,27 @@ class ProductRepository {
         }
     }
 
-    suspend fun getCategories(): List<Category> {
+    suspend fun getAllCategories(): List<Category> {
         return try {
-            val resp = api.getCategories()
-            if (resp.ok) {
-                resp.categories.map { Category(it.id, it.nombre) }
-            } else emptyList()
+            api.getAllCategories().map { 
+                Category(
+                    id = it.id,
+                    nombre = it.nombre
+                )
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
         }
     }
 
-    suspend fun getProductsByUser(userId: Int): List<Product> {
+    suspend fun getProductsByCategory(categoryId: Int): List<Product> {
         return try {
-            api.getAllProducts()
-                .filter { it.idUsuario == userId }
-                .map { it.toProduct() }
+            api.getProductsByCategory(categoryId).map { it.toProduct() }
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
         }
-    }
-
-    suspend fun createProduct(
-        nombre: String,
-        descripcion: String,
-        precio: Double,
-        idUsuario: Int,
-        stock: Int,
-        categoria: Int
-    ): Product? {
-        // Dejar que las excepciones se propaguen para que la UI pueda mostrarlas
-        val req = com.example.marketelectronico.data.remote.CreateProductRequest(
-            nombre = nombre,
-            descripcion = descripcion,
-            precio = precio,
-            id_usuario = idUsuario,
-            stock = stock,
-            categoria = categoria
-        )
-        val created = api.createProduct(req)
-        return created.toProduct()
     }
 }
 
@@ -88,18 +68,19 @@ private fun ProductResponse.toProduct(): Product {
         name = this.nombre,
         price = this.precio,
 
+        // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
         // Usa la primera imagen si existe, si no, un placeholder
-        imageUrl = this.imagenes?.firstOrNull()?.urlImagen
-            ?: "https://placehold.co/300x300/CCCCCC/FFFFFF?text=No+Imagen",
+        imageUrl = this.imagenes.firstOrNull()?.urlImagen ?: "https://placehold.co/300x300/CCCCCC/FFFFFF?text=No+Imagen",
+        // ----------------------------
 
-        status = this.categoria.toString(),
+        status = this.categoria,
         sellerName = "Vendedor #${this.idUsuario}",
         sellerRating = 4.5,
         sellerReviews = 10,
         description = this.descripcion,
         specifications = mapOf(
             "Stock" to this.stock.toString(),
-            "Categoría" to this.categoria.toString()
+            "Categoría" to this.categoria
         )
     )
 }

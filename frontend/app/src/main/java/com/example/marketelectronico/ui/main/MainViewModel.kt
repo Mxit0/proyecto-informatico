@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.update
+import com.example.marketelectronico.data.model.Category
+
 
 // Estado para la lista de productos
 sealed class ProductListUiState {
@@ -27,20 +28,28 @@ class MainViewModel(
 
     private val _uiState = MutableStateFlow<ProductListUiState>(ProductListUiState.Loading)
     val uiState: StateFlow<ProductListUiState> = _uiState.asStateFlow()
-
-    // Lista de categorías obtenida desde el backend
-    private val _categories = MutableStateFlow<List<com.example.marketelectronico.data.model.Category>>(emptyList())
-    val categories: StateFlow<List<com.example.marketelectronico.data.model.Category>> = _categories.asStateFlow()
-
+    private val _categories = MutableStateFlow<List<Category>>(emptyList())
+    val categories: StateFlow<List<Category>> = _categories.asStateFlow()
     // init se llama en cuanto el ViewModel es creado
     init {
         fetchProducts()
-        fetchCategories()
+        loadCategories()
     }
-
-    // Public refresh method para que otras pantallas soliciten recargar la lista
-    fun refreshProducts() {
-        fetchProducts()
+    
+    /**
+     * Carga las categorías desde el repositorio
+     */
+    private fun loadCategories() {
+        viewModelScope.launch {
+            try {
+                val categories = productRepository.getAllCategories()
+                _categories.value = categories
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Si falla, simplemente dejamos la lista vacía
+                _categories.value = emptyList()
+            }
+        }
     }
 
     /**
@@ -56,18 +65,6 @@ class MainViewModel(
                 _uiState.value = ProductListUiState.Success(products)
             } catch (e: Exception) {
                 _uiState.value = ProductListUiState.Error(e.message ?: "Error desconocido")
-            }
-        }
-    }
-
-    private fun fetchCategories() {
-        viewModelScope.launch {
-            try {
-                val cats = productRepository.getCategories()
-                _categories.value = cats
-            } catch (e: Exception) {
-                // deja la lista vacía si falla
-                e.printStackTrace()
             }
         }
     }

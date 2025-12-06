@@ -23,6 +23,7 @@ app.use("/usuarios", userRoutes);
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-app.listen(process.env.PORT || 3000, () =>
-  console.log(`API lista en http://localhost:${process.env.PORT}`)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, "0.0.0.0", () =>
+  console.log(`API lista en http://0.0.0.0:${PORT} (accesible desde la red local)`)
 );

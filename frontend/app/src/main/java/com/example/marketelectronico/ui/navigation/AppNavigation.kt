@@ -23,9 +23,9 @@ import com.example.marketelectronico.ui.product.ProductReviewScreen
 import com.example.marketelectronico.ui.product.ProductScreen
 import com.example.marketelectronico.ui.product.ProductViewModel // <-- 3. IMPORTAR
 import com.example.marketelectronico.ui.profile.ProfileScreen
-import com.example.marketelectronico.ui.notification.NotificationsScreen
 import com.example.marketelectronico.ui.review.ReviewScreen
-import com.example.marketelectronico.ui.publish.PublishScreen
+import com.example.marketelectronico.ui.category.CategoryProductsScreen
+import com.example.marketelectronico.ui.category.CategoryProductsViewModel
 
 /**
  * Gestiona TODA la navegación de la aplicación.
@@ -83,11 +83,28 @@ fun AppNavigation() {
             )
         }
 
+        composable(
+    route = "category_products/{categoryId}",
+    arguments = listOf(
+        navArgument("categoryId") { type = NavType.IntType }
+    )
+) { backStackEntry ->
+    val categoryId = backStackEntry.arguments?.getInt("categoryId")
+    val categoryName = backStackEntry.savedStateHandle.get<String>("categoryName")
+    
+    CategoryProductsScreen(
+        navController = navController,
+        categoryId = categoryId,
+        categoryName = categoryName,
+        viewModel = viewModel<CategoryProductsViewModel>()
+    )
+}
+
         composable("categories") {
             // CategoriesScreen(navController = navController)
         }
         composable("publish") {
-            PublishScreen(navController = navController)
+            // PublishScreen(navController = navController)
         }
 
         // --- PANTALLAS DE PAGO (De 'master' - DESCOMENTADAS) ---
@@ -131,7 +148,7 @@ fun AppNavigation() {
 
         // --- OTRAS PANTALLAS ---
         composable("notifications") {
-            NotificationsScreen(navController = navController)
+            // NotificationsScreen(navController = navController)
         }
     }
 }

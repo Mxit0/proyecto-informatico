@@ -13,6 +13,11 @@ data class Product(
     val specifications: Map<String, String> = emptyMap()
 )
 
+data class Category(
+    val id: Int,
+    val nombre: String
+)
+
 data class ChatPreview(
     val id: String,
     val name: String,

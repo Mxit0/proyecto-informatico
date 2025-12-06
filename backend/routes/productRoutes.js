@@ -6,6 +6,7 @@ import {
   createProduct,
   uploadProductImages,
   getProductImages,
+  updateProduct,
   getAllCategories,
   getProductsByCategory,
 } from "../repositories/productRepository.js";
@@ -26,44 +27,24 @@ router.get("/", async (req, res) => {
   }
 });
 
-// --- Endpoint: obtener categorías únicas ---
-router.get("/categorias", async (req, res) => {
+router.get("/categorias/todas", async (req, res) => {
+  console.log("🔍 Ruta /categorias/todas fue llamada"); // Agregar este log
   try {
+    console.log("📦 Llamando a getAllCategories..."); // Agregar este log
     const categories = await getAllCategories();
-    res.json({ ok: true, categories });
+    console.log("✅ Categorías obtenidas:", categories); // Agregar este log
+    res.json(categories);
   } catch (error) {
-    res.status(500).json({
-      ok: false,
-      error: "Error al obtener categorías: " + error.message,
-    });
-  }
-});
-
-// --- Endpoint: obtener productos por categoría ---
-router.get("/categoria/:id/productos", async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!/^\d+$/.test(id)) {
-      return res.status(400).json({ error: "ID de categoría inválido" });
-    }
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 100;
-    const products = await getProductsByCategory(parseInt(id), page, limit);
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({
-      error: "Error al obtener productos por categoría: " + error.message,
-    });
+    console.error("❌ Error en /categorias/todas:", error); // Agregar este log
+    res
+      .status(500)
+      .json({ error: "Error al obtener las categorías: " + error.message });
   }
 });
 
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    // Validar que el id sea numérico para evitar que rutas como '/categorias' queden capturadas aquí
-    if (!/^\d+$/.test(id)) {
-      return res.status(400).json({ error: "ID inválido" });
-    }
     const product = await getProductById(id);
     if (!product) {
       return res.status(404).json({ error: "Producto no encontrado" });
@@ -79,44 +60,20 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const newProductData = req.body;
-    // Log detallado del body recibido para facilitar debugging cuando hay HTTP 500
-    console.log(
-      "POST /productos - body recibido:",
-      JSON.stringify(newProductData)
-    );
     const { nombre, precio, descripcion, id_usuario, stock, categoria } =
       newProductData;
 
-    // Validaciones básicas y prevención de overflow numérico
-    // Precio: numeric(10,2) en la BD -> el valor absoluto debe ser menor que 10^8
-    const MAX_PRICE = 1e8; // 100,000,000
-
-    // Comprobamos que los campos obligatorios existan
     if (
-      nombre == null ||
-      precio == null ||
-      descripcion == null ||
-      id_usuario == null ||
-      stock == null ||
-      categoria == null
+      !nombre ||
+      !precio ||
+      !descripcion ||
+      !id_usuario ||
+      !stock ||
+      !categoria
     ) {
       return res.status(400).json({
         error:
           "Datos incompletos. Se requieren: nombre, precio, descripcion, id_usuario, stock, categoria.",
-      });
-    }
-
-    // Asegurarnos de que precio sea numérico
-    const precioNum = Number(precio);
-    if (!isFinite(precioNum)) {
-      return res.status(400).json({ error: "Precio inválido (no numérico)" });
-    }
-
-    // Validación de rango para evitar overflow en la columna numeric(10,2)
-    if (Math.abs(precioNum) >= MAX_PRICE) {
-      return res.status(400).json({
-        error: `Precio fuera de rango. Debe ser menor que ${MAX_PRICE}`,
-        received: precioNum,
       });
     }
     newProductData.fecha_publicacion = new Date().toISOString();
@@ -124,15 +81,11 @@ router.post("/", async (req, res) => {
     const createdProduct = await createProduct(newProductData);
     res.status(201).json(createdProduct);
   } catch (error) {
-    console.error(error);
     res
       .status(500)
       .json({ error: "Error al crear el producto: " + error.message });
   }
 });
-
-// --- Nuevo endpoint: obtener categorías únicas ---
-// (moved earlier to avoid conflict with '/:id')
 
 router.post("/:id/imagenes", upload.array("imagenes", 10), async (req, res) => {
   try {
@@ -166,6 +119,54 @@ router.get("/:id/imagenes", async (req, res) => {
     res
       .status(500)
       .json({ error: "Error al obtener las imágenes: " + error.message });
+  }
+});
+
+router.get("/categoria/:categoryId", async (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.categoryId);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 100;
+
+    if (isNaN(categoryId)) {
+      return res.status(400).json({ error: "ID de categoría inválido" });
+    }
+
+    const products = await getProductsByCategory(categoryId, page, limit);
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({
+      error: "Error al obtener productos por categoría: " + error.message,
+    });
+  }
+});
+
+router.patch("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Validación simple: ¿Enviaron algo para cambiar?
+    if (Object.keys(updates).length === 0) {
+      return res
+        .status(400)
+        .json({ error: "No se enviaron datos para actualizar." });
+    }
+
+    // Llamamos a la función del repositorio
+    const updatedProduct = await updateProduct(id, updates);
+
+    if (!updatedProduct) {
+      return res
+        .status(404)
+        .json({ error: "Producto no encontrado o no se pudo actualizar" });
+    }
+
+    res.json(updatedProduct);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Error al actualizar el producto: " + error.message });
   }
 });
 

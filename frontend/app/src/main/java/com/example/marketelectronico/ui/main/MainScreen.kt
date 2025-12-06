@@ -19,8 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -31,14 +29,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.marketelectronico.data.model.sampleProduct1
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+import com.example.marketelectronico.data.model.Category
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 
 // ... (Tu Composable MainScreen, TechTradeTopBar no cambian)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,11 +45,10 @@ fun MainScreen(
     viewModel: MainViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val categories by viewModel.categories.collectAsState()
-    val navItems = listOf("Inicio", "Compatibilidad", "Vender", "Mensajes", "Perfil", "Foro")
+    val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
-        Icons.Default.CheckCircle,
+        Icons.AutoMirrored.Filled.List,
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
@@ -66,7 +61,7 @@ fun MainScreen(
         topBar = {
             TechTradeTopBar(
                 onCartClick = { navController.navigate("cart") },
-                onNotificationsClick = { navController.navigate("notifications") }
+                onNotificationsClick = { /* navController.navigate("notifications") */ }
             )
         },
         bottomBar = {
@@ -100,23 +95,6 @@ fun MainScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
 
-        // Observa la señal de refresco desde la pila de navegación de forma segura
-        val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val savedStateHandle = navBackStackEntry?.savedStateHandle
-        LaunchedEffect(savedStateHandle) {
-            // Usamos getStateFlow para poder recolectar en un coroutine y evitar observeForever
-            val flow = savedStateHandle?.getStateFlow("refresh", false)
-            if (flow != null) {
-                // Coleccionar cambios: cuando sea true, refrescamos y limpiamos la bandera
-                flow.collect { needsRefresh ->
-                    if (needsRefresh) {
-                        viewModel.refreshProducts()
-                        savedStateHandle.set("refresh", false)
-                    }
-                }
-            }
-        }
-
         when (val state = uiState) {
             is ProductListUiState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
@@ -129,9 +107,10 @@ fun MainScreen(
                 }
             }
             is ProductListUiState.Success -> {
+                val categoriesState by viewModel.categories.collectAsState()
                 MainScreenContent(
                     products = state.products,
-                    categories = categories,
+                    categories = categoriesState, // Agregar esto
                     modifier = Modifier.padding(innerPadding),
                     navController = navController
                 )
@@ -159,16 +138,16 @@ private fun TechTradeTopBar(onCartClick: () -> Unit, onNotificationsClick: () ->
             containerColor = MaterialTheme.colorScheme.background
         )
     )
+
 }
 
 @Composable
 private fun MainScreenContent(
     products: List<Product>,
-    categories: List<com.example.marketelectronico.data.model.Category>,
+    categories: List<Category>, // Agregar este parámetro
     modifier: Modifier = Modifier,
     navController: NavController
 ) {
-    // ... (Tu lógica de 'recommendations', 'news', 'offers' no cambia)
     val recommendations = products.take(5)
     val news = products.drop(5).take(5)
     val offers = products.drop(10)
@@ -179,6 +158,26 @@ private fun MainScreenContent(
             .padding(horizontal = 16.dp)
     ) {
         item { SearchBar(modifier = Modifier.padding(vertical = 8.dp)) }
+        
+        // NUEVA SECCIÓN DE CATEGORÍAS (agregar después de SearchBar)
+        item { SectionTitle("Categorías") }
+        item {
+            CategoriesSection(
+                categories = categories,
+                onCategoryClick = { categoryId ->
+                    // Buscar el nombre de la categoría
+                    val category = categories.find { it.id == categoryId }
+                    navController.navigate("category_products/$categoryId") {
+                        // Pasar el nombre de la categoría como argumento
+                        if (category != null) {
+                            // Guardar el nombre en savedStateHandle
+                            navController.previousBackStackEntry?.savedStateHandle?.set("categoryName", category.nombre)
+                        }
+                    }
+                }
+            )
+        }
+        
         item { SectionTitle("Recomendaciones para ti") }
         item {
             ProductRow(
@@ -207,56 +206,6 @@ private fun MainScreenContent(
         }
         item {
             Spacer(modifier = Modifier.height(16.dp))
-        }
-        // Categorías: solo si hay alguna (grid 2 columnas)
-        if (categories.isNotEmpty()) {
-            item { SectionTitle("Categorías") }
-            item {
-                CategoriesGrid(categories = categories, navController = navController)
-            }
-        }
-    }
-}
-
-@Composable
-private fun CategoriesGrid(categories: List<com.example.marketelectronico.data.model.Category>, navController: NavController) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        val rows = categories.chunked(2)
-        rows.forEach { pair ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Cada fila tiene dos celdas; si falta, se añade un Spacer para mantener el layout
-                for (i in 0..1) {
-                    val cat = pair.getOrNull(i)
-                    if (cat != null) {
-                        Button(
-                            onClick = { /* no-op por ahora */ },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Text(
-                                text = cat.nombre,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    } else {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-            }
         }
     }
 }
@@ -292,6 +241,74 @@ private fun SectionTitle(title: String) {
         modifier = Modifier.padding(top = 24.dp, bottom = 16.dp)
     )
 }
+@Composable
+private fun CategoriesSection(
+    categories: List<Category>,
+    onCategoryClick: (Int) -> Unit
+) {
+    if (categories.isEmpty()) {
+        Text(
+            text = "No hay categorías disponibles.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+    } else {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(vertical = 8.dp)
+        ) {
+            items(categories) { category ->
+                CategoryCard(
+                    category = category,
+                    onClick = { onCategoryClick(category.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryCard(
+    category: Category,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        modifier = Modifier
+            .width(100.dp)
+            .height(100.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Category,
+                contentDescription = category.nombre,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = category.nombre,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+    }
+}
 
 // --- ¡AQUÍ ESTÁ LA MEJORA! ---
 @Composable
@@ -299,14 +316,12 @@ private fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit
 
     // Comprueba si la lista está vacía
     if (products.isEmpty()) {
-        Box(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
-            Text(
-                text = "No hay productos en esta categoría.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
-                textAlign = TextAlign.Center
-            )
-        }
+        Text(
+            text = "No hay productos en esta categoría.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
     } else {
         // Si no está vacía, muestra la fila
         LazyRow(
@@ -372,10 +387,11 @@ fun MainScreenPreview() {
     MarketElectronicoTheme {
         MainScreenContent(
             products = listOf(sampleProduct1),
+            // SOLUCIÓN: Agrega una lista de categorías de muestra aquí
             categories = listOf(
-                com.example.marketelectronico.data.model.Category(1, "Figuras de acción"),
-                com.example.marketelectronico.data.model.Category(2, "Procesador de alto rendimiento"),
-                com.example.marketelectronico.data.model.Category(3, "Componentes PC")
+                Category(id = 1, nombre = "Laptops"),
+                Category(id = 2, nombre = "Celulares"),
+                Category(id = 3, nombre = "Audio")
             ),
             navController = rememberNavController(),
             modifier = Modifier
