@@ -13,27 +13,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel // <-- Importante para inyectar el ViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.base.BaseScreen
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.model.Message
-import com.example.marketelectronico.data.model.sampleMessages
 
 @Composable
 fun ConversationScreen(
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // Inyectamos el ViewModel que maneja el Socket
+    viewModel: ChatViewModel = viewModel()
 ) {
+    // Observamos la lista de mensajes del ViewModel
+    val messages = viewModel.messages
+
     BaseScreen(
-        title = "GamerZ", // Título dinámico
-        navController = navController, // <-- Pasa el NavController para la flecha
+        title = "Chat en Vivo", // Puedes hacerlo dinámico si pasas el nombre del vendedor
+        navController = navController,
         modifier = modifier
     ) { padding ->
 
         Scaffold(
             modifier = Modifier.padding(padding),
-            bottomBar = { ChatBottomBar() } // <-- Esta es la barra para *escribir*, no la de navegación
+            // Pasamos la acción de enviar al BottomBar
+            bottomBar = {
+                ChatBottomBar(
+                    onSend = { text -> viewModel.sendMessage(text) }
+                )
+            }
         ) { innerPadding ->
             LazyColumn(
                 modifier = Modifier
@@ -41,9 +51,13 @@ fun ConversationScreen(
                     .padding(innerPadding)
                     .padding(horizontal = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 12.dp)
+                contentPadding = PaddingValues(vertical = 12.dp),
+                reverseLayout = true // Para que los mensajes nuevos aparezcan abajo
             ) {
-                items(sampleMessages) { message ->
+                // Usamos la lista dinámica 'messages' en lugar de 'sampleMessages'
+                // Invertimos la lista si el reverseLayout es true, o el ViewModel la gestiona
+                // (Generalmente con reverseLayout=true, el índice 0 es el último mensaje)
+                items(messages.reversed()) { message ->
                     MessageBubble(message = message)
                 }
             }
@@ -80,7 +94,10 @@ private fun MessageBubble(message: Message) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChatBottomBar(modifier: Modifier = Modifier) {
+private fun ChatBottomBar(
+    modifier: Modifier = Modifier,
+    onSend: (String) -> Unit // Callback para enviar
+) {
     var text by remember { mutableStateOf("") }
 
     Surface(
@@ -107,7 +124,12 @@ private fun ChatBottomBar(modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(
-                onClick = { /* TODO: Enviar mensaje */ },
+                onClick = {
+                    if (text.isNotBlank()) {
+                        onSend(text) // Llamamos al callback
+                        text = ""    // Limpiamos el campo
+                    }
+                },
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
@@ -122,6 +144,8 @@ private fun ChatBottomBar(modifier: Modifier = Modifier) {
 @Composable
 private fun ConversationScreenPreview() {
     MarketElectronicoTheme {
+        // Nota: La preview puede fallar si intenta conectar el socket real,
+        // pero es útil para ver el diseño.
         ConversationScreen(navController = rememberNavController())
     }
 }
