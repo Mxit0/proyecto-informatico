@@ -5,7 +5,8 @@ import {
   getProductById,
   createProduct, 
   uploadProductImages,
-  getProductImages
+  getProductImages,
+  updateProduct
 } from '../repositories/productRepository.js';
 
 const router = express.Router();
@@ -90,6 +91,30 @@ router.get('/:id/imagenes', async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener las imágenes: ' + error.message });
+  }
+});
+
+router.patch('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Validación simple: ¿Enviaron algo para cambiar?
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No se enviaron datos para actualizar.' });
+    }
+
+    // Llamamos a la función del repositorio
+    const updatedProduct = await updateProduct(id, updates);
+    
+    if (!updatedProduct) {
+        return res.status(404).json({ error: 'Producto no encontrado o no se pudo actualizar' });
+    }
+
+    res.json(updatedProduct);
+
+  } catch (error) {
+    res.status(500).json({ error: 'Error al actualizar el producto: ' + error.message });
   }
 });
 

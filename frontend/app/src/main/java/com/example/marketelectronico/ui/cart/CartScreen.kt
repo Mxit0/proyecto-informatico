@@ -22,9 +22,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination // <-- IMPORTAR
-import androidx.navigation.compose.currentBackStackEntryAsState // <-- IMPORTAR
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage // <-- 1. IMPORTAR COIL
 import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.repository.CartRepository
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
@@ -40,18 +41,10 @@ fun CartScreen(
     val totalPrice = CartRepository.totalPrice.value
     var productToDelete by remember { mutableStateOf<Product?>(null) }
 
-    // --- LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
+    // --- Lógica de la Bottom Bar (sin cambios) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
-    val navIcons = listOf(
-        Icons.Default.Home,
-        Icons.AutoMirrored.Filled.List,
-        Icons.Default.AddCircle,
-        Icons.Default.Email,
-        Icons.Default.Person,
-        Icons.Default.Info
-    )
+    val navIcons = listOf(Icons.Default.Home, Icons.AutoMirrored.Filled.List, Icons.Default.AddCircle, Icons.Default.Email, Icons.Default.Person, Icons.Default.Info)
     val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
-    // --- FIN LÓGICA BOTTOM BAR ---
 
     Scaffold(
         topBar = {
@@ -70,35 +63,19 @@ fun CartScreen(
         },
         bottomBar = {
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
-                // --- Sección de Total y Botón de Pago ---
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Total:",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = formatCurrency(totalPrice),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Text("Total:", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                        Text(formatCurrency(totalPrice), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = { navController.navigate("payment") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = MaterialTheme.shapes.medium,
                         enabled = cartProducts.isNotEmpty()
                     ) {
@@ -106,29 +83,20 @@ fun CartScreen(
                     }
                 }
 
-                // --- Barra de Navegación Inferior (CORREGIDA) ---
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ) {
-                    // --- OBTENER RUTA ACTUAL ---
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = navBackStackEntry?.destination?.route
 
                     navItems.forEachIndexed { index, label ->
                         val route = navRoutes[index]
-                        // 'selected' es dinámico
                         val selected = currentRoute == route
-
                         NavigationBarItem(
                             icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
                             label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
                             selected = selected,
-                            // --- LÓGICA DE NAVEGACIÓN COMPLETA ---
                             onClick = {
                                 navController.navigate(route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
@@ -147,43 +115,21 @@ fun CartScreen(
                 title = { Text(text = "Eliminar Producto") },
                 text = { Text(text = "¿Estás seguro de que quieres eliminar \"${product.name}\" de tu carrito?") },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
-                            CartRepository.removeFromCart(product)
-                            productToDelete = null
-                        }
-                    ) {
-                        Text("Eliminar")
-                    }
+                    TextButton(onClick = { CartRepository.removeFromCart(product); productToDelete = null }) { Text("Eliminar") }
                 },
                 dismissButton = {
-                    TextButton(
-                        onClick = { productToDelete = null }
-                    ) {
-                        Text("Cancelar")
-                    }
+                    TextButton(onClick = { productToDelete = null }) { Text("Cancelar") }
                 }
             )
         }
 
         if (cartProducts.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Tu carrito está vacío",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.Gray
-                )
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                Text("Tu carrito está vacío", style = MaterialTheme.typography.titleMedium, color = Color.Gray)
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
                 contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
                 item {
@@ -195,12 +141,7 @@ fun CartScreen(
                     )
                 }
                 items(cartProducts) { product ->
-                    CartItem(
-                        product = product,
-                        onRemoveClick = {
-                            productToDelete = product
-                        }
-                    )
+                    CartItem(product = product, onRemoveClick = { productToDelete = product })
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
@@ -214,15 +155,20 @@ fun CartItem(product: Product, onRemoveClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(
-            painter = painterResource(id = android.R.drawable.ic_menu_gallery), // Placeholder
+        // --- 2. USAR ASYNCIMAGE EN LUGAR DE IMAGE ---
+        AsyncImage(
+            model = product.imageUrl, // URL real del producto
             contentDescription = product.name,
             modifier = Modifier
                 .size(60.dp)
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surface),
-            contentScale = ContentScale.Crop
+                .background(MaterialTheme.colorScheme.surface), // Fondo mientras carga
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+            error = painterResource(id = android.R.drawable.ic_menu_gallery)
         )
+        // --------------------------------------------
+
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -256,33 +202,12 @@ private fun formatCurrency(amount: Double): String {
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun CartScreenPreview() {
+    // ... (Preview con datos de muestra)
     val previewProduct = Product(
-        id = "1",
-        name = "Intel Core i7-9700K Processor",
-        price = 250.0,
-        imageUrl = "",
-        status = "Good",
-        sellerName = "TechTrader",
-        sellerRating = 4.8,
-        sellerReviews = 120,
-        description = "...",
-        specifications = emptyMap()
+        id = "1", name = "Intel Core i7", price = 250.0, imageUrl = "",
+        status = "Good", sellerName = "Tech", sellerRating = 4.8, sellerReviews = 10, description = "", specifications = emptyMap()
     )
-
     CartRepository.clearCart()
     CartRepository.addToCart(previewProduct)
-
-    MarketElectronicoTheme {
-        CartScreen(navController = rememberNavController())
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
-@Composable
-fun CartScreenEmptyPreview() {
-    CartRepository.clearCart()
-
-    MarketElectronicoTheme {
-        CartScreen(navController = rememberNavController())
-    }
+    MarketElectronicoTheme { CartScreen(navController = rememberNavController()) }
 }

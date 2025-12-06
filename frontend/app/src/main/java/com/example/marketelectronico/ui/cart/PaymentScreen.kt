@@ -32,6 +32,8 @@ import com.example.marketelectronico.data.repository.PaymentRepository
 import com.example.marketelectronico.data.repository.Order
 import com.example.marketelectronico.data.repository.OrderRepository
 import java.util.UUID
+import androidx.compose.runtime.collectAsState
+import com.example.marketelectronico.data.repository.UserRepository
 
 
 // --- 2. ELIMINAR EL MODELO Y LOS DATOS DE MUESTRA LOCALES ---
@@ -67,7 +69,10 @@ fun PaymentScreen(
     val taxes = subtotal * TAX_RATE
     val total = subtotal + SHIPPING_COST + taxes
 
-    // --- 3. LEER LA LISTA DESDE EL REPOSITORIO ---
+    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
+    // Si no hay usuario (no debería pasar), usamos "invitado" o el ID que prefieras
+    val currentUserId = currentUser?.id_usuario?.toString() ?: "invitado"
+
     val paymentMethods = PaymentRepository.paymentMethods
 
     // Estado para la barra de navegación inferior
@@ -109,12 +114,14 @@ fun PaymentScreen(
                         // Aquí iría tu lógica de pago (ej. llamar a una API).
                         // Al ser exitoso, navegas a la pantalla de confirmación.
                         val itemsToPurchase = CartRepository.cartItems.toList()
-                        val orderTotal = total
+                        //val orderTotal = total
                         val newOrder = Order(
-                            id = UUID.randomUUID().toString(), // Genera un ID único
+                            id = UUID.randomUUID().toString(),
+                            userId = currentUserId, // <-- ASIGNAR USUARIO
                             items = itemsToPurchase,
-                            totalAmount = orderTotal
+                            totalAmount = total
                         )
+
                         OrderRepository.addOrder(newOrder)
                         CartRepository.clearCart()
                         navController.navigate("pay_confirm/${newOrder.id}") {
