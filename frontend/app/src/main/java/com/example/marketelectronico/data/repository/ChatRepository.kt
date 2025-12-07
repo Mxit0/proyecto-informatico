@@ -101,11 +101,36 @@ class ChatRepository(
                         // Si falla, se queda con "Usuario #ID" por defecto
                     }
 
+                    var lastMessageText = "Toca para iniciar conversación"
+
+                    try {
+                        // Pedimos los mensajes de este chat específico
+                        val msgResponse = api.getMessages(dto.id)
+
+                        if (msgResponse.isSuccessful && msgResponse.body()?.ok == true) {
+                            val messagesList = msgResponse.body()?.mensajes
+
+                            if (!messagesList.isNullOrEmpty()) {
+                                // Tomamos el último mensaje de la lista
+                                val lastMsg = messagesList.last()
+
+                                // Lógica: ¿Fui yo o fue él?
+                                if (lastMsg.id_remitente == myId) {
+                                    lastMessageText = "Tu: ${lastMsg.contenido}"
+                                } else {
+                                    lastMessageText = lastMsg.contenido
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+
                     resultList.add(
                         ChatPreview(
                             id = dto.id.toString(),
                             name = displayName,
-                            lastMessage = "Toca para ver mensajes",
+                            lastMessage = lastMessageText,
                             timestamp = "",
                             otherUserId = otherUserId,
                             photoUrl = photoUrl
