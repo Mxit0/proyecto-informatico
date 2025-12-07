@@ -12,6 +12,7 @@ import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import reviewRoutes from './routes/reviewRoutes.js';
 import { supabase } from "./lib/supabaseClient.js";
 
 dotenv.config();
@@ -33,6 +34,7 @@ app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/carro", carroRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
