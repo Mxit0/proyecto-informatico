@@ -11,6 +11,7 @@ import productRoutes from "./routes/productRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
 import { supabase } from "./lib/supabaseClient.js";
 
 dotenv.config();
@@ -31,6 +32,7 @@ app.use("/api/productos", productRoutes);
 app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/carro", carroRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -72,7 +74,7 @@ io.use((socket, next) => {
   }
 });
 
-// 🔁 Helpers con Supabase
+// Helpers con Supabase
 
 async function getOrCreateChatBetween(userAId, userBId) {
   const [u1, u2] = normalizePair(userAId, userBId);
@@ -108,9 +110,9 @@ async function saveMessage({ chatId, senderId, contenido }) {
   return data;
 }
 
-// 🎧 Lógica de tiempo real
+//  Lógica de tiempo real
 io.on("connection", (socket) => {
-  console.log("✅ Socket conectado:", socket.user?.id_usuario);
+  console.log(" Socket conectado:", socket.user?.id_usuario);
 
   /**
    * Abrir chat entre el usuario logueado y otro usuario (vendedor/comprador)
