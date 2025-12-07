@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 
-const tipo = "Procesador"; // Cambia por gpu, motherboard, ram, etc.
+const tipo = "3"; // Cambia por gpu, motherboard, ram, etc.
 
 const run = async () => {
   try {

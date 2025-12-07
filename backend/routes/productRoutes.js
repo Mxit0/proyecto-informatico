@@ -9,7 +9,7 @@ import { supabase } from "../lib/supabaseClient.js";
   getProductImages,
   updateProduct
 } from '../repositories/productRepository.js';*/
-import productRepository2 from '../repositories/productRepository2.js';
+import productRepository from '../repositories/productRepository.js';
 
 
 const router = express.Router();
@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 100;
 
-    const products = await productRepository2.getAllProducts(page, limit);
+    const products = await productRepository.getAllProducts(page, limit);
     res.json(products);
 
   } catch (error) {
@@ -86,7 +86,7 @@ router.get('/tipos/:tipo', async (req, res) => {
 router.get('/id/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const product = await productRepository2.getProductById(id);
+    const product = await productRepository.getProductById(id);
 
     if (!product) {
       return res.status(404).json({ error: 'Producto no encontrado' });
@@ -141,7 +141,7 @@ router.post('/', async (req, res) => {
       id_componente_maestro
     };
 
-    const created = await productRepository2.createProduct(newProduct);
+    const created = await productRepository.createProduct(newProduct);
     res.json(created);
 
   } catch (error) {

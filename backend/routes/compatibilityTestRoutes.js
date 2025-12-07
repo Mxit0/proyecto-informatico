@@ -1,5 +1,5 @@
 import express from 'express';
-import productRepository2 from '../repositories/productRepository2.js';
+import productRepository from '../repositories/productRepository.js';
 
 const router = express.Router();
 
@@ -17,7 +17,7 @@ router.post('/seed-products', async (req, res) => {
 router.get('/products', async (req, res) => {
   try {
     const { page = 1, limit = 10, category } = req.query;
-    const products = await productRepository2.getAllProducts(parseInt(page), parseInt(limit));
+    const products = await productRepository.getAllProducts(parseInt(page), parseInt(limit));
     res.json(products);
   } catch (error) {
     res.status(500).json({ error: error.message });

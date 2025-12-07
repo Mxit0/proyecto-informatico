@@ -8,7 +8,7 @@ import 'dotenv/config';
 import compatibilityService from './services/compatibilityService.js';
 
 // Importa el repositorio para poder reemplazar la función de búsqueda de productos con datos de prueba.
-import productRepository2 from './repositories/productRepository2.js'; 
+import productRepository from './repositories/productRepository.js'; 
 
 
 // --- 1. DATOS DE PRUEBA EN MEMORIA (Mock del Repositorio) ---
@@ -20,7 +20,7 @@ const REAL_PRODUCT_DATA = {
 };
 
 // Sobreescribimos la función del objeto importado para devolver nuestros datos de prueba en lugar de llamar a la DB real.
-productRepository2.getProductById = async (productId) => {
+productRepository.getProductById = async (productId) => {
     switch (productId) {
         case 99:
             return REAL_PRODUCT_DATA.cpu;

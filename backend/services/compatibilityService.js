@@ -1,4 +1,4 @@
-import productRepository2 from '../repositories/productRepository2.js';
+import productRepository from '../repositories/productRepository.js';
 import { GoogleGenAI } from '@google/genai'; // 👈 1. Importar el SDK de Gemini
 
 // 2. Inicializar el Cliente
