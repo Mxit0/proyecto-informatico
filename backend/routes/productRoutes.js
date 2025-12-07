@@ -1,120 +1,151 @@
 import express from 'express';
 import multer from 'multer';
-import { 
+import { supabase } from "../lib/supabaseClient.js";
+/*import { 
   getAllProducts, 
   getProductById,
   createProduct, 
   uploadProductImages,
   getProductImages,
   updateProduct
-} from '../repositories/productRepository.js';
+} from '../repositories/productRepository.js';*/
+import productRepository2 from '../repositories/productRepository2.js';
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+
+console.log("CARGANDO productRoutes.js CORRECTO");
+router.get('/debug', (req, res) => {
+  res.json({ message: "Ruta debug funcionando" });
+});
+
+// ======================
+//  GET - Todos los productos
+// ======================
 router.get('/', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 100; 
-    const products = await getAllProducts(page, limit); 
+    const limit = parseInt(req.query.limit) || 100;
+
+    const products = await productRepository2.getAllProducts(page, limit);
     res.json(products);
+
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener productos: ' + error.message });
   }
 });
 
-router.get('/:id', async (req, res) => {
+
+// ======================
+//  GET - Tipos de componente
+// ======================
+router.get('/tipos', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('componente_maestro')
+      .select('categoria');
+
+    if (error) throw error;
+
+    const tipos = [...new Set(data.map(d => d.categoria))];
+
+    res.json(tipos);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ======================
+//  GET - Componentes por tipo
+// ======================
+router.get('/tipos/:tipo', async (req, res) => {
+  const { tipo } = req.params;
+
+  try {
+    const { data, error } = await supabase
+      .from('componente_maestro')
+      .select('id, nombre_componente, categoria')
+      .eq('categoria', tipo);
+
+    if (error) throw error;
+
+    res.json(data);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ======================
+//  GET - Producto por ID
+// ======================
+router.get('/id/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const product = await getProductById(id);
+    const product = await productRepository2.getProductById(id);
+
     if (!product) {
       return res.status(404).json({ error: 'Producto no encontrado' });
     }
+
     res.json(product);
+
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener el producto: ' + error.message });
   }
 });
 
+
+// ======================
+//  POST - Crear nuevo producto (con componente maestro)
+// ======================
 router.post('/', async (req, res) => {
- try {
-    const newProductData = req.body; 
-    const { nombre, precio, descripcion, id_usuario, stock, categoria } = newProductData;
+  try {
+    const {
+      id_componente_maestro,
+      precio,
+      descripcion,
+      id_usuario,
+      stock
+    } = req.body;
 
-    if (!nombre || !precio || !descripcion || !id_usuario || !stock || !categoria) {
-      return res.status(400).json({ 
-        error: 'Datos incompletos. Se requieren: nombre, precio, descripcion, id_usuario, stock, categoria.' 
+    if (!id_componente_maestro || !precio || !id_usuario) {
+      return res.status(400).json({
+        error: "Faltan datos requeridos: id_componente_maestro, precio, id_usuario"
       });
     }
-    newProductData.fecha_publicacion = new Date().toISOString();
-    
-    const createdProduct = await createProduct(newProductData);
-    res.status(201).json(createdProduct); 
-  
-  } catch (error) {
-    res.status(500).json({ error: 'Error al crear el producto: ' + error.message });
-  }
-});
 
-router.post(
-  '/:id/imagenes',
-  upload.array('imagenes', 10), 
-  async (req, res) => {
-    try {
-      const id_producto = req.params.id;
-      const files = req.files;
+    // Obtener maestro
+    const { data: maestro, error: maestroErr } = await supabase
+      .from('componente_maestro')
+      .select('nombre_componente, categoria')
+      .eq('id', id_componente_maestro)
+      .single();
 
-      if (!files || files.length === 0) {
-        return res.status(400).json({ error: 'No se enviaron archivos.' });
-      }
-
-      const urls = await uploadProductImages(id_producto, files);
-
-      res.status(201).json({ 
-        message: 'Imágenes subidas exitosamente', 
-        urls: urls 
-      });
-
-    } catch (error) {
-      res.status(500).json({ error: 'Error al subir imágenes: ' + error.message });
-    }
-  }
-);
-
-router.get('/:id/imagenes', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const images = await getProductImages(id);
-    
-    
-    res.json(images || []); 
-
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener las imágenes: ' + error.message });
-  }
-});
-
-router.patch('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
-
-    // Validación simple: ¿Enviaron algo para cambiar?
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'No se enviaron datos para actualizar.' });
+    if (maestroErr || !maestro) {
+      return res.status(400).json({ error: "Componente maestro inválido" });
     }
 
-    // Llamamos a la función del repositorio
-    const updatedProduct = await updateProduct(id, updates);
-    
-    if (!updatedProduct) {
-        return res.status(404).json({ error: 'Producto no encontrado o no se pudo actualizar' });
-    }
+    // Crear producto final
+    const newProduct = {
+      nombre: maestro.nombre_componente,
+      categoria: maestro.categoria,
+      descripcion: descripcion || '',
+      precio,
+      id_usuario,
+      stock: stock ?? 1,
+      id_componente_maestro
+    };
 
-    res.json(updatedProduct);
+    const created = await productRepository2.createProduct(newProduct);
+    res.json(created);
 
   } catch (error) {
-    res.status(500).json({ error: 'Error al actualizar el producto: ' + error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 

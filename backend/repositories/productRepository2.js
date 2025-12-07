@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabaseClient.js';
 
 
 const TABLE_PRODUCTO = 'producto'; 
-
+console.log("productRepository2: supabase =", supabase);
 export const productRepository2 = {
 
   // 1. Obtener todos los productos con paginación
