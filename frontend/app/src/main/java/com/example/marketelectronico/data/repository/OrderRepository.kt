@@ -8,6 +8,7 @@ import java.util.UUID
 // 1. Define qué es una "Orden"
 data class Order(
     val id: String = UUID.randomUUID().toString(),
+    val userId: String,
     val items: List<Product>,
     val date: Date = Date(),
     val totalAmount: Double

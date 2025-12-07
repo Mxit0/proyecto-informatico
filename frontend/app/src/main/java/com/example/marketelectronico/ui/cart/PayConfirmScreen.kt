@@ -344,6 +344,7 @@ private fun ProductSummaryItem(
 fun PayConfirmScreenPreview() {
     val previewOrder = Order(
         id = "preview123",
+        userId = "preview_user",
         items = com.example.marketelectronico.data.model.allSampleProducts.take(2),
         totalAmount = 250.0
     )

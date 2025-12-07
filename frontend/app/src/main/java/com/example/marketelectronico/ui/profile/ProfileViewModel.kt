@@ -3,7 +3,10 @@ package com.example.marketelectronico.ui.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.marketelectronico.data.remote.UserProfileDto
+import com.example.marketelectronico.data.repository.Order
+import com.example.marketelectronico.data.repository.OrderRepository
 import com.example.marketelectronico.data.repository.UserRepository
+import com.example.marketelectronico.utils.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -20,8 +23,12 @@ class ProfileViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    private val _userOrders = MutableStateFlow<List<Order>>(emptyList())
+    val userOrders: StateFlow<List<Order>> = _userOrders
+
     init {
         loadUserProfile()
+        loadUserOrders()
     }
 
     fun loadUserProfile() {
@@ -39,6 +46,17 @@ class ProfileViewModel : ViewModel() {
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    fun loadUserOrders() {
+        val currentUserId = TokenManager.getUserId()?.toString()
+        if (currentUserId != null) {
+            // Filtramos la lista global buscando solo las que coincidan con el ID
+            val myOrders = OrderRepository.orders.filter { it.userId == currentUserId }
+            _userOrders.value = myOrders
+        } else {
+            _userOrders.value = emptyList()
         }
     }
 }

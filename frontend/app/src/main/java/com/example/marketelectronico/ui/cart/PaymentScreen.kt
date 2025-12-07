@@ -32,6 +32,7 @@ import com.example.marketelectronico.data.repository.PaymentRepository
 import com.example.marketelectronico.data.repository.Order
 import com.example.marketelectronico.data.repository.OrderRepository
 import java.util.UUID
+import com.example.marketelectronico.utils.TokenManager
 
 
 // --- 2. ELIMINAR EL MODELO Y LOS DATOS DE MUESTRA LOCALES ---
@@ -106,19 +107,25 @@ fun PaymentScreen(
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                 Button(
                     onClick = {
-                        // Aquí iría tu lógica de pago (ej. llamar a una API).
-                        // Al ser exitoso, navegas a la pantalla de confirmación.
+                        // 1. Obtener el ID del usuario actual
+                        val currentUserId = TokenManager.getUserId()?.toString() ?: "usuario_anonimo"
+
                         val itemsToPurchase = CartRepository.cartItems.toList()
-                        val orderTotal = total
+                        val orderTotal = total // Variable calculada más arriba en tu código
+
+                        // 2. Crear la orden PASANDO EL userId
                         val newOrder = Order(
-                            id = UUID.randomUUID().toString(), // Genera un ID único
+                            id = UUID.randomUUID().toString(),
+                            userId = currentUserId,
                             items = itemsToPurchase,
                             totalAmount = orderTotal
                         )
+
                         OrderRepository.addOrder(newOrder)
                         CartRepository.clearCart()
+
+                        // Navegar a la confirmación
                         navController.navigate("pay_confirm/${newOrder.id}") {
-                            // Limpia la pila hasta el carrito
                             popUpTo("cart") { inclusive = true }
                         }
                     },
