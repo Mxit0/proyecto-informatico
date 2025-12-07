@@ -181,6 +181,27 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("mark_messages_read", async ({ chatId }) => {
+    try {
+      const userId = socket.user.id_usuario;
+
+      const { error } = await supabase
+        .from("mensaje")
+        .update({ leido: true })
+        .eq("id_chat", chatId)
+        .neq("id_remitente", userId) // Solo leo los mensajes del OTRO
+        .eq("leido", false); // Solo los que no estaban leídos
+
+      if (error) throw error;
+
+      const room = `chat_${chatId}`;
+      io.to(room).emit("messages_read_update", { chatId });
+
+    } catch (err) {
+      console.error("Error en mark_messages_read:", err);
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("🔌 Socket desconectado:", socket.user?.id_usuario);
   });

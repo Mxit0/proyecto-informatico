@@ -7,7 +7,8 @@ import retrofit2.http.*
 data class ChatResponse(val ok: Boolean, val chat: ChatDto?)
 data class MessagesResponse(val ok: Boolean, val mensajes: List<MessageDto>)
 data class ChatDto(val id: Int, val id_usuario1: Int, val id_usuario2: Int)
-data class MessageDto(val id: Int, val id_remitente: Int, val contenido: String)
+// En ChatApi.kt
+data class MessageDto(val id: Int, val id_remitente: Int, val contenido: String, val leido: Boolean)
 
 data class ChatListResponse(val ok: Boolean, val chats: List<ChatDto>)
 

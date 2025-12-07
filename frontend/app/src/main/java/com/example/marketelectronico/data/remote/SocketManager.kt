@@ -6,6 +6,8 @@ import io.socket.client.IO
 import io.socket.client.Socket
 import org.json.JSONObject
 import java.net.URISyntaxException
+import com.example.marketelectronico.data.model.MessageStatus
+import io.socket.client.Ack
 
 object SocketManager {
     private var socket: Socket? = null
@@ -51,13 +53,22 @@ object SocketManager {
     }
 
     // Enviar mensaje: coincidiendo con server.js "send_message"
-    fun sendMessage(chatId: Int, content: String) {
+    fun sendMessage(chatId: Int, content: String, onAck: (Boolean) -> Unit) {
         val json = JSONObject()
         json.put("chatId", chatId)
-        json.put("contenido", content) // Tu server espera "contenido", no "text"
+        json.put("contenido", content)
 
-        // El callback lo manejaremos escuchando "new_message" o confirmación
-        socket?.emit("send_message", json)
+        // Enviamos el mensaje Y esperamos la confirmación (Ack) del servidor
+        socket?.emit("send_message", json, Ack { args ->
+            // Este código se ejecuta cuando el servidor responde "callback({ok: true})"
+            if (args.isNotEmpty()) {
+                val response = args[0] as JSONObject
+                val ok = response.optBoolean("ok")
+                onAck(ok) // Avisamos al ViewModel que ya se envió
+            } else {
+                onAck(false)
+            }
+        })
     }
 
     // Escuchar: server.js emite "new_message"
@@ -66,21 +77,30 @@ object SocketManager {
             if (args.isNotEmpty()) {
                 val data = args[0] as JSONObject
                 try {
-                    // Mapeo del JSON de Supabase a tu modelo Message
                     val msg = Message(
                         id = data.optString("id"),
                         text = data.optString("contenido"),
-                        // Comparar con ID del usuario actual en el ViewModel
-                        isSentByMe = false // Lo ajustaremos en el ViewModel
+                        isSentByMe = false,
+                        senderId = data.optString("id_remitente"),
+                        status = MessageStatus.SENT // Los que recibimos ya están enviados
                     )
-                    // Importante: extraemos el senderId para saber de quién es
-                    msg.senderId = data.optString("id_remitente")
-
                     callback(msg)
                 } catch (e: Exception) {
                     Log.e("SocketManager", "Error parsing message", e)
                 }
             }
+        }
+    }
+
+    fun markMessagesAsRead(chatId: Int) {
+        val json = JSONObject()
+        json.put("chatId", chatId)
+        socket?.emit("mark_messages_read", json)
+    }
+
+    fun onMessagesReadUpdate(callback: () -> Unit) {
+        socket?.on("messages_read_update") {
+            callback()
         }
     }
 }

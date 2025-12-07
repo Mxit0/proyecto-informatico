@@ -13,6 +13,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.example.marketelectronico.data.remote.UserProfileDto
 import com.example.marketelectronico.data.remote.UserService
+import java.util.UUID
+import com.example.marketelectronico.data.model.MessageStatus
 
 class ChatViewModel : ViewModel() {
 
@@ -37,17 +39,37 @@ class ChatViewModel : ViewModel() {
         SocketManager.connect()
         SocketManager.joinChat(chatId)
 
+        SocketManager.markMessagesAsRead(chatId)
+
+        SocketManager.onMessagesReadUpdate {
+            // Recorremos la lista y marcamos MIS mensajes enviados como LEÍDOS
+            messages.forEachIndexed { index, msg ->
+                if (msg.isSentByMe && msg.status == MessageStatus.SENT) {
+                    messages[index] = msg.copy(status = MessageStatus.READ)
+                }
+            }
+        }
+
         // 2. Cargar Historial (HTTP)
         loadHistory(chatId)
 
         // 3. Escuchar nuevos mensajes
         SocketManager.onMessageReceived { message ->
-            // Ajustar isSentByMe basado en el senderId que viene del socket
+
+            // --- CORRECCIÓN ANTIDUPLICADOS ---
+            // Si el mensaje lo envié yo, LO IGNORO, porque ya lo agregué
+            // manualmente en la función sendMessage() para mostrar "Enviando..."
+            if (message.senderId == currentUserId.toString()) {
+                return@onMessageReceived
+            }
+            // ---------------------------------
+
+            // Si llegamos aquí, es un mensaje de la OTRA persona
             val adjustedMessage = message.copy(
-                isSentByMe = (message.senderId == currentUserId.toString())
+                isSentByMe = false // Aseguramos que no es mío
             )
-            // Agregamos a la lista (Compose detecta el cambio)
-            // Verificamos duplicados por si acaso
+
+            // Agregamos a la lista si no existe
             if (messages.none { it.id == adjustedMessage.id }) {
                 messages.add(adjustedMessage)
             }
@@ -89,11 +111,33 @@ class ChatViewModel : ViewModel() {
 
     fun sendMessage(text: String) {
         if (text.isNotBlank() && currentChatId != -1) {
-            // Enviar al socket
-            SocketManager.sendMessage(currentChatId, text)
 
-            // Opcional: Agregar optimísticamente a la lista UI
-            // (o esperar a que el socket devuelva el evento "new_message")
+            // 1. Crear ID temporal y mensaje en estado SENDING
+            val tempId = UUID.randomUUID().toString()
+            val tempMessage = Message(
+                id = tempId,
+                text = text,
+                isSentByMe = true,
+                senderId = currentUserId.toString(),
+                status = MessageStatus.SENDING // <-- Estado inicial
+            )
+
+            // 2. Agregar a la lista INMEDIATAMENTE (para que el usuario lo vea)
+            messages.add(tempMessage)
+
+            // 3. Enviar al servidor con callback
+            SocketManager.sendMessage(currentChatId, text) { success ->
+                if (success) {
+                    // 4. Si el servidor confirma, buscamos el mensaje y lo actualizamos a SENT
+                    // Necesitamos buscar por el ID temporal porque el servidor generará uno nuevo real,
+                    // pero para la UI basta con actualizar el estado visualmente.
+                    val index = messages.indexOfFirst { it.id == tempId }
+                    if (index != -1) {
+                        // Reemplazamos el elemento para gatillar la recomposición de Compose
+                        messages[index] = messages[index].copy(status = MessageStatus.SENT)
+                    }
+                }
+            }
         }
     }
 

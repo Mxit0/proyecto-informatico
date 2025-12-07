@@ -23,11 +23,18 @@ data class ChatPreview(
     val photoUrl: String? = null
 )
 
+enum class MessageStatus {
+    SENDING, // Enviando...
+    SENT,    // Enviado (Check simple)
+    READ     // Leído (Doble check azul)
+}
+
 data class Message(
     val id: String,
     val text: String,
     var isSentByMe: Boolean,
-    var senderId: String = ""
+    var senderId: String = "",
+    var status: MessageStatus = MessageStatus.SENT
 )
 
 data class ForumThread(

@@ -28,6 +28,8 @@ import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.ui.text.font.FontWeight
+import com.example.marketelectronico.data.model.MessageStatus
+import androidx.compose.foundation.lazy.itemsIndexed
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,15 +109,24 @@ fun ConversationScreen(
             contentPadding = PaddingValues(vertical = 12.dp),
             reverseLayout = true
         ) {
-            items(messages.reversed()) { message ->
-                MessageBubble(message = message)
+            // LÓGICA DE VISUALIZACIÓN
+            // Usamos itemsIndexed para saber la posición.
+            // Al usar reversed(), el índice 0 es el mensaje MÁS NUEVO (el de más abajo).
+            val reversedList = messages.reversed()
+
+            itemsIndexed(reversedList) { index, message ->
+                // Condición: Mostrar solo si es el último mensaje (index 0) Y es mío.
+                // Si el índice 0 es de la otra persona, isSentByMe será false y no se mostrará nada.
+                val showStatus = (index == 0 && message.isSentByMe)
+
+                MessageBubble(message = message, showStatus = showStatus)
             }
         }
     }
 }
 
 @Composable
-private fun MessageBubble(message: Message) {
+private fun MessageBubble(message: Message, showStatus: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.isSentByMe) Arrangement.End else Arrangement.Start
@@ -136,6 +147,21 @@ private fun MessageBubble(message: Message) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 color = if (message.isSentByMe) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        if (showStatus) {
+            val statusText = when (message.status) {
+                MessageStatus.SENDING -> "Enviando..."
+                MessageStatus.SENT -> "Enviado"
+                MessageStatus.READ -> "Leído"
+            }
+
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.Gray,
+                modifier = Modifier.padding(end = 6.dp, bottom = 4.dp)
             )
         }
     }
