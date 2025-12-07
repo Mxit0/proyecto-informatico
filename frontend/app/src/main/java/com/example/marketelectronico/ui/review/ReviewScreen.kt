@@ -30,6 +30,7 @@ import com.example.marketelectronico.data.repository.ReviewRepository
 import com.example.marketelectronico.data.repository.UserRepository // <-- Tu repo existente
 import com.example.marketelectronico.ui.product.ProductDetailUiState
 import com.example.marketelectronico.ui.product.ProductViewModel
+import com.example.marketelectronico.utils.TokenManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -146,12 +147,14 @@ fun ReviewScreen(
                             // --- 3. GUARDAR LA RESEÑA CON EL USUARIO REAL ---
                             val authorName = currentUser?.nombre_usuario ?: "Usuario Anónimo"
                             val authorPhoto = currentUser?.foto
+                            val currentUserIdString = TokenManager.getUserId()?.toString() ?: ""
 
                             val newReview = Review(
                                 productId = product.id,
                                 productName = product.name,
                                 productImageUrl = product.imageUrl,
-                                author = authorName, // <-- ¡Nombre correcto!
+                                author = authorName,
+                                authorId = currentUserIdString,
                                 authorImageUrl = authorPhoto,
                                 rating = rating,
                                 comment = comment

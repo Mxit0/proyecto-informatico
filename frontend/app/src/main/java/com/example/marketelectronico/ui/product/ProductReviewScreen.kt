@@ -33,6 +33,15 @@ import com.example.marketelectronico.data.repository.ReviewRepository
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import java.util.Locale
 import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.ThumbUp
+import com.example.marketelectronico.utils.TokenManager
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,8 +49,10 @@ fun ProductReviewScreen(
     navController: NavController,
     productId: String?
 ) {
+    val currentUserId = TokenManager.getUserId()?.toString() ?: ""
     // Obtener reseñas crudas del repositorio
-    val rawReviews = ReviewRepository.getReviewsForProduct(productId)
+    val rawReviews = ReviewRepository.allReviews // Lista viva
+        .filter { it.productId == productId }
 
     // --- 1. ESTADO PARA EL ORDENAMIENTO ---
     // Por defecto ordenamos por "Most recent"
@@ -100,8 +111,16 @@ fun ProductReviewScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            items(reviews) { review ->
-                ReviewItem(review)
+            items(reviews) { review -> // Asegúrate de usar la lista 'reviews' ya ordenada
+                ReviewItem(
+                    review = review,
+                    currentUserId = currentUserId,
+                    onLikeClick = { ReviewRepository.toggleLike(review.id, currentUserId) },
+                    onDeleteClick = { ReviewRepository.deleteReview(review.id) },
+                    onEditClick = { newComment, newRating ->
+                        ReviewRepository.updateReview(review.id, newComment, newRating)
+                    }
+                )
                 Divider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 16.dp))
             }
         }
@@ -185,33 +204,38 @@ fun SortByChips(
 }
 
 @Composable
-fun ReviewItem(review: Review) {
+fun ReviewItem(
+    review: Review,
+    currentUserId: String,
+    onLikeClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onEditClick: (String, Double) -> Unit
+) {
+    // Estado para el diálogo de edición
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.Top) {
+            // --- FOTO Y NOMBRE (Tu código existente) ---
             if (review.authorImageUrl != null) {
                 AsyncImage(
                     model = review.authorImageUrl,
                     contentDescription = review.author,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop,
-                    placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
-                    error = painterResource(id = android.R.drawable.ic_menu_gallery)
+                    modifier = Modifier.size(40.dp).clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
             } else {
-                // Fallback si no tiene foto (Avatar genérico o iniciales)
                 Image(
                     painter = painterResource(id = android.R.drawable.ic_menu_gallery),
                     contentDescription = review.author,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.Gray),
+                    modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.Gray),
                     contentScale = ContentScale.Crop
                 )
             }
+
             Spacer(modifier = Modifier.width(8.dp))
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = review.author,
@@ -224,14 +248,90 @@ fun ReviewItem(review: Review) {
                     color = Color.Gray
                 )
             }
+
+            // --- ACCIONES DE DUEÑO (Editar / Borrar) ---
+            if (review.authorId == currentUserId && currentUserId.isNotEmpty()) {
+                IconButton(onClick = { showEditDialog = true }) {
+                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.Gray, modifier = Modifier.size(20.dp))
+                }
+                // --- MODIFICADO: Ahora abre el diálogo en lugar de borrar directo
+                IconButton(onClick = { showDeleteDialog = true }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                }
+            }
         }
+
         Spacer(modifier = Modifier.height(8.dp))
         RatingBar(rating = review.rating, starSize = 16.dp)
         Spacer(modifier = Modifier.height(8.dp))
+
         Text(
             text = review.comment,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // --- BOTÓN DE LIKE ---
+        val isLiked = review.likedByUserIds.contains(currentUserId)
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .clickable { if(currentUserId.isNotEmpty()) onLikeClick() } // Solo si está logueado
+                .background(if (isLiked) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Icon(
+                imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = "Like",
+                tint = if (isLiked) MaterialTheme.colorScheme.primary else Color.Gray,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "${review.likesCount} Helpful",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isLiked) MaterialTheme.colorScheme.primary else Color.Gray
+            )
+        }
+    }
+
+    // --- DIÁLOGO DE EDICIÓN ---
+    if (showEditDialog) {
+        EditReviewDialog(
+            initialComment = review.comment,
+            initialRating = review.rating,
+            onDismiss = { showEditDialog = false },
+            onConfirm = { comment, rating ->
+                onEditClick(comment, rating)
+                showEditDialog = false
+            }
+        )
+    }
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar Reseña") },
+            text = { Text("¿Estás seguro de que quieres eliminar esta reseña? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteClick() // Aquí sí ejecutamos el borrado real
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 }
@@ -264,4 +364,68 @@ fun ProductReviewScreenPreview() {
             productId = "1"
         )
     }
+}
+@Composable
+fun RatingInput(currentRating: Double, onRatingChanged: (Double) -> Unit) {
+    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+        (1..5).forEach { starIndex ->
+            val icon = when {
+                currentRating >= starIndex -> Icons.Default.Star
+                currentRating >= starIndex - 0.5 -> Icons.Default.StarHalf
+                else -> Icons.Default.StarOutline
+            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(48.dp)
+                    .padding(4.dp)
+                    .pointerInput(starIndex) {
+                        detectTapGestures { offset ->
+                            if (offset.x < this.size.width / 2) onRatingChanged(starIndex - 0.5)
+                            else onRatingChanged(starIndex.toDouble())
+                        }
+                    }
+            )
+        }
+    }
+}
+
+@Composable
+fun EditReviewDialog(
+    initialComment: String,
+    initialRating: Double,
+    onDismiss: () -> Unit,
+    onConfirm: (String, Double) -> Unit
+) {
+    var comment by remember { mutableStateOf(initialComment) }
+    var rating by remember { mutableDoubleStateOf(initialRating) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar Reseña") },
+        text = {
+            Column {
+                RatingInput(currentRating = rating, onRatingChanged = { rating = it }) // Reusando tu componente existente
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = comment,
+                    onValueChange = { comment = it },
+                    label = { Text("Comentario") },
+                    modifier = Modifier.fillMaxWidth().height(120.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(comment, rating) }) {
+                Text("Guardar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
