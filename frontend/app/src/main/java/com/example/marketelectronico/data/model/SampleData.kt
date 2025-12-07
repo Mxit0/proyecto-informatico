@@ -8,6 +8,9 @@ data class Product(
     val status: String = "Nuevo",
     val sellerId: Int = 4,
     val sellerName: String = "Vendedor Anónimo",
+
+    val sellerImageUrl: String? = null,
+
     val sellerRating: Double = 0.0,
     val sellerReviews: Int = 0,
     val description: String = "No hay descripción disponible.",
