@@ -7,11 +7,11 @@ import retrofit2.http.Path
 // --- 1. Interfaz ---
 interface ProductApi {
     // GET /productos
-    @GET("productos")
+    @GET("api/productos")
     suspend fun getAllProducts(): List<ProductResponse> // <-- Esta respuesta ahora contendrá imágenes
 
     // GET /productos/:id
-    @GET("productos/{id}")
+    @GET("api/productos/{id}")
     suspend fun getProductById(@Path("id") id: String): ProductResponse // <-- Esta respuesta ahora contendrá imágenes
 
     // --- Esta ruta ya no es necesaria para la lista/detalle ---

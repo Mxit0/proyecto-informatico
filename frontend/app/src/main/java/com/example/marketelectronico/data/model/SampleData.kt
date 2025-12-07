@@ -6,7 +6,11 @@ data class Product(
     val price: Double,
     val imageUrl: String,
     val status: String = "Nuevo",
+    val sellerId: Int = 4,
     val sellerName: String = "Vendedor Anónimo",
+
+    val sellerImageUrl: String? = null,
+
     val sellerRating: Double = 0.0,
     val sellerReviews: Int = 0,
     val description: String = "No hay descripción disponible.",
@@ -17,13 +21,23 @@ data class ChatPreview(
     val id: String,
     val name: String,
     val lastMessage: String,
-    val timestamp: String
+    val timestamp: String,
+    val otherUserId: Int = 0,
+    val photoUrl: String? = null
 )
+
+enum class MessageStatus {
+    SENDING, // Enviando...
+    SENT,    // Enviado (Check simple)
+    READ     // Leído (Doble check azul)
+}
 
 data class Message(
     val id: String,
     val text: String,
-    val isSentByMe: Boolean
+    var isSentByMe: Boolean,
+    var senderId: String = "",
+    var status: MessageStatus = MessageStatus.SENT
 )
 
 data class ForumThread(
@@ -80,9 +94,8 @@ val allSampleProducts = (sampleRecommendations + sampleNews + sampleOffers).dist
 
 // --- El resto de tus datos de muestra ---
 val sampleChats = listOf(
-    ChatPreview("1", "GamerZ", "Sí, la RTX 3080 aún está disponible.", "10:30 AM"),
-    ChatPreview("2", "PartsWorld", "Tu pedido de RAM ha sido enviado.", "Ayer"),
-    ChatPreview("3", "TechTrader", "¡Gracias por tu compra!", "Ayer")
+    ChatPreview("1", "GamerZ", "Disponible?", "10:30 AM", 2, null),
+    ChatPreview("2", "PartsWorld", "Enviado.", "Ayer", 3, null)
 )
 val sampleMessages = listOf(
     Message("1", "Hola, ¿sigue disponible la RTX 3080?", true),

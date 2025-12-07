@@ -2,6 +2,7 @@ package com.example.marketelectronico.ui.product
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border // Agregado para el borde de la foto
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -33,8 +34,10 @@ import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.model.sampleProduct1
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.repository.CartRepository
-import androidx.lifecycle.viewmodel.compose.viewModel // <-- 1. IMPORTAR
-import coil.compose.AsyncImage // <-- 2. IMPORTAR COIL
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage // <-- IMPORTANTE: COIL
+import kotlinx.coroutines.flow.collectLatest
+import com.example.marketelectronico.utils.TokenManager
 
 /**
  * Pantalla de Detalles del Producto.
@@ -45,10 +48,19 @@ fun ProductScreen(
     navController: NavController,
     productId: String?,
     modifier: Modifier = Modifier,
-    viewModel: ProductViewModel = viewModel() // <-- 3. ACEPTA EL VIEWMODEL
+    viewModel: ProductViewModel = viewModel()
 ) {
     // --- 4. OBSERVAR ESTADO Y CARGAR DATOS ---
     val uiState by viewModel.uiState.collectAsState()
+
+    val rawId = TokenManager.getUserId()
+    val currentUserId = rawId?.toString()?.toIntOrNull() ?: -1
+
+    LaunchedEffect(key1 = true) {
+        viewModel.navigationEvent.collectLatest { route ->
+            navController.navigate(route)
+        }
+    }
 
     LaunchedEffect(productId) {
         if (productId != null) {
@@ -130,7 +142,11 @@ fun ProductScreen(
                 ProductDetailsContent(
                     product = state.product,
                     navController = navController,
-                    paddingValues = innerPadding
+                    currentUserId = currentUserId,
+                    paddingValues = innerPadding,
+                    onContactSeller = { sellerId ->
+                        viewModel.contactSeller(sellerId)
+                    }
                 )
             }
         }
@@ -140,15 +156,17 @@ fun ProductScreen(
 @Composable
 private fun ProductDetailsContent(
     product: Product,
+    currentUserId: Int,
     navController: NavController,
-    paddingValues: PaddingValues
+    paddingValues: PaddingValues,
+    onContactSeller: (Int) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues) // <-- Usa el padding del Scaffold
+            .padding(paddingValues)
             .verticalScroll(rememberScrollState())
     ) {
         // --- 6. USAR COIL PARA CARGAR IMAGEN REAL ---
@@ -185,32 +203,46 @@ private fun ProductDetailsContent(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- El resto de tu UI (Vendedor, Botones, etc.) no cambia ---
-            // Sección del Vendedor
+            // --- Sección del Vendedor (MODIFICADA) ---
             Text(
                 text = "Vendedor",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(8.dp))
+
+            // 👇 NUEVA ESTRUCTURA VISUAL
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(12.dp)
             ) {
-                Image(
-                    painter = painterResource(id = android.R.drawable.ic_menu_gallery), // Avatar placeholder
+                // 👇 FOTO CON COIL
+                AsyncImage(
+                    model = product.sellerImageUrl ?: "https://i.pravatar.cc/150?u=${product.sellerId}", // Fallback
                     contentDescription = "Avatar del vendedor",
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(50.dp)
                         .clip(CircleShape)
+                        .border(1.dp, MaterialTheme.colorScheme.primary, CircleShape) // Borde
                         .background(Color.Gray),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    error = painterResource(id = android.R.drawable.ic_menu_gallery)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                // ----------------
+
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = product.sellerName,
                         style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold, // Más negrita
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -231,6 +263,8 @@ private fun ProductDetailsContent(
                     Text("Reportar")
                 }
             }
+            // ----------------------------------------
+
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -248,14 +282,27 @@ private fun ProductDetailsContent(
                     Text("Añadir al Carrito")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                OutlinedButton(
-                    onClick = { /* TODO: Mensaje al vendedor */ },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Mensaje al Vendedor")
+                if (product.sellerId == currentUserId) {
+                    // Si el producto es mío, deshabilito el botón y cambio el texto
+                    OutlinedButton(
+                        onClick = { },
+                        enabled = false, // Deshabilitado
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Es tu producto")
+                    }
+                } else {
+                    // Si es de otro, muestro el botón normal
+                    OutlinedButton(
+                        onClick = {
+                            onContactSeller(product.sellerId)
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Contactar")
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -337,7 +384,7 @@ private fun ProductDetailsContent(
                 TextButton(
                     onClick = {
                         showDialog = false
-                        navController.navigate("cart") // Navega al carrito
+                        navController.navigate("cart")
                     }
                 ) {
                     Text("Ir al Carrito")
@@ -345,7 +392,7 @@ private fun ProductDetailsContent(
             },
             dismissButton = {
                 TextButton(
-                    onClick = { showDialog = false } // Solo cierra el diálogo
+                    onClick = { showDialog = false }
                 ) {
                     Text("Seguir Comprando")
                 }
@@ -379,8 +426,10 @@ fun ProductScreenPreview() {
     MarketElectronicoTheme {
         ProductDetailsContent(
             product = sampleProduct1, // Usa el producto de SampleData
+            currentUserId = 1,
             navController = rememberNavController(),
-            paddingValues = PaddingValues(0.dp)
+            paddingValues = PaddingValues(0.dp),
+            onContactSeller = {}
         )
     }
 }

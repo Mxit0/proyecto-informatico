@@ -19,54 +19,114 @@ import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.base.BaseScreen
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.model.Message
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.marketelectronico.utils.TokenManager
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.ui.text.font.FontWeight
+import com.example.marketelectronico.data.model.MessageStatus
+import androidx.compose.foundation.lazy.itemsIndexed
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationScreen(
     navController: NavController,
     modifier: Modifier = Modifier,
-    // Inyectamos el ViewModel que maneja el Socket
     viewModel: ChatViewModel = viewModel()
 ) {
-    // Observamos la lista de mensajes del ViewModel
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+
+    val chatIdStr = navBackStackEntry?.arguments?.getString("chatId")
+    val chatId = chatIdStr?.toIntOrNull() ?: return
+    val otherUserId = navBackStackEntry?.arguments?.getInt("otherUserId") ?: 0
+
+    val myToken = TokenManager.getToken() ?: ""
+    val rawUserId = TokenManager.getUserId()
+    val myUserId = rawUserId?.toString()?.toIntOrNull() ?: 0
+
+    LaunchedEffect(chatId) {
+        if (myToken.isNotEmpty()) {
+            viewModel.initChat(chatId, myUserId, myToken)
+            viewModel.loadChatPartner(otherUserId)
+        }
+    }
+
     val messages = viewModel.messages
+    val partner = viewModel.chatPartner
 
-    BaseScreen(
-        title = "Chat en Vivo", // Puedes hacerlo dinámico si pasas el nombre del vendedor
-        navController = navController,
-        modifier = modifier
-    ) { padding ->
-
-        Scaffold(
-            modifier = Modifier.padding(padding),
-            // Pasamos la acción de enviar al BottomBar
-            bottomBar = {
-                ChatBottomBar(
-                    onSend = { text -> viewModel.sendMessage(text) }
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = partner?.foto,
+                            contentDescription = "Avatar",
+                            placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
+                            error = painterResource(id = android.R.drawable.ic_menu_camera),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = partner?.nombre_usuario ?: "Cargando...",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-            }
-        ) { innerPadding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 12.dp),
-                reverseLayout = true // Para que los mensajes nuevos aparezcan abajo
-            ) {
-                // Usamos la lista dinámica 'messages' en lugar de 'sampleMessages'
-                // Invertimos la lista si el reverseLayout es true, o el ViewModel la gestiona
-                // (Generalmente con reverseLayout=true, el índice 0 es el último mensaje)
-                items(messages.reversed()) { message ->
-                    MessageBubble(message = message)
-                }
+            )
+        },
+        bottomBar = {
+            ChatBottomBar(onSend = { text -> viewModel.sendMessage(text) })
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 12.dp),
+            reverseLayout = true
+        ) {
+            // LÓGICA DE VISUALIZACIÓN
+            // Usamos itemsIndexed para saber la posición.
+            // Al usar reversed(), el índice 0 es el mensaje MÁS NUEVO (el de más abajo).
+            val reversedList = messages.reversed()
+
+            itemsIndexed(reversedList) { index, message ->
+                // Condición: Mostrar solo si es el último mensaje (index 0) Y es mío.
+                // Si el índice 0 es de la otra persona, isSentByMe será false y no se mostrará nada.
+                val showStatus = (index == 0 && message.isSentByMe)
+
+                MessageBubble(message = message, showStatus = showStatus)
             }
         }
     }
 }
 
 @Composable
-private fun MessageBubble(message: Message) {
+private fun MessageBubble(message: Message, showStatus: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.isSentByMe) Arrangement.End else Arrangement.Start
@@ -87,6 +147,21 @@ private fun MessageBubble(message: Message) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 color = if (message.isSentByMe) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        if (showStatus) {
+            val statusText = when (message.status) {
+                MessageStatus.SENDING -> "Enviando..."
+                MessageStatus.SENT -> "Enviado"
+                MessageStatus.READ -> "Leído"
+            }
+
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.Gray,
+                modifier = Modifier.padding(end = 6.dp, bottom = 4.dp)
             )
         }
     }

@@ -342,21 +342,19 @@ private fun ProductSummaryItem(
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun PayConfirmScreenPreview() {
-    val mockProduct = Product(
-        id = "1", name = "CPU", price = 250.0, imageUrl = "",
-        status = "New", sellerName = "Tech", sellerRating = 4.5, sellerReviews = 10, description = "", specifications = emptyMap()
-    )
-
-    val mockOrder = Order(
+    val previewOrder = Order(
         id = "preview123",
-        userId = "preview_user", // <-- AÑADIR USER ID FALSO
-        items = listOf(mockProduct),
+        userId = "preview_user",
+        items = com.example.marketelectronico.data.model.allSampleProducts.take(2),
         totalAmount = 250.0
     )
-    OrderRepository.addOrder(mockOrder)
+    OrderRepository.addOrder(previewOrder)
 
     MarketElectronicoTheme {
-        PayConfirmScreen(navController = rememberNavController(), orderId = "preview123")
+        PayConfirmScreen(
+            navController = rememberNavController(),
+            orderId = "preview123"
+        )
     }
 }
 

@@ -36,8 +36,4 @@ object OrderRepository {
     fun findOrderById(orderId: String?): Order? {
         return orders.find { it.id == orderId }
     }
-
-    fun getOrdersByUser(userId: String): List<Order> {
-        return orders.filter { it.userId == userId }
-    }
 }
