@@ -21,11 +21,11 @@ if (redisUrl) {
   client
     .connect()
     .then(() => {
-      console.log("✅ Conectado a Redis:", redisUrl);
+      console.log("Conectado a Redis:", redisUrl);
       redisClient = client;
     })
     .catch((err) => {
-      console.log("⚠️ No se pudo conectar a Redis, usando cliente dummy:", err.message);
+      console.log("No se pudo conectar a Redis, usando cliente dummy:", err.message);
     });
 }
 

@@ -162,7 +162,7 @@ export async function removeItemFromCart(userId, productId) {
     const cartId = await getOrCreateCartId(userId);
     
     const { error } = await supabase
-      .from('listacarrito') // <--- Tabla corregida
+      .from('listacarrito') 
       .delete()
       .eq('id_carrito', cartId)
       .eq('id_producto', productId);
@@ -182,7 +182,7 @@ export async function clearCart(userId) {
     const cartId = await getOrCreateCartId(userId);
     
     const { error } = await supabase
-      .from('listacarrito') // <--- Tabla corregida
+      .from('listacarrito') 
       .delete()
       .eq('id_carrito', cartId);
 
