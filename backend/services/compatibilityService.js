@@ -27,7 +27,7 @@ class CompatibilityService {
   async enrichProductData(items) {
     const enriched = [];
     for (const item of items) {
-      const productDetails = await productRepository2.getProductById(item.product_id);
+      const productDetails = await productRepository.getProductById(item.product_id);
       
       // 🛑 NECESITAS ESTA LÍNEA AQUÍ
       if (!productDetails) {
