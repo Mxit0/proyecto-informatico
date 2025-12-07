@@ -19,6 +19,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.base.BaseScreen
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.model.Message
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.marketelectronico.utils.TokenManager
 
 @Composable
 fun ConversationScreen(
@@ -27,6 +29,19 @@ fun ConversationScreen(
     // Inyectamos el ViewModel que maneja el Socket
     viewModel: ChatViewModel = viewModel()
 ) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val chatIdStr = navBackStackEntry?.arguments?.getString("chatId")
+    val chatId = chatIdStr?.toIntOrNull() ?: return
+
+    val myToken = TokenManager.getToken() ?: ""
+    val rawUserId = TokenManager.getUserId()
+    val myUserId = rawUserId?.toString()?.toIntOrNull() ?: 0
+
+    LaunchedEffect(chatId) {
+        if (myToken.isNotEmpty()) {
+            viewModel.initChat(chatId, myUserId, myToken)
+        }
+    }
     // Observamos la lista de mensajes del ViewModel
     val messages = viewModel.messages
 
@@ -52,7 +67,7 @@ fun ConversationScreen(
                     .padding(horizontal = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 12.dp),
-                reverseLayout = true // Para que los mensajes nuevos aparezcan abajo
+                // reverseLayout = true // Para que los mensajes nuevos aparezcan abajo
             ) {
                 // Usamos la lista dinámica 'messages' en lugar de 'sampleMessages'
                 // Invertimos la lista si el reverseLayout es true, o el ViewModel la gestiona

@@ -8,6 +8,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import com.example.marketelectronico.utils.TokenManager
+import com.example.marketelectronico.data.remote.ChatApi
 
 class AuthInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -45,4 +46,8 @@ object ApiClient {
         .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
+    val chatApi: ChatApi by lazy {
+        retrofit.create(ChatApi::class.java)
+    }
 }
+

@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import com.example.marketelectronico.ui.navigation.AppNavigation
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.utils.TokenManager
-
+import com.example.marketelectronico.data.remote.SocketManager
 /**
  * Es el anfitrión de la aplicación de Jetpack Compose.
  * Carga el Tema y el controlador de Navegación.
@@ -20,20 +20,16 @@ import com.example.marketelectronico.utils.TokenManager
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        
-        // Inicializar TokenManager
+
         TokenManager.init(this)
-        SocketChatManager.connect()
-        
+
+        // Inicializar Socket con el token (si ya hay uno guardado)
+        val token = TokenManager.getToken() ?: ""
+        SocketManager.init(token) // <-- Pasa el token si tu init lo requiere
+
         setContent {
             MarketElectronicoTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    AppNavigation()
-                }
+                AppNavigation()
             }
         }
     }

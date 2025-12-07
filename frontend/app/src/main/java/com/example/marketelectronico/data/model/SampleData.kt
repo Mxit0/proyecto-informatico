@@ -6,6 +6,7 @@ data class Product(
     val price: Double,
     val imageUrl: String,
     val status: String = "Nuevo",
+    val sellerId: Int = 4,
     val sellerName: String = "Vendedor Anónimo",
     val sellerRating: Double = 0.0,
     val sellerReviews: Int = 0,
@@ -23,7 +24,8 @@ data class ChatPreview(
 data class Message(
     val id: String,
     val text: String,
-    val isSentByMe: Boolean
+    var isSentByMe: Boolean,
+    var senderId: String = ""
 )
 
 data class ForumThread(

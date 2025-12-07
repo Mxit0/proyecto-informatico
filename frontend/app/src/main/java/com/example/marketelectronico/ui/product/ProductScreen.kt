@@ -35,6 +35,7 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.repository.CartRepository
 import androidx.lifecycle.viewmodel.compose.viewModel // <-- 1. IMPORTAR
 import coil.compose.AsyncImage // <-- 2. IMPORTAR COIL
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Pantalla de Detalles del Producto.
@@ -49,6 +50,12 @@ fun ProductScreen(
 ) {
     // --- 4. OBSERVAR ESTADO Y CARGAR DATOS ---
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(key1 = true) {
+        viewModel.navigationEvent.collectLatest { route ->
+            navController.navigate(route)
+        }
+    }
 
     LaunchedEffect(productId) {
         if (productId != null) {
@@ -130,7 +137,10 @@ fun ProductScreen(
                 ProductDetailsContent(
                     product = state.product,
                     navController = navController,
-                    paddingValues = innerPadding
+                    paddingValues = innerPadding,
+                    onContactSeller = { sellerId ->
+                        viewModel.contactSeller(sellerId)
+                    }
                 )
             }
         }
@@ -141,7 +151,8 @@ fun ProductScreen(
 private fun ProductDetailsContent(
     product: Product,
     navController: NavController,
-    paddingValues: PaddingValues
+    paddingValues: PaddingValues,
+    onContactSeller: (Int) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
 
@@ -249,11 +260,11 @@ private fun ProductDetailsContent(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 OutlinedButton(
-                    onClick = { /* TODO: Mensaje al vendedor */ },
+                    onClick = {
+                        onContactSeller(product.sellerId) // <-- CONECTAR AQUÍ
+                    },
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
-                    shape = RoundedCornerShape(8.dp)
+                    // ... estilos ...
                 ) {
                     Text("Mensaje al Vendedor")
                 }
@@ -380,7 +391,8 @@ fun ProductScreenPreview() {
         ProductDetailsContent(
             product = sampleProduct1, // Usa el producto de SampleData
             navController = rememberNavController(),
-            paddingValues = PaddingValues(0.dp)
+            paddingValues = PaddingValues(0.dp),
+            onContactSeller = {}
         )
     }
 }

@@ -340,9 +340,25 @@ fun SummaryRow(label: String, amount: String, isTotal: Boolean = false) {
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun PaymentScreenPreview() {
-    // Añadimos un valor al repositorio para que la preview funcione
+    // Limpiamos carrito para evitar errores previos
     CartRepository.clearCart()
-    CartRepository.addToCart(Product("1", "Test Product", 120.0, "", "New", "", 0.0, 0, "", emptyMap()))
+
+    // Usamos argumentos NOMBRADOS (name = "...", price = ...) para evitar errores de orden
+    val testProduct = Product(
+        id = "1",
+        name = "Test Product",
+        price = 120.0,
+        imageUrl = "",
+        status = "New",
+        sellerId = 4, // <-- Aquí definimos explícitamente el ID
+        sellerName = "Vendedor Test",
+        sellerRating = 4.5,
+        sellerReviews = 10,
+        description = "Descripción de prueba",
+        specifications = emptyMap()
+    )
+
+    CartRepository.addToCart(testProduct)
 
     MarketElectronicoTheme {
         PaymentScreen(navController = rememberNavController())
