@@ -14,9 +14,6 @@ async function getOrCreateCartId(userId) {
 
   if (cart) return cart.id;
 
-  // 2. Si no existe, lo creamos
-  // Nota: Supabase pondrá fecha_creacion automáticamente si tiene default, 
-  // si no, podrías necesitar agregar: fecha_creacion: new Date()
   const { data: newCart, error: createError } = await supabase
     .from('carrito')
     .insert({ id_usuario: userId })
@@ -56,9 +53,7 @@ export async function addToCart(userId, productId, quantity) {
         .eq('id', existingItem.id)
         .select());
     } else {
-      // INSERT: Creamos el item
-      // Ojo: No estamos llenando 'precio_seleccionado' aquí, 
-      // porque usualmente en el carrito se muestra el precio actual de la tienda.
+      
       ({ data, error } = await supabase
         .from('listacarrito')
         .insert({
@@ -82,7 +77,7 @@ export async function addToCart(userId, productId, quantity) {
  */
 export async function getCartByUser(userId) {
   try {
-    // 1. Obtener ID del carrito
+   
     const { data: cart } = await supabase
       .from('carrito')
       .select('id')
@@ -91,16 +86,15 @@ export async function getCartByUser(userId) {
 
     if (!cart) return { items: [], total: 0 };
 
-    // 2. Obtener items de listacarrito
+    
     const { data: items, error: itemsError } = await supabase
-      .from('listacarrito') // <--- Tabla corregida
+      .from('listacarrito') 
       .select('id, id_producto, cantidad')
       .eq('id_carrito', cart.id);
 
     if (itemsError) throw itemsError;
     if (items.length === 0) return { items: [], total: 0 };
 
-    // 3. Obtener detalles de los PRODUCTOS (Nombre, Precio, Stock) desde tabla 'producto'
     const productIds = items.map(i => i.id_producto);
     
 
@@ -119,12 +113,12 @@ export async function getCartByUser(userId) {
       
     if (imagesError) throw imagesError;
 
-    // 5. UNIFICAR TODO
+    
     let totalCarrito = 0;
 
     const fullItems = items.map(item => {
       const productInfo = productsData.find(p => p.id === item.id_producto);
-      // Tomamos la primera imagen que encontremos para este producto
+      
       const productImg = imagesData.find(img => img.id_prod === item.id_producto);
       
       const precioUnitario = productInfo ? productInfo.precio : 0;
@@ -132,7 +126,7 @@ export async function getCartByUser(userId) {
       totalCarrito += subtotal;
 
       return {
-        id_item_lista: item.id, // ID de la fila en listacarrito
+        id_item_lista: item.id, 
         id_producto: item.id_producto,
         cantidad: item.cantidad,
         nombre: productInfo ? productInfo.nombre : 'Producto no disponible',
