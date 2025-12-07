@@ -10,6 +10,7 @@ import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
+import carroRoutes from "./routes/carroRoutes.js";
 import { supabase } from "./lib/supabaseClient.js";
 
 dotenv.config();
@@ -29,6 +30,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/productos", productRoutes);
 app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/carro", carroRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
