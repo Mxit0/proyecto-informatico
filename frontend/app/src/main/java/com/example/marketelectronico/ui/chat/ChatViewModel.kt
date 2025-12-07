@@ -4,11 +4,15 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.marketelectronico.data.model.Message
-import com.example.marketelectronico.data.remote.ChatApi // Tu interfaz Retrofit
 import com.example.marketelectronico.data.remote.SocketManager
 import kotlinx.coroutines.launch
 import com.example.marketelectronico.data.repository.ChatRepository
 import com.example.marketelectronico.data.remote.ApiClient
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.example.marketelectronico.data.remote.UserProfileDto
+import com.example.marketelectronico.data.remote.UserService
 
 class ChatViewModel : ViewModel() {
 
@@ -19,6 +23,9 @@ class ChatViewModel : ViewModel() {
     private var currentChatId: Int = -1
 
     private val repository = ChatRepository(ApiClient.chatApi)
+
+    var chatPartner by mutableStateOf<UserProfileDto?>(null)
+        private set
 
     // Se llama desde la UI al entrar a la pantalla
     fun initChat(chatId: Int, userId: Int, token: String) {
@@ -60,6 +67,19 @@ class ChatViewModel : ViewModel() {
                         msg.copy(isSentByMe = msg.senderId == currentUserId.toString())
                     }
                     messages.addAll(processedHistory)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun loadChatPartner(userId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = UserService.api.getUserById(userId.toLong())
+                if (response.ok) {
+                    chatPartner = response.user
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

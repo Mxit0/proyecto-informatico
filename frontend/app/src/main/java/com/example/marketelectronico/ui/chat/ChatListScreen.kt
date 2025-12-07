@@ -32,6 +32,8 @@ import com.example.marketelectronico.data.model.sampleChats
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.clickable
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,8 +107,8 @@ fun ChatListScreen(
                     ChatListItem(
                         chat = chat,
                         onClick = {
-                            // Navegar al chat real usando su ID
-                            navController.navigate("conversation/${chat.id}")
+                            // AHORA PASAMOS TAMBIÉN EL ID DEL OTRO USUARIO
+                            navController.navigate("conversation/${chat.id}/${chat.otherUserId}")
                         }
                     )
                 }
@@ -116,16 +118,15 @@ fun ChatListScreen(
 }
 
 // --- Ítem de Lista (Sin cambios) ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatListItem(
     chat: ChatPreview,
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable(onClick = onClick), // Clickable en la tarjeta
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -133,11 +134,18 @@ private fun ChatListItem(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(id = android.R.drawable.ic_menu_camera),
-                contentDescription = null,
-                modifier = Modifier.size(50.dp).clip(CircleShape).padding(4.dp)
+            // USAMOS ASYNC IMAGE PARA LA FOTO
+            AsyncImage(
+                model = chat.photoUrl, // URL real
+                contentDescription = "Foto de ${chat.name}",
+                placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
+                error = painterResource(id = android.R.drawable.ic_menu_camera),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
             )
+
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = chat.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)

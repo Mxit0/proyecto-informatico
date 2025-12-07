@@ -87,6 +87,7 @@ class ChatRepository(
                     val otherUserId = if (dto.id_usuario1 == myId) dto.id_usuario2 else dto.id_usuario1
 
                     var displayName = "Usuario #$otherUserId"
+                    var photoUrl: String? = null
 
                     // 2. USAMOS TU UserService EXISTENTE
                     try {
@@ -96,6 +97,7 @@ class ChatRepository(
                         // Verificamos usando tu estructura UserResponse (campo 'ok' y 'user')
                         if (userResponse.ok && userResponse.user != null) {
                             displayName = userResponse.user.nombre_usuario
+                            photoUrl = userResponse.user.foto
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -107,7 +109,9 @@ class ChatRepository(
                             id = dto.id.toString(),
                             name = displayName,
                             lastMessage = "Toca para ver mensajes",
-                            timestamp = ""
+                            timestamp = "",
+                            otherUserId = otherUserId,
+                            photoUrl = photoUrl
                         )
                     )
                 }

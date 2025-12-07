@@ -21,17 +21,27 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.model.Message
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.marketelectronico.utils.TokenManager
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.ui.text.font.FontWeight
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationScreen(
     navController: NavController,
     modifier: Modifier = Modifier,
-    // Inyectamos el ViewModel que maneja el Socket
     viewModel: ChatViewModel = viewModel()
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
+
     val chatIdStr = navBackStackEntry?.arguments?.getString("chatId")
     val chatId = chatIdStr?.toIntOrNull() ?: return
+    val otherUserId = navBackStackEntry?.arguments?.getInt("otherUserId") ?: 0
 
     val myToken = TokenManager.getToken() ?: ""
     val rawUserId = TokenManager.getUserId()
@@ -40,41 +50,65 @@ fun ConversationScreen(
     LaunchedEffect(chatId) {
         if (myToken.isNotEmpty()) {
             viewModel.initChat(chatId, myUserId, myToken)
+            viewModel.loadChatPartner(otherUserId)
         }
     }
-    // Observamos la lista de mensajes del ViewModel
+
     val messages = viewModel.messages
+    val partner = viewModel.chatPartner
 
-    BaseScreen(
-        title = "Chat en Vivo", // Puedes hacerlo dinámico si pasas el nombre del vendedor
-        navController = navController,
-        modifier = modifier
-    ) { padding ->
-
-        Scaffold(
-            modifier = Modifier.padding(padding),
-            // Pasamos la acción de enviar al BottomBar
-            bottomBar = {
-                ChatBottomBar(
-                    onSend = { text -> viewModel.sendMessage(text) }
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = partner?.foto,
+                            contentDescription = "Avatar",
+                            placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
+                            error = painterResource(id = android.R.drawable.ic_menu_camera),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = partner?.nombre_usuario ?: "Cargando...",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-            }
-        ) { innerPadding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 12.dp),
-                // reverseLayout = true // Para que los mensajes nuevos aparezcan abajo
-            ) {
-                // Usamos la lista dinámica 'messages' en lugar de 'sampleMessages'
-                // Invertimos la lista si el reverseLayout es true, o el ViewModel la gestiona
-                // (Generalmente con reverseLayout=true, el índice 0 es el último mensaje)
-                items(messages.reversed()) { message ->
-                    MessageBubble(message = message)
-                }
+            )
+        },
+        bottomBar = {
+            ChatBottomBar(onSend = { text -> viewModel.sendMessage(text) })
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 12.dp),
+            reverseLayout = true
+        ) {
+            items(messages.reversed()) { message ->
+                MessageBubble(message = message)
             }
         }
     }
