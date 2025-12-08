@@ -44,6 +44,7 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.foundation.clickable
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -232,7 +233,12 @@ private fun ProfileTabs(
             ) {
                 when (pageIndex) {
                     0 -> MyRatingPage(reputation = userProfile?.reputacion) // Pasamos la reputación real
-                    1 -> PurchasesHistoryPage(orders = userOrders)
+                    1 -> PurchasesHistoryPage(
+                        orders = userOrders,
+                        onOrderClick = { orderId ->
+                            navController.navigate("order_detail/$orderId")
+                        }
+                    )
                     2 -> ReviewsHistoryPage()
                 }
             }
@@ -273,9 +279,10 @@ private fun MyRatingPage(reputation: Double?) {
 }
 
 @Composable
-private fun PurchasesHistoryPage(orders: List<Order>) {
-    //val orders = OrderRepository.orders
-
+private fun PurchasesHistoryPage(
+    orders: List<Order>,
+    onOrderClick: (String) -> Unit
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Historial de Compras", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
@@ -287,7 +294,12 @@ private fun PurchasesHistoryPage(orders: List<Order>) {
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(orders) { order -> OrderHistoryItem(order = order) }
+                items(orders) { order ->
+                    OrderHistoryItem(
+                        order = order,
+                        onClick = { onOrderClick(order.id) } // Pasamos el evento click
+                    )
+                }
             }
         }
     }
@@ -379,16 +391,22 @@ private fun MyReviewItem(review: Review) {
 }
 
 @Composable
-private fun OrderHistoryItem(order: Order) {
+private fun OrderHistoryItem(
+    order: Order,
+    onClick: () -> Unit // Nuevo parámetro
+) {
     val dateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
 
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shadowElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // ... (El contenido de texto sigue igual) ...
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -412,7 +430,7 @@ private fun OrderHistoryItem(order: Order) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+            // Texto indicativo
             Text(
                 text = "Ver detalles de la compra >",
                 style = MaterialTheme.typography.labelMedium,

@@ -107,6 +107,18 @@ fun AppNavigation() {
             AddPaymentMethodScreen(navController = navController)
         }
 
+        composable(
+            route = "order_detail/{orderId}",
+            arguments = listOf(androidx.navigation.navArgument("orderId") { type = androidx.navigation.NavType.StringType })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId")
+            // Importa tu nueva pantalla OrderDetailScreen
+            com.example.marketelectronico.ui.cart.OrderDetailScreen(
+                navController = navController,
+                orderId = orderId
+            )
+        }
+
         // --- TUS PANTALLAS (De 'max') ---
         composable("profile") {
             ProfileScreen(navController = navController)
