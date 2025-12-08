@@ -4,10 +4,12 @@ import {
   getAllUsers,
   getUserById,
   updateReputation,
-  updatePhoto,           // 👈 import nuevo
+  updatePhoto,
 } from "../controllers/userController.js";
 
 import { uploadSingleImage } from "../middleware/uploadMiddleware.js";
+import { requireAuth } from "../middleware/auth.js";   
+import { saveFcmToken } from "../controllers/fcmController.js"; 
 
 const router = express.Router();
 
@@ -15,7 +17,10 @@ router.get("/", getAllUsers);
 router.get("/:id", getUserById);
 router.patch("/:id/reputacion", updateReputation);
 
-// ⭐ NUEVA RUTA PARA SUBIR FOTO
+
 router.patch("/:id/foto", uploadSingleImage, updatePhoto);
+
+
+router.post("/fcm-token", requireAuth, saveFcmToken);
 
 export default router;
