@@ -26,6 +26,11 @@ data class ChatPreview(
     val photoUrl: String? = null
 )
 
+data class Category(
+    val id: Int,
+    val nombre: String
+)
+
 enum class MessageStatus {
     SENDING, // Enviando...
     SENT,    // Enviado (Check simple)

@@ -12,7 +12,7 @@ import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
-import reviewRoutes from './routes/reviewRoutes.js';
+import reviewRoutes from "./routes/reviewRoutes.js";
 import { supabase } from "./lib/supabaseClient.js";
 
 dotenv.config();
@@ -33,8 +33,9 @@ app.use("/api/productos", productRoutes);
 app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/carro", carroRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/reviews', reviewRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/productos", productRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -57,12 +58,12 @@ function normalizePair(a, b) {
 // Middleware de autenticación para sockets (mismo JWT que en HTTP)
 io.use((socket, next) => {
   try {
-    const header = socket.handshake.auth?.token ||
-      (socket.handshake.headers?.authorization || "");
+    const header =
+      socket.handshake.auth?.token ||
+      socket.handshake.headers?.authorization ||
+      "";
 
-    const token = header.startsWith("Bearer ")
-      ? header.slice(7)
-      : header;
+    const token = header.startsWith("Bearer ") ? header.slice(7) : header;
 
     if (!token) return next(new Error("No token"));
 
@@ -202,7 +203,6 @@ io.on("connection", (socket) => {
 
       const room = `chat_${chatId}`;
       io.to(room).emit("messages_read_update", { chatId });
-
     } catch (err) {
       console.error("Error en mark_messages_read:", err);
     }
