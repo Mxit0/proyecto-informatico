@@ -34,9 +34,25 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun onNewProfileImageSelected(uri: Uri) {
-        // por hacer: subida real al backend/Supabase
-        Log.d("ProfileViewModel", "Nueva imagen de perfil seleccionada: $uri")
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                _error.value = null
+
+                Log.d("ProfileViewModel", "Nueva imagen de perfil seleccionada: $uri")
+
+                // TODO:
+                // userRepository.uploadProfilePhoto(uri)
+                // loadUserProfile()  // para recargar la foto desde el backend
+
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Error al manejar la foto de perfil"
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
+
     fun loadUserProfile() {
         viewModelScope.launch {
             _isLoading.value = true
