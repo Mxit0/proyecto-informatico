@@ -14,16 +14,11 @@ data class Review(
     val productName: String, // <-- NUEVO CAMPO
     val productImageUrl: String, // <-- NUEVO CAMPO
     val author: String,
-    val authorId: String,
     val authorImageUrl: String? = null,
     val date: Date = Date(),
     val rating: Double,
-    val comment: String,
-    val likedByUserIds: List<String> = emptyList()
-){
-    // Propiedad calculada para saber cuántos likes tiene
-    val likesCount: Int get() = likedByUserIds.size
-}
+    val comment: String
+)
 
 /**
  * Repositorio (Singleton) para gestionar todas las reseñas.
@@ -37,7 +32,6 @@ object ReviewRepository {
             productName = "CPU Intel Core i7",
             productImageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=CPU",
             author = "Liam Carter",
-            authorId = "999",
             date = Date(System.currentTimeMillis() - 1209600000),
             rating = 5.0,
             comment = "This processor is a game-changer!"
@@ -47,7 +41,6 @@ object ReviewRepository {
             productName = "CPU Intel Core i7",
             productImageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=CPU",
             author = "Sophia Bennett",
-            authorId = "998",
             date = Date(System.currentTimeMillis() - 2592000000),
             rating = 3.5,
             comment = "Works well but had installation issues."
@@ -62,40 +55,6 @@ object ReviewRepository {
 
     fun addReview(review: Review) {
         allReviews.add(0, review)
-    }
-
-    fun deleteReview(reviewId: String) {
-        allReviews.removeAll { it.id == reviewId }
-    }
-
-    fun updateReview(reviewId: String, newComment: String, newRating: Double) {
-        val index = allReviews.indexOfFirst { it.id == reviewId }
-        if (index != -1) {
-            val oldReview = allReviews[index]
-            // Creamos una copia con los datos nuevos
-            val updatedReview = oldReview.copy(
-                comment = newComment,
-                rating = newRating,
-                date = Date() // Opcional: Actualizar fecha al editar
-            )
-            allReviews[index] = updatedReview
-        }
-    }
-
-    fun toggleLike(reviewId: String, userId: String) {
-        val index = allReviews.indexOfFirst { it.id == reviewId }
-        if (index != -1) {
-            val review = allReviews[index]
-            val currentLikes = review.likedByUserIds.toMutableList()
-
-            if (currentLikes.contains(userId)) {
-                currentLikes.remove(userId) // Quitar Like
-            } else {
-                currentLikes.add(userId)    // Dar Like
-            }
-
-            allReviews[index] = review.copy(likedByUserIds = currentLikes)
-        }
     }
 
     fun getReviewsForProduct(productId: String?): List<Review> {

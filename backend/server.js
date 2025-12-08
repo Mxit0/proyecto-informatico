@@ -14,6 +14,7 @@ import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import reviewRoutes from './routes/reviewRoutes.js';
 import { supabase } from "./lib/supabaseClient.js";
+import foroRoutes from "./routes/foroRoutes.js";
 
 dotenv.config();
 
@@ -32,9 +33,13 @@ app.use("/api/auth", authRoutes);
 app.use("/api/productos", productRoutes);
 app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
+<<<<<<< HEAD
 app.use("/api/carro", carroRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/reviews', reviewRoutes);
+=======
+app.use("/api/foro", foroRoutes);
+>>>>>>> origin/Joaquin
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -48,6 +53,7 @@ const io = new SocketIOServer(server, {
     methods: ["GET", "POST"],
   },
 });
+app.set("io", io);
 
 // Normalizar pareja de usuarios (para que no hayan 2 chats duplicados)
 function normalizePair(a, b) {
@@ -112,7 +118,11 @@ async function saveMessage({ chatId, senderId, contenido }) {
   return data;
 }
 
+<<<<<<< HEAD
 //  Lógica de tiempo real
+=======
+// Lógica de tiempo real
+>>>>>>> origin/Joaquin
 io.on("connection", (socket) => {
   console.log(" Socket conectado:", socket.user?.id_usuario);
 
@@ -210,6 +220,13 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("🔌 Socket desconectado:", socket.user?.id_usuario);
+  });
+
+  socket.on("join_forum", ({ foroId }) => {
+    if (!foroId) return;
+    const room = `foro_${foroId}`;
+    socket.join(room);
+    console.log(`Socket ${socket.user?.id_usuario} joined forum room`, room);
   });
 });
 

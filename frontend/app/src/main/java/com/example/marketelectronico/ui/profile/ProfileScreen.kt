@@ -54,7 +54,6 @@ fun ProfileScreen(
 ) {
     // Observamos el estado del perfil del usuario real
     val userProfile by viewModel.userProfile.collectAsState()
-    val userOrders by viewModel.userOrders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
@@ -142,7 +141,7 @@ fun ProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     UserInfoSection(userProfile = userProfile)
-                    ProfileTabs(navController = navController, userProfile = userProfile, userOrders = userOrders)
+                    ProfileTabs(navController = navController, userProfile = userProfile)
                 }
             }
         }
@@ -199,8 +198,7 @@ private fun UserInfoSection(userProfile: com.example.marketelectronico.data.remo
 @Composable
 private fun ProfileTabs(
     navController: NavController,
-    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?,
-    userOrders: List<Order>
+    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?
 ) {
     val pagerState = rememberPagerState { 3 }
     val coroutineScope = rememberCoroutineScope()
@@ -232,7 +230,7 @@ private fun ProfileTabs(
             ) {
                 when (pageIndex) {
                     0 -> MyRatingPage(reputation = userProfile?.reputacion) // Pasamos la reputación real
-                    1 -> PurchasesHistoryPage(orders = userOrders)
+                    1 -> PurchasesHistoryPage()
                     2 -> ReviewsHistoryPage()
                 }
             }
@@ -273,8 +271,15 @@ private fun MyRatingPage(reputation: Double?) {
 }
 
 @Composable
-private fun PurchasesHistoryPage(orders: List<Order>) {
-    //val orders = OrderRepository.orders
+private fun PurchasesHistoryPage() {
+    // --- OBTENER USUARIO ACTUAL ---
+    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
+    val currentUserId = currentUser?.id_usuario?.toString() ?: "invitado"
+
+    // --- FILTRAR ÓRDENES POR USUARIO ---
+    // Ahora usamos la nueva función del repositorio
+    val orders = OrderRepository.getOrdersByUser(currentUserId)
+    // -----------------------------------
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Historial de Compras", style = MaterialTheme.typography.titleMedium)
