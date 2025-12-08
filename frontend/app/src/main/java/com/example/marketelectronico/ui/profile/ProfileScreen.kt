@@ -45,6 +45,12 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.foundation.clickable
+import com.example.marketelectronico.utils.TokenManager
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -232,14 +238,23 @@ private fun ProfileTabs(
                 contentAlignment = Alignment.TopCenter
             ) {
                 when (pageIndex) {
-                    0 -> MyRatingPage(reputation = userProfile?.reputacion) // Pasamos la reputación real
+                    0 -> MyRatingPage(reputation = userProfile?.reputacion)
+
                     1 -> PurchasesHistoryPage(
                         orders = userOrders,
                         onOrderClick = { orderId ->
                             navController.navigate("order_detail/$orderId")
                         }
                     )
-                    2 -> ReviewsHistoryPage()
+
+                    // --- AQUÍ ESTÁ EL CAMBIO ---
+                    2 -> ReviewsHistoryPage(
+                        onReviewClick = { productId ->
+                            // Navegamos a la pantalla de detalle del producto
+                            navController.navigate("product_detail/$productId")
+                        }
+                    )
+                    // ---------------------------
                 }
             }
         }
@@ -306,13 +321,18 @@ private fun PurchasesHistoryPage(
 }
 
 @Composable
-private fun ReviewsHistoryPage() {
-    // Obtenemos el usuario actual para filtrar sus reseñas
-    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
-    // Si hay usuario logueado usamos su nombre, si no "Asu" como fallback
-    val userName = currentUser?.nombre_usuario ?: "Asu"
+private fun ReviewsHistoryPage(onReviewClick: (String) -> Unit) {
+    // Estado para las reseñas
+    var myReviews by remember { mutableStateOf<List<Review>>(emptyList()) }
 
-    val myReviews = ReviewRepository.getReviewsByUser(userName)
+    val currentUserId = TokenManager.getUserId()?.toString()
+
+    // Llamada asíncrona correcta
+    LaunchedEffect(currentUserId) {
+        if (currentUserId != null) {
+            myReviews = ReviewRepository.getReviewsByUser(currentUserId)
+        }
+    }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Reviews que has Escrito", style = MaterialTheme.typography.titleMedium)
@@ -325,18 +345,28 @@ private fun ReviewsHistoryPage() {
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(myReviews) { review -> MyReviewItem(review = review) }
+                items(myReviews) { review ->
+                    MyReviewItem(
+                        review = review,
+                        onClick = {
+                            // 2. Al hacer click, pasamos el ID del producto
+                            onReviewClick(review.productId)
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MyReviewItem(review: Review) {
+private fun MyReviewItem(review: Review, onClick: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
     ) {
         Row(modifier = Modifier.padding(16.dp)) {
             // Imagen del producto (usando Coil)

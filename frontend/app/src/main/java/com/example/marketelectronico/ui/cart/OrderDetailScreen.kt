@@ -28,6 +28,10 @@ import com.example.marketelectronico.data.repository.UserRepository
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.runtime.mutableIntStateOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +49,21 @@ fun OrderDetailScreen(
         }
         isLoading = false
     }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refreshTrigger++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val currentUserId = com.example.marketelectronico.utils.TokenManager.getUserId()?.toString() ?: ""
 
     Scaffold(
         topBar = {
@@ -118,9 +137,13 @@ fun OrderDetailScreen(
             }
 
             items(currentOrder.items) { product ->
-                // Verificamos si ya tiene review para mostrar el botón o no
-                val hasReviewed = remember(product.id, userName) {
-                    ReviewRepository.hasUserReviewedProduct(product.id, userName)
+                //Pasamos 'currentUserId'
+                val hasReviewed by produceState(initialValue = false, product.id, currentUserId, refreshTrigger) {
+                    if (currentUserId.isNotEmpty()) {
+                        value = ReviewRepository.hasUserReviewedProduct(product.id, currentUserId)
+                    } else {
+                        value = false
+                    }
                 }
 
                 ProductDetailRow(
