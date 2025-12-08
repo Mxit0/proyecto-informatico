@@ -12,8 +12,9 @@ import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
-import reviewRoutes from './routes/reviewRoutes.js';
+import reviewRoutes from "./routes/reviewRoutes.js";
 import { supabase } from "./lib/supabaseClient.js";
+import { admin } from "./lib/firebaseAdmin.js"; 
 
 dotenv.config();
 
@@ -30,11 +31,11 @@ app.use(express.json());
 // Rutas HTTP normales
 app.use("/api/auth", authRoutes);
 app.use("/api/productos", productRoutes);
-app.use("/usuarios", userRoutes);
+app.use("/usuarios", userRoutes);          
 app.use("/api/chat", chatRoutes);
 app.use("/api/carro", carroRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/reviews', reviewRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -57,7 +58,8 @@ function normalizePair(a, b) {
 // Middleware de autenticación para sockets (mismo JWT que en HTTP)
 io.use((socket, next) => {
   try {
-    const header = socket.handshake.auth?.token ||
+    const header =
+      socket.handshake.auth?.token ||
       (socket.handshake.headers?.authorization || "");
 
     const token = header.startsWith("Bearer ")
@@ -77,7 +79,6 @@ io.use((socket, next) => {
 });
 
 // Helpers con Supabase
-
 async function getOrCreateChatBetween(userAId, userBId) {
   const [u1, u2] = normalizePair(userAId, userBId);
 
@@ -150,12 +151,17 @@ io.on("connection", (socket) => {
   /**
    * Enviar mensaje
    * payload: { chatId: number, contenido: string }
+   *
+   * Ahora:
+   *  - Guarda el mensaje
+   *  - Lo emite al room
+   *  - Envía notificación FCM al receptor (si tiene fcm_token)
    */
   socket.on("send_message", async ({ chatId, contenido }, callback) => {
     try {
       const userId = socket.user.id_usuario;
 
-      // Validar que el chat existe y que el usuario pertenece a él
+      // 1. Validar que el chat existe y que el usuario pertenece
       const { data: chat, error: chatError } = await supabase
         .from("chat")
         .select("id, id_usuario1, id_usuario2")
@@ -171,15 +177,64 @@ io.on("connection", (socket) => {
         return callback?.({ ok: false, error: "No perteneces a este chat" });
       }
 
+      // 2. Guardar mensaje en la BD
       const msg = await saveMessage({
         chatId,
         senderId: userId,
         contenido,
       });
 
+      // 3. Emitir mensaje en tiempo real al room
       const room = `chat_${chatId}`;
       io.to(room).emit("new_message", msg);
 
+      // 4. Determinar receptor
+      const receptorId =
+        chat.id_usuario1 === userId ? chat.id_usuario2 : chat.id_usuario1;
+
+      // 5. Buscar al receptor (para obtener su fcm_token)
+      const { data: receptor, error: receptorError } = await supabase
+        .from("usuario")
+        .select("id_usuario, nombre_usuario, fcm_token")
+        .eq("id_usuario", receptorId)
+        .maybeSingle();
+
+      if (receptorError) {
+        console.error("Error buscando receptor para notificación:", receptorError);
+      }
+
+      // 6. Enviar notificación FCM si el usuario tiene token
+      if (receptor?.fcm_token) {
+        const notifBody =
+          contenido.length > 50 ? contenido.slice(0, 47) + "..." : contenido;
+
+        const titulo =
+          socket.user?.nombre_usuario
+            ? `${socket.user.nombre_usuario} te escribió`
+            : "Nuevo mensaje";
+
+        try {
+          await admin.messaging().send({
+            token: receptor.fcm_token,
+            notification: {
+              title: titulo,
+              body: notifBody,
+            },
+            data: {
+              chatId: String(chatId),
+              remitenteId: String(userId),
+            },
+          });
+
+          console.log("📨 Notificación FCM enviada a usuario", receptorId);
+        } catch (errFCM) {
+          console.error("Error enviando notificación FCM:", errFCM);
+        }
+      } else {
+        console.log("Usuario sin fcm_token, no se envía push:", receptorId);
+      }
+
+      // 7. Responder al cliente que envió el mensaje
       callback?.({ ok: true, message: msg });
     } catch (err) {
       console.error("Error en send_message:", err);
@@ -195,14 +250,13 @@ io.on("connection", (socket) => {
         .from("mensaje")
         .update({ leido: true })
         .eq("id_chat", chatId)
-        .neq("id_remitente", userId) // Solo leo los mensajes del OTRO
-        .eq("leido", false); // Solo los que no estaban leídos
+        .neq("id_remitente", userId)
+        .eq("leido", false);
 
       if (error) throw error;
 
       const room = `chat_${chatId}`;
       io.to(room).emit("messages_read_update", { chatId });
-
     } catch (err) {
       console.error("Error en mark_messages_read:", err);
     }
