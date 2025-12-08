@@ -24,6 +24,8 @@ import com.example.marketelectronico.ui.product.ProductScreen
 import com.example.marketelectronico.ui.product.ProductViewModel // <-- 3. IMPORTAR
 import com.example.marketelectronico.ui.profile.ProfileScreen
 import com.example.marketelectronico.ui.review.ReviewScreen
+import com.example.marketelectronico.ui.product.PublishScreen
+import com.example.marketelectronico.ui.publish.PublishViewModel
 
 import com.example.marketelectronico.ui.category.CategoryProductsScreen
 import com.example.marketelectronico.ui.category.CategoryProductsViewModel
