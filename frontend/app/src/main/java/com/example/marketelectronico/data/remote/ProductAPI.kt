@@ -1,9 +1,14 @@
 package com.example.marketelectronico.data.remote
 
 import com.google.gson.annotations.SerializedName
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
-
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 // --- 1. Interfaz ---
 interface ProductApi {
     // GET /productos
@@ -14,12 +19,37 @@ interface ProductApi {
     @GET("api/productos/{id}")
     suspend fun getProductById(@Path("id") id: String): ProductResponse // <-- Esta respuesta ahora contendrá imágenes
 
-    // --- Esta ruta ya no es necesaria para la lista/detalle ---
-    // GET /productos/:id/imagenes
-    // suspend fun getProductImages(@Path("id") id: String): List<ImageResponse>
+    // GET /categorias
+    @GET("api/productos/categorias")
+    suspend fun getAllCategories(): List<CategoryResponse>
+
+    // GET /productos/categoria/:categoryId
+    @GET("api/productos/categoria/{categoryId}")
+    suspend fun getProductsByCategory(@Path("categoryId") categoryId: Int): List<ProductResponse>
+
+    // POST /productos
+    @POST("api/productos")
+    suspend fun createProduct(@Body product: CreateProductRequest): ProductResponse
+
+    @Multipart
+    @POST("api/productos/{id}/imagenes")
+    suspend fun uploadProductImages(
+        @Path("id") productId: String,
+        @Part images: List<MultipartBody.Part>
+    ): ImageUploadResponse
 }
 
-// --- 2. DTOs (Data Transfer Objects) ---
+// --- 2. DTOs ---
+data class CategoryResponse(
+    val id: Int,
+    val nombre: String
+)
+
+data class ImageUploadResponse(
+    val message: String,
+    val urls: List<String>
+)
+
 data class ProductResponse(
     val id: Int,
     val nombre: String,
@@ -33,7 +63,7 @@ data class ProductResponse(
     // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
     // Le decimos a GSON que el backend enviará "producto_imagenes"
     @SerializedName("producto_imagenes")
-    val imagenes: List<ImageResponse> // <-- ¡La lista de imágenes está de vuelta!
+    val imagenes: List<ImageResponse> = emptyList() // Cambio: usar emptyList() como default
 )
 
 // Coincide con la función 'getProductImages' y el join manual
@@ -42,6 +72,17 @@ data class ImageResponse(
     val id_im: Int,
     @SerializedName("url_imagen")
     val urlImagen: String
+)
+
+// DTO para crear un producto
+data class CreateProductRequest(
+    val nombre: String,
+    val precio: Double,
+    val descripcion: String,
+    @SerializedName("id_usuario")
+    val idUsuario: Long,
+    val stock: Int = 1, // Valor por defecto
+    val categoria: Int // ID de la categoría
 )
 
 // --- 3. Servicio ---

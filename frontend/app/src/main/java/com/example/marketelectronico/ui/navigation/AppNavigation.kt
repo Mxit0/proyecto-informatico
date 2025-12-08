@@ -1,7 +1,7 @@
 package com.example.marketelectronico.ui.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.compose.viewModel // <-- 1. IMPORTAR
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,12 +18,17 @@ import com.example.marketelectronico.ui.forum.CreatePostScreen
 import com.example.marketelectronico.ui.forum.ForumScreen
 import com.example.marketelectronico.ui.forum.PostDetailScreen
 import com.example.marketelectronico.ui.main.MainScreen
-import com.example.marketelectronico.ui.main.MainViewModel
+import com.example.marketelectronico.ui.main.MainViewModel // <-- 2. IMPORTAR
 import com.example.marketelectronico.ui.product.ProductReviewScreen
 import com.example.marketelectronico.ui.product.ProductScreen
-import com.example.marketelectronico.ui.product.ProductViewModel
+import com.example.marketelectronico.ui.product.ProductViewModel // <-- 3. IMPORTAR
+import com.example.marketelectronico.ui.product.PublishScreen
+import com.example.marketelectronico.ui.publish.PublishViewModel
 import com.example.marketelectronico.ui.profile.ProfileScreen
 import com.example.marketelectronico.ui.review.ReviewScreen
+import com.example.marketelectronico.ui.category.CategoryProductsScreen
+import com.example.marketelectronico.ui.category.CategoryProductsViewModel
+import android.net.Uri
 import androidx.navigation.NavHostController
 
 /**
@@ -82,11 +87,33 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
 
+        composable(
+            route = "category_products/{categoryId}/{categoryName}",
+            arguments = listOf(
+                navArgument("categoryId") { type = NavType.IntType },
+                navArgument("categoryName") { type = NavType.StringType }
+            )
+        ) { entry ->
+            val categoryId = entry.arguments?.getInt("categoryId") ?: 0
+            val rawName = entry.arguments?.getString("categoryName") ?: "Categoría"
+            val categoryName = Uri.decode(rawName)
+
+            CategoryProductsScreen(
+                navController = navController,
+                categoryId = categoryId,
+                categoryName = categoryName,
+                viewModel = viewModel<CategoryProductsViewModel>()
+            )
+        }
+
         composable("categories") {
             // CategoriesScreen(navController = navController)
         }
         composable("publish") {
-            // PublishScreen(navController = navController)
+            PublishScreen(
+                navController = navController,
+                viewModel = viewModel<PublishViewModel>()
+            )
         }
 
         // --- PANTALLAS DE PAGO (De 'master' - DESCOMENTADAS) ---
