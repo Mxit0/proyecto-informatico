@@ -1,0 +1,18 @@
+# Dependencias Generadas
+node_modules/
+/npm-debug.log
+/yarn-error.log
+
+# Archivos de Compilación/Testing
+/coverage
+/build
+/dist
+
+# Archivos de Entorno (¡CRUCIAL!)
+.env
+.env.development
+.env.production
+
+# Configuración de IDEs
+.vscode/
+.idea/

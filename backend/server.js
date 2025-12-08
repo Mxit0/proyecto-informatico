@@ -11,6 +11,7 @@ import productRoutes from "./routes/productRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import { supabase } from "./lib/supabaseClient.js";
+import foroRoutes from "./routes/foroRoutes.js";
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/productos", productRoutes);
 app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/foro", foroRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -42,6 +44,7 @@ const io = new SocketIOServer(server, {
     methods: ["GET", "POST"],
   },
 });
+app.set("io", io);
 
 // Normalizar pareja de usuarios (para que no hayan 2 chats duplicados)
 function normalizePair(a, b) {
@@ -106,7 +109,7 @@ async function saveMessage({ chatId, senderId, contenido }) {
   return data;
 }
 
-// 🎧 Lógica de tiempo real
+// Lógica de tiempo real
 io.on("connection", (socket) => {
   console.log("✅ Socket conectado:", socket.user?.id_usuario);
 
@@ -183,6 +186,13 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("🔌 Socket desconectado:", socket.user?.id_usuario);
+  });
+
+  socket.on("join_forum", ({ foroId }) => {
+    if (!foroId) return;
+    const room = `foro_${foroId}`;
+    socket.join(room);
+    console.log(`Socket ${socket.user?.id_usuario} joined forum room`, room);
   });
 });
 
