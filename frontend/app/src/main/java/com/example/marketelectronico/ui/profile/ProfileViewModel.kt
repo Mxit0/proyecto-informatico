@@ -12,6 +12,10 @@ import com.example.marketelectronico.utils.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import android.content.Context
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+
 
 class ProfileViewModel : ViewModel() {
     private val userRepository = UserRepository.getInstance()
@@ -33,7 +37,7 @@ class ProfileViewModel : ViewModel() {
         loadUserOrders()
     }
 
-    fun onNewProfileImageSelected(uri: Uri) {
+    fun onNewProfileImageSelected(uri: Uri, context: Context) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
@@ -41,17 +45,19 @@ class ProfileViewModel : ViewModel() {
 
                 Log.d("ProfileViewModel", "Nueva imagen de perfil seleccionada: $uri")
 
-                // TODO:
-                // userRepository.uploadProfilePhoto(uri)
-                // loadUserProfile()  // para recargar la foto desde el backend
+                // Subir la foto al backend / Supabase
+                userRepository.uploadProfilePhoto(uri, context)
 
+                // Al terminar, recargamos el perfil para traer la nueva URL en userProfile.foto
+                loadUserProfile()
             } catch (e: Exception) {
-                _error.value = e.message ?: "Error al manejar la foto de perfil"
+                _error.value = e.message ?: "Error al actualizar la foto de perfil"
             } finally {
                 _isLoading.value = false
             }
         }
     }
+
 
     fun loadUserProfile() {
         viewModelScope.launch {

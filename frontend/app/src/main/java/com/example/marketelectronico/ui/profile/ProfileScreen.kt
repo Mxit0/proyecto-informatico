@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,6 +64,7 @@ fun ProfileScreen(
     val userOrders by viewModel.userOrders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val context = LocalContext.current
 
     // Imagen local elegida desde la galería
     var localImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -73,9 +75,10 @@ fun ProfileScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             localImageUri = uri          // para mostrarla en la UI
-            viewModel.onNewProfileImageSelected(uri)  // avisar al ViewModel
+            viewModel.onNewProfileImageSelected(uri, context)
         }
     }
+
 
     // --- LÓGICA DE LA BOTTOM BAR ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
