@@ -1,7 +1,7 @@
 package com.example.marketelectronico.ui.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.viewmodel.compose.viewModel // <-- 1. IMPORTAR
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,19 +18,20 @@ import com.example.marketelectronico.ui.forum.CreatePostScreen
 import com.example.marketelectronico.ui.forum.ForumScreen
 import com.example.marketelectronico.ui.forum.PostDetailScreen
 import com.example.marketelectronico.ui.main.MainScreen
-import com.example.marketelectronico.ui.main.MainViewModel // <-- 2. IMPORTAR
+import com.example.marketelectronico.ui.main.MainViewModel
 import com.example.marketelectronico.ui.product.ProductReviewScreen
 import com.example.marketelectronico.ui.product.ProductScreen
-import com.example.marketelectronico.ui.product.ProductViewModel // <-- 3. IMPORTAR
+import com.example.marketelectronico.ui.product.ProductViewModel
 import com.example.marketelectronico.ui.profile.ProfileScreen
 import com.example.marketelectronico.ui.review.ReviewScreen
+import androidx.navigation.NavHostController
 
 /**
  * Gestiona TODA la navegación de la aplicación.
  */
 @Composable
-fun AppNavigation() {
-    val navController = rememberNavController()
+fun AppNavigation(navController: NavHostController) {
+    //val navController = rememberNavController()
 
     NavHost(
         navController = navController,

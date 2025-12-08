@@ -1,0 +1,72 @@
+package com.example.marketelectronico.service
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import com.example.marketelectronico.MainActivity // Importa tu MainActivity
+import com.example.marketelectronico.data.repository.UserRepository
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+class MyFirebaseMessagingService : FirebaseMessagingService() {
+
+    // Se llama si Firebase refresca el token automáticamente
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
+        CoroutineScope(Dispatchers.IO).launch {
+            UserRepository.getInstance().updateFcmToken(token)
+        }
+    }
+
+    // Se llama cuando llega un mensaje
+    override fun onMessageReceived(remoteMessage: RemoteMessage) {
+        super.onMessageReceived(remoteMessage)
+
+        val title = remoteMessage.notification?.title ?: "Nuevo mensaje"
+        val body = remoteMessage.notification?.body ?: ""
+
+        // Datos extra del backend
+        val chatId = remoteMessage.data["chatId"]
+        val remitenteId = remoteMessage.data["remitenteId"]
+
+        showNotification(title, body, chatId, remitenteId)
+    }
+
+    private fun showNotification(title: String, body: String, chatId: String?, remitenteId: String?) {
+        val channelId = "chat_channel"
+
+        val intent = Intent(this, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra("chatId", chatId)
+            putExtra("otherUserId", remitenteId)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(android.R.drawable.ic_dialog_email) // Cambia por tu icono (R.drawable.ic_...)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(channelId, "Chats", NotificationManager.IMPORTANCE_HIGH)
+            manager.createNotificationChannel(channel)
+        }
+
+        manager.notify(System.currentTimeMillis().toInt(), builder.build())
+    }
+}

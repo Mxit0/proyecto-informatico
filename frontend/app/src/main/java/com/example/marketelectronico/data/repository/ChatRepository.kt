@@ -68,77 +68,21 @@ class ChatRepository(
     }
     suspend fun getMyChats(): List<ChatPreview> {
         return try {
-            // 1. Obtenemos la lista de chats (IDs)
             val response = api.getMyChats()
 
-            val rawId = TokenManager.getUserId()
-            val myId = rawId?.toInt() ?: -1
-
             if (response.isSuccessful && response.body()?.ok == true) {
-                val rawChats = response.body()?.chats ?: emptyList()
-
-                val resultList = mutableListOf<ChatPreview>()
-
-                for (dto in rawChats) {
-                    // Calculamos el ID del otro usuario
-                    val otherUserId = if (dto.id_usuario1 == myId) dto.id_usuario2 else dto.id_usuario1
-
-                    var displayName = "Usuario #$otherUserId"
-                    var photoUrl: String? = null
-
-                    // 2. USAMOS TU UserService EXISTENTE
-                    try {
-                        // Tu UserApi espera un Long, así que convertimos con .toLong()
-                        val userResponse = UserService.api.getUserById(otherUserId.toLong())
-
-                        // Verificamos usando tu estructura UserResponse (campo 'ok' y 'user')
-                        if (userResponse.ok && userResponse.user != null) {
-                            displayName = userResponse.user.nombre_usuario
-                            photoUrl = userResponse.user.foto
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        // Si falla, se queda con "Usuario #ID" por defecto
-                    }
-
-                    var lastMessageText = "Toca para iniciar conversación"
-
-                    try {
-                        // Pedimos los mensajes de este chat específico
-                        val msgResponse = api.getMessages(dto.id)
-
-                        if (msgResponse.isSuccessful && msgResponse.body()?.ok == true) {
-                            val messagesList = msgResponse.body()?.mensajes
-
-                            if (!messagesList.isNullOrEmpty()) {
-                                // Tomamos el último mensaje de la lista
-                                val lastMsg = messagesList.last()
-
-                                // Lógica: ¿Fui yo o fue él?
-                                if (lastMsg.id_remitente == myId) {
-                                    lastMessageText = "Tu: ${lastMsg.contenido}"
-                                } else {
-                                    lastMessageText = lastMsg.contenido
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-
-                    resultList.add(
-                        ChatPreview(
-                            id = dto.id.toString(),
-                            name = displayName,
-                            lastMessage = lastMessageText,
-                            timestamp = "",
-                            otherUserId = otherUserId,
-                            photoUrl = photoUrl
-                        )
+                // Mapeo directo: DTO del Backend -> Modelo de UI
+                response.body()!!.chats.map { dto ->
+                    ChatPreview(
+                        id = dto.id,
+                        name = dto.name,                 // Ya viene del backend
+                        photoUrl = dto.photoUrl,         // Ya viene del backend
+                        lastMessage = dto.lastMessage,   // Ya viene del backend
+                        otherUserId = dto.otherUserId,
+                        lastMessageDate = dto.lastMessageDate,
+                        timestamp = "" // Campo legacy, no se usa si tenemos lastMessageDate
                     )
                 }
-
-                return resultList
             } else {
                 emptyList()
             }

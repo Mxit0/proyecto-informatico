@@ -3,6 +3,7 @@ package com.example.marketelectronico.data.remote
 import retrofit2.http.*
 import okhttp3.MultipartBody
 import com.google.gson.annotations.SerializedName
+import retrofit2.Response
 
 interface UserApi {
     @GET("usuarios/{id}")
@@ -20,6 +21,9 @@ interface UserApi {
         @Path("id") userId: Long,
         @Part image: MultipartBody.Part
     ): UserResponse
+
+    @POST("usuarios/fcm-token")
+    suspend fun saveFcmToken(@Body request: FcmTokenRequest): Response<Any>
 }
 
 data class UserResponse(
@@ -49,3 +53,4 @@ object UserService {
         ApiClient.retrofit.create(UserApi::class.java)
     }
 }
+
