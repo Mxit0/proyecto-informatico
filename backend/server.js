@@ -5,14 +5,15 @@ import dotenv from "dotenv";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
 import jwt from "jsonwebtoken";
-
+import multer from "multer";          
+import path from "path";  
 import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
-import reviewRoutes from "./routes/reviewRoutes.js";
+import reviewRoutes from './routes/reviewRoutes.js';
 import { supabase } from "./lib/supabaseClient.js";
 
 dotenv.config();
@@ -27,18 +28,135 @@ app.use(
 );
 app.use(express.json());
 
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "*",
+    credentials: true,
+  })
+);
+app.use(express.json());
+
+//multer para manejar archivos en memoria
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+});
+
+// middleware simple de auth para rutas HTTP
+function authMiddleware(req, res, next) {
+  try {
+    const header = req.headers.authorization || "";
+    const token = header.startsWith("Bearer ")
+      ? header.slice(7)
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ message: "Token no proporcionado" });
+    }
+
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // mismo payload que se usa en el socket: debe tener id_usuario
+    req.user = payload;
+    next();
+  } catch (err) {
+    console.error("Error en authMiddleware:", err.message);
+    return res.status(401).json({ message: "Token inválido" });
+  }
+}
+
+
+
 // Rutas HTTP normales
 app.use("/api/auth", authRoutes);
 app.use("/api/productos", productRoutes);
 app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/carro", carroRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/reviews", reviewRoutes);
-app.use("/productos", productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+
+// === NUEVO: endpoint para subir foto de perfil ===
+// POST /api/profile/photo  (body: multipart/form-data con campo "photo")
+app.post(
+  "/api/profile/photo",
+  authMiddleware,
+  upload.single("photo"),
+  async (req, res) => {
+    try {
+      const userFromToken = req.user;
+      const userId = userFromToken?.id_usuario; 
+
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ message: "No se encontró id_usuario en el token" });
+      }
+
+      if (!req.file) {
+        return res
+          .status(400)
+          .json({ message: "No se envió archivo en el campo 'photo'" });
+      }
+
+      const bucket = process.env.SUPABASE_STORAGE_BUCKET;
+      if (!bucket) {
+        return res
+          .status(500)
+          .json({ message: "Falta SUPABASE_STORAGE_BUCKET en .env" });
+      }
+
+      const ext = path.extname(req.file.originalname) || ".jpg";
+      const filePath = `avatars/${userId}_${Date.now()}${ext}`;
+
+      // Subir a Supabase Storage (bucket product_im)
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true,
+        });
+
+      if (error) {
+        console.error("Error subiendo a Supabase Storage:", error);
+        return res.status(500).json({ message: "Error subiendo imagen" });
+      }
+
+      // Obtener URL pública
+      const { data: publicData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicData?.publicUrl;
+      if (!publicUrl) {
+        return res
+          .status(500)
+          .json({ message: "No se pudo obtener URL pública de la imagen" });
+      }
+
+      // Actualizar la tabla public.usuario, columna foto, PK id_usuario
+      const { error: updateError } = await supabase
+        .from("usuario")                
+        .update({ foto: publicUrl })    
+        .eq("id_usuario", userId);     
+
+      if (updateError) {
+        console.error("Error actualizando foto en BD:", updateError);
+        return res.status(500).json({ message: "Error actualizando perfil" });
+      }
+
+      return res.json({ foto: publicUrl });
+    } catch (err) {
+      console.error("Error en /api/profile/photo:", err);
+      return res.status(500).json({ message: "Error interno al subir foto" });
+    }
+  }
+);
+
+
 
 // 🔌 Servidor HTTP + Socket.IO
 const server = http.createServer(app);
@@ -58,12 +176,12 @@ function normalizePair(a, b) {
 // Middleware de autenticación para sockets (mismo JWT que en HTTP)
 io.use((socket, next) => {
   try {
-    const header =
-      socket.handshake.auth?.token ||
-      socket.handshake.headers?.authorization ||
-      "";
+    const header = socket.handshake.auth?.token ||
+      (socket.handshake.headers?.authorization || "");
 
-    const token = header.startsWith("Bearer ") ? header.slice(7) : header;
+    const token = header.startsWith("Bearer ")
+      ? header.slice(7)
+      : header;
 
     if (!token) return next(new Error("No token"));
 
@@ -203,6 +321,7 @@ io.on("connection", (socket) => {
 
       const room = `chat_${chatId}`;
       io.to(room).emit("messages_read_update", { chatId });
+
     } catch (err) {
       console.error("Error en mark_messages_read:", err);
     }
