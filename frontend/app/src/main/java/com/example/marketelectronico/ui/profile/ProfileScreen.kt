@@ -198,7 +198,9 @@ fun ProfileScreen(
 // --- SECCIÓN DE INFORMACIÓN DEL USUARIO (De tu compañero) ---
 @Composable
 private fun UserInfoSection(
-    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?
+    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?,
+    localImageUri: Uri?,
+    onChangePhotoClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -206,39 +208,51 @@ private fun UserInfoSection(
             .padding(top = 24.dp, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
-        //prueba prueba
         IconButton(
-            onClick = {
-                // abrir selector de imagen y subir a Supabase
-            }
+            onClick = { onChangePhotoClick() }
         ) {
-            // Foto de perfil (con fallback si es nula)
-            if (userProfile?.foto != null) {
-                AsyncImage(
-                    model = userProfile.foto,
-                    contentDescription = "Foto de Perfil",
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop,
-                    placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
-                    error = painterResource(id = android.R.drawable.ic_menu_camera)
-                )
-            } else {
-                Image(
-                    painter = painterResource(id = android.R.drawable.ic_menu_camera),
-                    contentDescription = "Foto de Perfil",
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                )
+            when {
+                // 1º: imagen elegida localmente
+                localImageUri != null -> {
+                    AsyncImage(
+                        model = localImageUri,
+                        contentDescription = "Foto de Perfil",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
+                        error = painterResource(id = android.R.drawable.ic_menu_camera)
+                    )
+                }
+                // 2º: foto guardada en el perfil (URL desde backend)
+                userProfile?.foto != null -> {
+                    AsyncImage(
+                        model = userProfile.foto,
+                        contentDescription = "Foto de Perfil",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
+                        error = painterResource(id = android.R.drawable.ic_menu_camera)
+                    )
+                }
+                // 3º: placeholder
+                else -> {
+                    Image(
+                        painter = painterResource(id = android.R.drawable.ic_menu_camera),
+                        contentDescription = "Foto de Perfil",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                    )
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Nombre y correo
         Text(
             text = userProfile?.nombre_usuario ?: "Usuario",
             style = MaterialTheme.typography.titleLarge
@@ -250,6 +264,7 @@ private fun UserInfoSection(
         )
     }
 }
+
 
 // --- PESTAÑAS DEL PERFIL ---
 @OptIn(ExperimentalFoundationApi::class)
