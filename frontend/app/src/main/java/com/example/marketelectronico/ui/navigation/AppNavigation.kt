@@ -136,10 +136,18 @@ fun AppNavigation() {
             ConversationScreen(navController = navController)
         }
         composable("forum") {
-            ForumScreen(navController = navController)
+            com.example.marketelectronico.ui.forum.ForumScreen(navController)
         }
-        composable("post_detail/{postId}") {
-            PostDetailScreen(navController = navController)
+
+        composable(
+            route = "forum_detail/{forumId}",
+            arguments = listOf(navArgument("forumId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val forumId = backStackEntry.arguments?.getInt("forumId") ?: 0
+            com.example.marketelectronico.ui.forum.PostDetailScreen(
+                navController = navController,
+                forumId = forumId
+            )
         }
         composable("create_post") {
             CreatePostScreen(navController = navController)

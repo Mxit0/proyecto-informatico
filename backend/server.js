@@ -13,8 +13,11 @@ import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
+// 👇 1. AGREGADO: Importamos la ruta de foros de Joaquín
+import foroRoutes from "./routes/foroRoutes.js"; 
+
 import { supabase } from "./lib/supabaseClient.js";
-import { admin } from "./lib/firebaseAdmin.js"; 
+import { admin } from "./lib/firebaseAdmin.js"; // <-- Importante: Esto viene de Cuello (Notificaciones)
 
 dotenv.config();
 
@@ -36,6 +39,8 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/carro", carroRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/reviews", reviewRoutes);
+// 👇 2. AGREGADO: Habilitamos la ruta de foros en la API
+app.use("/api/foros", foroRoutes); 
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -50,12 +55,16 @@ const io = new SocketIOServer(server, {
   },
 });
 
-// Normalizar pareja de usuarios (para que no hayan 2 chats duplicados)
+// 👇 3. AGREGADO: Vital para que el Foro emita eventos sin estar conectado al socket directo
+// Esto permite que cuando hagas un POST /api/foros/../publicaciones, el controlador use req.app.get('io')
+app.set("io", io);
+
+// Normalizar pareja de usuarios
 function normalizePair(a, b) {
   return a < b ? [a, b] : [b, a];
 }
 
-// Middleware de autenticación para sockets (mismo JWT que en HTTP)
+// Middleware de autenticación para sockets
 io.use((socket, next) => {
   try {
     const header =
@@ -69,7 +78,6 @@ io.use((socket, next) => {
     if (!token) return next(new Error("No token"));
 
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // payload es el user que firmaste en authRoutes (incluye id_usuario, correo, etc.)
     socket.user = payload;
     next();
   } catch (err) {
@@ -115,11 +123,10 @@ async function saveMessage({ chatId, senderId, contenido }) {
 
 //  Lógica de tiempo real
 io.on("connection", (socket) => {
-  console.log(" Socket conectado:", socket.user?.id_usuario);
+  console.log("✅ Socket conectado:", socket.user?.id_usuario);
 
   /**
-   * Abrir chat entre el usuario logueado y otro usuario (vendedor/comprador)
-   * payload: { otherUserId: number }
+   * Abrir chat entre usuarios
    */
   socket.on("open_chat_with_user", async ({ otherUserId }, callback) => {
     try {
@@ -140,28 +147,30 @@ io.on("connection", (socket) => {
   });
 
   /**
-   * Unirse explícitamente a un chat (para cargar historial y escuchar mensajes)
-   * payload: { chatId: number }
+   * 👇 4. MODIFICADO: Unirse a Chat O Foro
+   * Ahora soporta unirse a foros ("foro_1") y chats privados ("chat_1")
    */
-  socket.on("join_chat", ({ chatId }) => {
-    const room = `chat_${chatId}`;
-    socket.join(room);
+  socket.on("join_chat", (data) => {
+    // Caso Foro (Joaquín)
+    if (data.room) {
+        socket.join(data.room);
+        console.log(`Socket unido a sala: ${data.room}`);
+    } 
+    // Caso Chat Privado (Cuello)
+    else if (data.chatId) {
+        const room = `chat_${data.chatId}`;
+        socket.join(room);
+    }
   });
 
   /**
-   * Enviar mensaje
-   * payload: { chatId: number, contenido: string }
-   *
-   * Ahora:
-   *  - Guarda el mensaje
-   *  - Lo emite al room
-   *  - Envía notificación FCM al receptor (si tiene fcm_token)
+   * Enviar mensaje (Mantenemos la lógica de Cuello con FCM)
    */
   socket.on("send_message", async ({ chatId, contenido }, callback) => {
     try {
       const userId = socket.user.id_usuario;
 
-      // 1. Validar que el chat existe y que el usuario pertenece
+      // 1. Validar chat
       const { data: chat, error: chatError } = await supabase
         .from("chat")
         .select("id, id_usuario1, id_usuario2")
@@ -177,14 +186,14 @@ io.on("connection", (socket) => {
         return callback?.({ ok: false, error: "No perteneces a este chat" });
       }
 
-      // 2. Guardar mensaje en la BD
+      // 2. Guardar mensaje
       const msg = await saveMessage({
         chatId,
         senderId: userId,
         contenido,
       });
 
-      // 3. Emitir mensaje en tiempo real al room
+      // 3. Emitir mensaje al room
       const room = `chat_${chatId}`;
       io.to(room).emit("new_message", msg);
 
@@ -192,25 +201,20 @@ io.on("connection", (socket) => {
       const receptorId =
         chat.id_usuario1 === userId ? chat.id_usuario2 : chat.id_usuario1;
 
-      // 5. Buscar al receptor (para obtener su fcm_token)
+      // 5. Buscar receptor y token FCM
       const { data: receptor, error: receptorError } = await supabase
         .from("usuario")
         .select("id_usuario, nombre_usuario, fcm_token")
         .eq("id_usuario", receptorId)
         .maybeSingle();
 
-      if (receptorError) {
-        console.error("Error buscando receptor para notificación:", receptorError);
-      }
+      if (receptorError) console.error("Error buscando receptor:", receptorError);
 
-      // 6. Enviar notificación FCM si el usuario tiene token
+      // 6. Enviar Notificación Push (Lógica de Cuello)
       if (receptor?.fcm_token) {
-        const notifBody =
-          contenido.length > 50 ? contenido.slice(0, 47) + "..." : contenido;
-
-        const titulo =
-          socket.user?.nombre_usuario
-            ? `${socket.user.nombre_usuario} te escribió`
+        const notifBody = contenido.length > 50 ? contenido.slice(0, 47) + "..." : contenido;
+        const titulo = socket.user?.nombre_usuario 
+            ? `${socket.user.nombre_usuario} te escribió` 
             : "Nuevo mensaje";
 
         try {
@@ -225,16 +229,12 @@ io.on("connection", (socket) => {
               remitenteId: String(userId),
             },
           });
-
-          console.log("📨 Notificación FCM enviada a usuario", receptorId);
+          console.log("📨 FCM enviada a", receptorId);
         } catch (errFCM) {
-          console.error("Error enviando notificación FCM:", errFCM);
+          console.error("Error enviando FCM:", errFCM);
         }
-      } else {
-        console.log("Usuario sin fcm_token, no se envía push:", receptorId);
       }
 
-      // 7. Responder al cliente que envió el mensaje
       callback?.({ ok: true, message: msg });
     } catch (err) {
       console.error("Error en send_message:", err);
@@ -245,7 +245,6 @@ io.on("connection", (socket) => {
   socket.on("mark_messages_read", async ({ chatId }) => {
     try {
       const userId = socket.user.id_usuario;
-
       const { error } = await supabase
         .from("mensaje")
         .update({ leido: true })
@@ -253,10 +252,10 @@ io.on("connection", (socket) => {
         .neq("id_remitente", userId)
         .eq("leido", false);
 
-      if (error) throw error;
-
-      const room = `chat_${chatId}`;
-      io.to(room).emit("messages_read_update", { chatId });
+      if (!error) {
+        const room = `chat_${chatId}`;
+        io.to(room).emit("messages_read_update", { chatId });
+      }
     } catch (err) {
       console.error("Error en mark_messages_read:", err);
     }

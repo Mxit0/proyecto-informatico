@@ -34,6 +34,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.clickable
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import com.example.marketelectronico.ui.chat.ChatListViewModel
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
