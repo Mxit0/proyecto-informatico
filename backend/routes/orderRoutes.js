@@ -1,8 +1,24 @@
 import express from 'express';
 import { getOrdersByUser, getOrderById } from '../repositories/orderRepository.js';
+import { createOrderFromCart } from '../repositories/orderRepository.js';
 
 const router = express.Router();
 
+router.post('/', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'Falta userId' });
+
+    const newOrderId = await createOrderFromCart(userId);
+    
+    res.status(201).json({ 
+        message: 'Orden creada exitosamente', 
+        orderId: newOrderId 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 //FUNCIONES PARA EL HISTORIAL DE COMPRAS
 // GET /api/orders/user/:userId

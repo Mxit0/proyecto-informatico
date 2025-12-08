@@ -385,7 +385,8 @@ private fun OrderHistoryItem(order: Order) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shadowElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -411,16 +412,12 @@ private fun OrderHistoryItem(order: Order) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Mostrar los productos en esta orden
-            order.items.forEach { product ->
-                Row(modifier = Modifier.padding(bottom = 4.dp)) {
-                    Text("• ")
-                    Text(
-                        text = product.name,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Ver detalles de la compra >",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

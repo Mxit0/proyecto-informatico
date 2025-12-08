@@ -1,5 +1,53 @@
 import { supabase } from '../lib/supabaseClient.js';
+import { getCartByUser, clearCart } from './carroRepository.js';
 
+export async function createOrderFromCart(userId) {
+  try {
+    // 1. Obtener los items actuales del carrito
+    const cartData = await getCartByUser(userId);
+    
+    if (!cartData || cartData.items.length === 0) {
+      throw new Error("El carrito está vacío");
+    }
+
+    // 2. Crear la cabecera de la compra en tabla 'compras'
+    const { data: newOrder, error: orderError } = await supabase
+      .from('compras')
+      .insert({
+        id_usuario: userId,
+        total: cartData.total,
+        estado: 'pagado',
+        fecha_compra: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (orderError) throw orderError;
+
+    // 3. Mover los items a 'detalle_compra'
+    const orderItems = cartData.items.map(item => ({
+      id_compra: newOrder.id,
+      id_producto: item.id_producto,
+      cantidad: item.cantidad,
+      precio_unitario: item.precio_unitario
+    }));
+
+    const { error: detailsError } = await supabase
+      .from('detalle_compra')
+      .insert(orderItems);
+
+    if (detailsError) throw detailsError;
+
+    // 4. Vaciar el carrito (porque ya se compró)
+    await clearCart(userId);
+
+    // 5. Devolver el ID de la orden creada
+    return newOrder.id;
+
+  } catch (err) {
+    throw new Error('Error creando orden: ' + err.message);
+  }
+}
 
 //FUNCIONES DEDICADAS PARA EL HISTORIAL DE COMPRAS
 // OBTENER LA LISTA DE COMPRAS DE UN USUARIO

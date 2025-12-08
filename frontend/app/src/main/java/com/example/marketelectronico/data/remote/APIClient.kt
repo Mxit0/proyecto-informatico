@@ -51,5 +51,7 @@ object ApiClient {
     }
 
     val cartApi: CartAPI by lazy { retrofit.create(CartAPI::class.java) }
+
+    val orderApi: OrderAPI by lazy { retrofit.create(OrderAPI::class.java) }
 }
 
