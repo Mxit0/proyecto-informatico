@@ -4,15 +4,12 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.marketelectronico.data.remote.*
-import com.example.marketelectronico.data.SocketManager // Asegúrate de tener este import
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-// Estados de la UI
 sealed interface ForumsUiState {
     data object Loading : ForumsUiState
     data class Success(val foros: List<Foro>) : ForumsUiState
@@ -21,20 +18,15 @@ sealed interface ForumsUiState {
 
 sealed interface ForumDetailUiState {
     data object Loading : ForumDetailUiState
-    data class Success(
-        val foro: Foro,
-        val publicaciones: List<Publicacion>
-    ) : ForumDetailUiState
+    data class Success(val foro: Foro, val publicaciones: List<Publicacion>) : ForumDetailUiState
     data class Error(val message: String) : ForumDetailUiState
 }
 
 class ForumViewModel : ViewModel() {
 
-    // Estado Lista de Foros
     private val _forumsState = MutableStateFlow<ForumsUiState>(ForumsUiState.Loading)
     val forumsState = _forumsState.asStateFlow()
 
-    // Estado Detalle (Foro + Posts)
     private val _detailState = MutableStateFlow<ForumDetailUiState>(ForumDetailUiState.Loading)
     val detailState = _detailState.asStateFlow()
 
@@ -42,109 +34,78 @@ class ForumViewModel : ViewModel() {
     private val socket = SocketManager.getSocket()
 
     init {
+        SocketManager.connect()
         fetchForums()
         setupSocketListener()
     }
 
-    // --- API CALLS ---
-
+    // --- API ---
     fun fetchForums() {
         viewModelScope.launch {
             _forumsState.value = ForumsUiState.Loading
             try {
-                val response = ForumService.api.getForums()
-                if (response.ok && response.foros != null) {
-                    _forumsState.value = ForumsUiState.Success(response.foros)
-                } else {
-                    _forumsState.value = ForumsUiState.Error(response.error ?: "Error desconocido")
-                }
+                val res = ForumService.api.getForums()
+                if (res.ok && res.foros != null) _forumsState.value = ForumsUiState.Success(res.foros)
+                else _forumsState.value = ForumsUiState.Error(res.error ?: "Error desconocido")
             } catch (e: Exception) {
-                _forumsState.value = ForumsUiState.Error("Fallo de red: ${e.message}")
+                _forumsState.value = ForumsUiState.Error("Error de red: ${e.message}")
             }
         }
     }
 
-    fun fetchForumDetail(foroId: String) {
+    fun fetchForumDetail(id: Int) {
         viewModelScope.launch {
             _detailState.value = ForumDetailUiState.Loading
             try {
-                // 1. Obtener info del foro
-                val foroRes = ForumService.api.getForumById(foroId)
-                // 2. Obtener publicaciones
-                val postsRes = ForumService.api.getForumPosts(foroId)
-
-                if (foroRes.ok && foroRes.foro != null && postsRes.ok && postsRes.publicaciones != null) {
-                    _detailState.value = ForumDetailUiState.Success(
-                        foro = foroRes.foro,
-                        publicaciones = postsRes.publicaciones
-                    )
-                    // Unirse a la sala de Socket para recibir notificaciones
-                    joinForumRoom(foroId)
+                val fRes = ForumService.api.getForumById(id)
+                val pRes = ForumService.api.getForumPosts(id)
+                if (fRes.ok && fRes.foro != null && pRes.ok && pRes.publicaciones != null) {
+                    _detailState.value = ForumDetailUiState.Success(fRes.foro, pRes.publicaciones)
+                    joinForumRoom(id)
                 } else {
-                    _detailState.value = ForumDetailUiState.Error("No se pudo cargar el foro completo.")
+                    _detailState.value = ForumDetailUiState.Error("No se pudo cargar el foro")
                 }
             } catch (e: Exception) {
-                _detailState.value = ForumDetailUiState.Error(e.message ?: "Error de conexión")
+                _detailState.value = ForumDetailUiState.Error(e.message ?: "Error")
             }
         }
     }
 
-    fun createPost(foroId: String, contenido: String) {
+    fun createForum(titulo: String, desc: String) {
         viewModelScope.launch {
             try {
-                // Enviamos a la API (Esto guardará en DB y el backend emitirá el socket)
-                val req = CreatePublicacionRequest(contenido = contenido)
-                ForumService.api.createPost(foroId, req)
-                // No necesitamos añadirlo manual a la lista, el Socket lo hará
-            } catch (e: Exception) {
-                Log.e("ForumViewModel", "Error creating post: ${e.message}")
-            }
+                val res = ForumService.api.createForum(CreateForoRequest(titulo, desc))
+                if (res.ok) fetchForums()
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
-    fun createForum(titulo: String, descripcion: String) {
+    fun createPost(foroId: Int, content: String) {
         viewModelScope.launch {
             try {
-                val req = CreateForoRequest(titulo, descripcion)
-                val res = ForumService.api.createForum(req)
-                if (res.ok) {
-                    fetchForums() // Recargar lista
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+                ForumService.api.createPost(foroId, CreatePublicacionRequest(content))
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
     // --- SOCKETS ---
-
-    private fun joinForumRoom(foroId: String) {
-        // Emitimos evento para unirnos a la sala específica del foro
+    private fun joinForumRoom(foroId: Int) {
         val data = JSONObject()
-        data.put("room", "foro_$foroId") // Coincide con backend: io.to(`foro_${foroId}`)
+        data.put("room", "foro_$foroId")
         socket?.emit("join_chat", data)
     }
 
     private fun setupSocketListener() {
-        // Escuchamos el evento exacto que definiste en el backend: "new_forum_post"
         socket?.on("new_forum_post") { args ->
             if (args.isNotEmpty()) {
                 try {
                     val data = args[0] as JSONObject
                     val newPost = gson.fromJson(data.toString(), Publicacion::class.java)
-
-                    // Actualizar UI si estamos en la pantalla de detalle
-                    val currentState = _detailState.value
-                    if (currentState is ForumDetailUiState.Success) {
-                        // Verificamos que el post sea de este foro (por seguridad)
-                        if (currentState.foro.id == newPost.idForo) {
-                            val updatedList = currentState.publicaciones + newPost
-                            _detailState.value = currentState.copy(publicaciones = updatedList)
-                        }
+                    val current = _detailState.value
+                    if (current is ForumDetailUiState.Success && current.foro.id == newPost.idForo) {
+                        _detailState.value = current.copy(publicaciones = current.publicaciones + newPost)
                     }
-                } catch (e: Exception) {
-                    Log.e("Socket", "Error parsing forum post: ${e.message}")
-                }
+                } catch (e: Exception) { Log.e("Socket", "Error parsing: ${e.message}") }
             }
         }
     }

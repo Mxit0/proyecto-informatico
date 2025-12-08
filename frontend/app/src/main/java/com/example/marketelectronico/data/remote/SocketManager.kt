@@ -103,4 +103,7 @@ object SocketManager {
             callback()
         }
     }
+    fun getSocket(): Socket? {
+        return socket
+    }
 }

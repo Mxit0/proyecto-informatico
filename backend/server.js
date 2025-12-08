@@ -12,9 +12,8 @@ import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
-import reviewRoutes from './routes/reviewRoutes.js';
+import reviewRoutes from "./routes/reviewRoutes.js";
 import { supabase } from "./lib/supabaseClient.js";
-import foroRoutes from "./routes/foroRoutes.js";
 
 dotenv.config();
 
@@ -33,13 +32,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/productos", productRoutes);
 app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
-<<<<<<< HEAD
 app.use("/api/carro", carroRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/reviews', reviewRoutes);
-=======
-app.use("/api/foro", foroRoutes);
->>>>>>> origin/Joaquin
+app.use("/api/orders", orderRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/productos", productRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -53,7 +49,6 @@ const io = new SocketIOServer(server, {
     methods: ["GET", "POST"],
   },
 });
-app.set("io", io);
 
 // Normalizar pareja de usuarios (para que no hayan 2 chats duplicados)
 function normalizePair(a, b) {
@@ -63,12 +58,12 @@ function normalizePair(a, b) {
 // Middleware de autenticación para sockets (mismo JWT que en HTTP)
 io.use((socket, next) => {
   try {
-    const header = socket.handshake.auth?.token ||
-      (socket.handshake.headers?.authorization || "");
+    const header =
+      socket.handshake.auth?.token ||
+      socket.handshake.headers?.authorization ||
+      "";
 
-    const token = header.startsWith("Bearer ")
-      ? header.slice(7)
-      : header;
+    const token = header.startsWith("Bearer ") ? header.slice(7) : header;
 
     if (!token) return next(new Error("No token"));
 
@@ -118,11 +113,7 @@ async function saveMessage({ chatId, senderId, contenido }) {
   return data;
 }
 
-<<<<<<< HEAD
 //  Lógica de tiempo real
-=======
-// Lógica de tiempo real
->>>>>>> origin/Joaquin
 io.on("connection", (socket) => {
   console.log(" Socket conectado:", socket.user?.id_usuario);
 
@@ -212,7 +203,6 @@ io.on("connection", (socket) => {
 
       const room = `chat_${chatId}`;
       io.to(room).emit("messages_read_update", { chatId });
-
     } catch (err) {
       console.error("Error en mark_messages_read:", err);
     }
@@ -220,13 +210,6 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("🔌 Socket desconectado:", socket.user?.id_usuario);
-  });
-
-  socket.on("join_forum", ({ foroId }) => {
-    if (!foroId) return;
-    const room = `foro_${foroId}`;
-    socket.join(room);
-    console.log(`Socket ${socket.user?.id_usuario} joined forum room`, room);
   });
 });
 

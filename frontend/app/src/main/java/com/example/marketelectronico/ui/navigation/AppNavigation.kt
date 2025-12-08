@@ -22,9 +22,13 @@ import com.example.marketelectronico.ui.main.MainViewModel // <-- 2. IMPORTAR
 import com.example.marketelectronico.ui.product.ProductReviewScreen
 import com.example.marketelectronico.ui.product.ProductScreen
 import com.example.marketelectronico.ui.product.ProductViewModel // <-- 3. IMPORTAR
+import com.example.marketelectronico.ui.product.PublishScreen
+import com.example.marketelectronico.ui.publish.PublishViewModel
 import com.example.marketelectronico.ui.profile.ProfileScreen
 import com.example.marketelectronico.ui.review.ReviewScreen
-
+import com.example.marketelectronico.ui.category.CategoryProductsScreen
+import com.example.marketelectronico.ui.category.CategoryProductsViewModel
+import android.net.Uri
 /**
  * Gestiona TODA la navegación de la aplicación.
  */
@@ -81,11 +85,33 @@ fun AppNavigation() {
             )
         }
 
+        composable(
+            route = "category_products/{categoryId}/{categoryName}",
+            arguments = listOf(
+                navArgument("categoryId") { type = NavType.IntType },
+                navArgument("categoryName") { type = NavType.StringType }
+            )
+        ) { entry ->
+            val categoryId = entry.arguments?.getInt("categoryId") ?: 0
+            val rawName = entry.arguments?.getString("categoryName") ?: "Categoría"
+            val categoryName = Uri.decode(rawName)
+            
+            CategoryProductsScreen(
+                navController = navController,
+                categoryId = categoryId,
+                categoryName = categoryName,
+                viewModel = viewModel<CategoryProductsViewModel>()
+            )
+        }
+
         composable("categories") {
             // CategoriesScreen(navController = navController)
         }
         composable("publish") {
-            // PublishScreen(navController = navController)
+            PublishScreen(
+                navController = navController,
+                viewModel = viewModel<PublishViewModel>()
+            )
         }
 
         // --- PANTALLAS DE PAGO (De 'master' - DESCOMENTADAS) ---
@@ -126,8 +152,17 @@ fun AppNavigation() {
         composable("forum") {
             ForumScreen(navController = navController)
         }
-        composable("post_detail/{postId}") {
-            PostDetailScreen(navController = navController)
+
+        composable(
+            route = "forum_detail/{forumId}",
+            arguments = listOf(navArgument("forumId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val forumId = backStackEntry.arguments?.getInt("forumId") ?: 0
+            
+            PostDetailScreen(
+                navController = navController,
+                forumId = forumId
+            )
         }
         composable("create_post") {
             CreatePostScreen(navController = navController)
