@@ -1,5 +1,7 @@
 package com.example.marketelectronico.ui.profile
 
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.marketelectronico.data.remote.UserProfileDto
@@ -31,6 +33,10 @@ class ProfileViewModel : ViewModel() {
         loadUserOrders()
     }
 
+    fun onNewProfileImageSelected(uri: Uri) {
+        // por hacer: subida real al backend/Supabase
+        Log.d("ProfileViewModel", "Nueva imagen de perfil seleccionada: $uri")
+    }
     fun loadUserProfile() {
         viewModelScope.launch {
             _isLoading.value = true

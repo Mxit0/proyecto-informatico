@@ -1,6 +1,7 @@
 package com.example.marketelectronico.ui.profile
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -70,7 +71,10 @@ fun ProfileScreen(
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        localImageUri = uri
+        if (uri != null) {
+            localImageUri = uri          // para mostrarla en la UI
+            viewModel.onNewProfileImageSelected(uri)  // avisar al ViewModel
+        }
     }
 
     // --- LÓGICA DE LA BOTTOM BAR ---
