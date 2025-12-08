@@ -1,10 +1,13 @@
 package com.example.marketelectronico.data.remote
 
-import retrofit2.http.*
 import okhttp3.MultipartBody
 import com.google.gson.annotations.SerializedName
+import retrofit2.Response
+import retrofit2.http.*
+
 
 interface UserApi {
+
     @GET("usuarios/{id}")
     suspend fun getUserById(@Path("id") userId: Long): UserResponse
 
@@ -14,12 +17,20 @@ interface UserApi {
         @Body request: ReputationRequest
     ): UserResponse
 
+    // Endpoint antiguo
     @Multipart
     @PATCH("usuarios/{id}/foto")
     suspend fun updatePhoto(
         @Path("id") userId: Long,
         @Part image: MultipartBody.Part
     ): UserResponse
+
+    //subir foto de perfil vía /api/profile/photo ===
+    @Multipart
+    @POST("api/profile/photo")
+    suspend fun uploadProfilePhoto(
+        @Part photo: MultipartBody.Part
+    ): Response<PhotoResponse>
 }
 
 data class UserResponse(
@@ -42,6 +53,11 @@ data class UserProfileDto(
 
 data class ReputationRequest(
     val calificacion: Double
+)
+
+// Respuesta del endpoint de foto
+data class PhotoResponse(
+    val foto: String
 )
 
 object UserService {
