@@ -44,6 +44,13 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.foundation.clickable
+import com.example.marketelectronico.utils.TokenManager
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -54,6 +61,7 @@ fun ProfileScreen(
 ) {
     // Observamos el estado del perfil del usuario real
     val userProfile by viewModel.userProfile.collectAsState()
+    val userOrders by viewModel.userOrders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
@@ -141,7 +149,7 @@ fun ProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     UserInfoSection(userProfile = userProfile)
-                    ProfileTabs(navController = navController, userProfile = userProfile)
+                    ProfileTabs(navController = navController, userProfile = userProfile, userOrders = userOrders)
                 }
             }
         }
@@ -198,7 +206,8 @@ private fun UserInfoSection(userProfile: com.example.marketelectronico.data.remo
 @Composable
 private fun ProfileTabs(
     navController: NavController,
-    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?
+    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?,
+    userOrders: List<Order>
 ) {
     val pagerState = rememberPagerState { 3 }
     val coroutineScope = rememberCoroutineScope()
@@ -229,9 +238,23 @@ private fun ProfileTabs(
                 contentAlignment = Alignment.TopCenter
             ) {
                 when (pageIndex) {
-                    0 -> MyRatingPage(reputation = userProfile?.reputacion) // Pasamos la reputación real
-                    1 -> PurchasesHistoryPage()
-                    2 -> ReviewsHistoryPage()
+                    0 -> MyRatingPage(reputation = userProfile?.reputacion)
+
+                    1 -> PurchasesHistoryPage(
+                        orders = userOrders,
+                        onOrderClick = { orderId ->
+                            navController.navigate("order_detail/$orderId")
+                        }
+                    )
+
+                    // --- AQUÍ ESTÁ EL CAMBIO ---
+                    2 -> ReviewsHistoryPage(
+                        onReviewClick = { productId ->
+                            // Navegamos a la pantalla de detalle del producto
+                            navController.navigate("product_detail/$productId")
+                        }
+                    )
+                    // ---------------------------
                 }
             }
         }
@@ -271,16 +294,10 @@ private fun MyRatingPage(reputation: Double?) {
 }
 
 @Composable
-private fun PurchasesHistoryPage() {
-    // --- OBTENER USUARIO ACTUAL ---
-    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
-    val currentUserId = currentUser?.id_usuario?.toString() ?: "invitado"
-
-    // --- FILTRAR ÓRDENES POR USUARIO ---
-    // Ahora usamos la nueva función del repositorio
-    val orders = OrderRepository.getOrdersByUser(currentUserId)
-    // -----------------------------------
-
+private fun PurchasesHistoryPage(
+    orders: List<Order>,
+    onOrderClick: (String) -> Unit
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Historial de Compras", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
@@ -292,20 +309,30 @@ private fun PurchasesHistoryPage() {
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(orders) { order -> OrderHistoryItem(order = order) }
+                items(orders) { order ->
+                    OrderHistoryItem(
+                        order = order,
+                        onClick = { onOrderClick(order.id) } // Pasamos el evento click
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ReviewsHistoryPage() {
-    // Obtenemos el usuario actual para filtrar sus reseñas
-    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
-    // Si hay usuario logueado usamos su nombre, si no "Asu" como fallback
-    val userName = currentUser?.nombre_usuario ?: "Asu"
+private fun ReviewsHistoryPage(onReviewClick: (String) -> Unit) {
+    // Estado para las reseñas
+    var myReviews by remember { mutableStateOf<List<Review>>(emptyList()) }
 
-    val myReviews = ReviewRepository.getReviewsByUser(userName)
+    val currentUserId = TokenManager.getUserId()?.toString()
+
+    // Llamada asíncrona correcta
+    LaunchedEffect(currentUserId) {
+        if (currentUserId != null) {
+            myReviews = ReviewRepository.getReviewsByUser(currentUserId)
+        }
+    }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Reviews que has Escrito", style = MaterialTheme.typography.titleMedium)
@@ -318,18 +345,28 @@ private fun ReviewsHistoryPage() {
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(myReviews) { review -> MyReviewItem(review = review) }
+                items(myReviews) { review ->
+                    MyReviewItem(
+                        review = review,
+                        onClick = {
+                            // 2. Al hacer click, pasamos el ID del producto
+                            onReviewClick(review.productId)
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MyReviewItem(review: Review) {
+private fun MyReviewItem(review: Review, onClick: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
     ) {
         Row(modifier = Modifier.padding(16.dp)) {
             // Imagen del producto (usando Coil)
@@ -384,15 +421,22 @@ private fun MyReviewItem(review: Review) {
 }
 
 @Composable
-private fun OrderHistoryItem(order: Order) {
+private fun OrderHistoryItem(
+    order: Order,
+    onClick: () -> Unit // Nuevo parámetro
+) {
     val dateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
 
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shadowElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // ... (El contenido de texto sigue igual) ...
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -416,16 +460,12 @@ private fun OrderHistoryItem(order: Order) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Mostrar los productos en esta orden
-            order.items.forEach { product ->
-                Row(modifier = Modifier.padding(bottom = 4.dp)) {
-                    Text("• ")
-                    Text(
-                        text = product.name,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+            // Texto indicativo
+            Text(
+                text = "Ver detalles de la compra >",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

@@ -32,8 +32,9 @@ import com.example.marketelectronico.data.repository.PaymentRepository
 import com.example.marketelectronico.data.repository.Order
 import com.example.marketelectronico.data.repository.OrderRepository
 import java.util.UUID
-import androidx.compose.runtime.collectAsState
-import com.example.marketelectronico.data.repository.UserRepository
+import com.example.marketelectronico.utils.TokenManager
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 
 // --- 2. ELIMINAR EL MODELO Y LOS DATOS DE MUESTRA LOCALES ---
@@ -64,15 +65,13 @@ private fun formatCurrency(amount: Double): String {
 fun PaymentScreen(
     navController: NavController
 ) {
+    val scope = rememberCoroutineScope()
     // --- Lógica de Cálculo ---
     val subtotal = CartRepository.totalPrice.value
     val taxes = subtotal * TAX_RATE
     val total = subtotal + SHIPPING_COST + taxes
 
-    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
-    // Si no hay usuario (no debería pasar), usamos "invitado" o el ID que prefieras
-    val currentUserId = currentUser?.id_usuario?.toString() ?: "invitado"
-
+    // --- 3. LEER LA LISTA DESDE EL REPOSITORIO ---
     val paymentMethods = PaymentRepository.paymentMethods
 
     // Estado para la barra de navegación inferior
@@ -111,22 +110,27 @@ fun PaymentScreen(
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                 Button(
                     onClick = {
-                        // Aquí iría tu lógica de pago (ej. llamar a una API).
-                        // Al ser exitoso, navegas a la pantalla de confirmación.
-                        val itemsToPurchase = CartRepository.cartItems.toList()
-                        //val orderTotal = total
-                        val newOrder = Order(
-                            id = UUID.randomUUID().toString(),
-                            userId = currentUserId, // <-- ASIGNAR USUARIO
-                            items = itemsToPurchase,
-                            totalAmount = total
-                        )
+                        // Usamos coroutine scope porque createOrder es suspend
+                        // Asegúrate de tener: val scope = rememberCoroutineScope() al inicio del composable
+                        scope.launch {
+                            val currentUserId = TokenManager.getUserId()?.toString()
+                            if (currentUserId != null) {
+                                // 1. LLAMADA REAL AL BACKEND
+                                val realOrderId = OrderRepository.createOrder(currentUserId)
 
-                        OrderRepository.addOrder(newOrder)
-                        CartRepository.clearCart()
-                        navController.navigate("pay_confirm/${newOrder.id}") {
-                            // Limpia la pila hasta el carrito
-                            popUpTo("cart") { inclusive = true }
+                                if (realOrderId != null) {
+                                    // 2. Si hay éxito, el backend ya limpió el carrito,
+                                    // pero actualizamos la UI local limpiando la lista observable
+                                    CartRepository.clearCart() // (Opcional, loadCart() lo haría)
+
+                                    // 3. Navegamos con el ID REAL
+                                    navController.navigate("pay_confirm/$realOrderId") {
+                                        popUpTo("cart") { inclusive = true }
+                                    }
+                                } else {
+                                    // Manejar error (Toast o mensaje)
+                                }
+                            }
                         }
                     },
                     modifier = Modifier
@@ -347,9 +351,25 @@ fun SummaryRow(label: String, amount: String, isTotal: Boolean = false) {
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun PaymentScreenPreview() {
-    // Añadimos un valor al repositorio para que la preview funcione
+    // Limpiamos carrito para evitar errores previos
     CartRepository.clearCart()
-    CartRepository.addToCart(Product("1", "Test Product", 120.0, "", "New", "", 0.0, 0, "", emptyMap()))
+
+    // Usamos argumentos NOMBRADOS (name = "...", price = ...) para evitar errores de orden
+    val testProduct = Product(
+        id = "1",
+        name = "Test Product",
+        price = 120.0,
+        imageUrl = "",
+        status = "New",
+        sellerId = 4, // <-- Aquí definimos explícitamente el ID
+        sellerName = "Vendedor Test",
+        sellerRating = 4.5,
+        sellerReviews = 10,
+        description = "Descripción de prueba",
+        specifications = emptyMap()
+    )
+
+    CartRepository.addToCart(testProduct)
 
     MarketElectronicoTheme {
         PaymentScreen(navController = rememberNavController())

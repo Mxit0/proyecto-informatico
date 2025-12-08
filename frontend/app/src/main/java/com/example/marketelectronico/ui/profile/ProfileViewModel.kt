@@ -50,11 +50,19 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun loadUserOrders() {
+        // CORRECCIÓN: Agregar .toString()
         val currentUserId = TokenManager.getUserId()?.toString()
+
         if (currentUserId != null) {
-            // Filtramos la lista global buscando solo las que coincidan con el ID
-            val myOrders = OrderRepository.orders.filter { it.userId == currentUserId }
-            _userOrders.value = myOrders
+            viewModelScope.launch {
+                try {
+                    val ordersFromApi = OrderRepository.getUserOrders()
+                    // Ahora comparamos String con String
+                    _userOrders.value = ordersFromApi.filter { it.userId == currentUserId }
+                } catch (e: Exception) {
+                    _userOrders.value = emptyList()
+                }
+            }
         } else {
             _userOrders.value = emptyList()
         }

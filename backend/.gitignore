@@ -12,7 +12,7 @@ node_modules/
 .env
 .env.development
 .env.production
-
+firebase-service-account.json
 # Configuración de IDEs
 .vscode/
 .idea/

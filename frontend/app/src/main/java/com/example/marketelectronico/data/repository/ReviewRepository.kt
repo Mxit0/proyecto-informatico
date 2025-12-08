@@ -1,82 +1,156 @@
 package com.example.marketelectronico.data.repository
 
-import androidx.compose.runtime.mutableStateListOf
+import android.util.Log
+import com.example.marketelectronico.data.remote.ApiClient
+import com.example.marketelectronico.data.remote.CreateReviewRequest
+import com.example.marketelectronico.data.remote.ReviewDto
+import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.UUID
+import java.util.Locale
 
-/**
- * Modelo de datos para una Reseña.
- * AHORA INCLUYE el nombre y la imagen del producto para facilitar su visualización en el perfil.
- */
+// Mantenemos tu modelo 'Review' para la UI (Mappearemos el DTO a este)
 data class Review(
-    val id: String = UUID.randomUUID().toString(),
+    val id: String,
     val productId: String,
-    val productName: String, // <-- NUEVO CAMPO
-    val productImageUrl: String, // <-- NUEVO CAMPO
+    val productName: String,
+    val productImageUrl: String,
     val author: String,
+    val authorId: String,
     val authorImageUrl: String? = null,
-    val date: Date = Date(),
+    val date: Date,
     val rating: Double,
-    val comment: String
-)
+    val comment: String,
+    val likedByUserIds: List<String> = emptyList()
+) {
+    val likesCount: Int get() = likedByUserIds.size
+}
 
-/**
- * Repositorio (Singleton) para gestionar todas las reseñas.
- */
 object ReviewRepository {
+    private val api = ApiClient.reviewApi
 
-    // Datos de muestra actualizados con los nuevos campos
-    private val sampleReviews = listOf(
-        Review(
-            productId = "1",
-            productName = "CPU Intel Core i7",
-            productImageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=CPU",
-            author = "Liam Carter",
-            date = Date(System.currentTimeMillis() - 1209600000),
-            rating = 5.0,
-            comment = "This processor is a game-changer!"
-        ),
-        Review(
-            productId = "1",
-            productName = "CPU Intel Core i7",
-            productImageUrl = "https://placehold.co/300x300/2D3748/FFFFFF?text=CPU",
-            author = "Sophia Bennett",
-            date = Date(System.currentTimeMillis() - 2592000000),
-            rating = 3.5,
-            comment = "Works well but had installation issues."
+    // Función auxiliar para convertir DTO -> Modelo UI
+    private fun mapDtoToReview(dto: ReviewDto): Review {
+        // Parsear fecha ISO 8601
+        val date = try {
+            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            format.parse(dto.date) ?: Date()
+        } catch (e: Exception) {
+            Date()
+        }
+
+        return Review(
+            id = dto.id,
+            productId = dto.productId,
+            productName = dto.productName,
+            productImageUrl = dto.productImageUrl ?: "",
+            author = dto.author,
+            authorId = dto.authorId,
+            authorImageUrl = dto.authorImageUrl,
+            date = date,
+            rating = dto.rating,
+            comment = dto.comment,
+            likedByUserIds = dto.likedByUserIds
         )
-    )
-
-    val allReviews = mutableStateListOf<Review>()
-
-    init {
-        allReviews.addAll(sampleReviews)
     }
 
-    fun addReview(review: Review) {
-        allReviews.add(0, review)
+    // 1. Obtener reseñas de un producto (ASÍNCRONO)
+    suspend fun getReviewsForProduct(productId: String): List<Review> {
+        return try {
+            val response = api.getReviewsByProduct(productId)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!.map { mapDtoToReview(it) }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Error fetching product reviews", e)
+            emptyList()
+        }
     }
 
-    fun getReviewsForProduct(productId: String?): List<Review> {
-        return allReviews.filter { it.productId == productId }.sortedByDescending { it.date }
+    // 2. Obtener historial del usuario (ASÍNCRONO)
+    suspend fun getReviewsByUser(userId: String): List<Review> {
+        return try {
+            val response = api.getUserReviewHistory(userId)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!.map { mapDtoToReview(it) }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Error fetching user history", e)
+            emptyList()
+        }
     }
 
-    fun getReviewsByUser(authorName: String): List<Review> {
-        return allReviews.filter { it.author == authorName }.sortedByDescending { it.date }
+    // 3. Crear reseña (ASÍNCRONO)
+    suspend fun addReview(productId: String, userId: String, rating: Double, comment: String): Boolean { // <--- rating: Double
+        return try {
+            val request = CreateReviewRequest(productId, userId, rating, comment)
+            val response = api.addReview(request)
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Error creating review", e)
+            false
+        }
     }
 
-    fun hasUserReviewedProduct(productId: String, authorName: String): Boolean {
-        return allReviews.any { it.productId == productId && it.author == authorName }
-    }
-
+    // Auxiliar para formatear fecha visualmente (ej. "Hace 2 días")
     fun formatDate(date: Date): String {
         val diff = Date().time - date.time
         val days = diff / (1000 * 60 * 60 * 24)
         return when {
-            days == 0L -> "Just now"
-            days == 1L -> "1 day ago"
-            days < 30 -> "$days days ago"
-            else -> "Months ago"
+            days == 0L -> "Hoy"
+            days == 1L -> "Ayer"
+            days < 30 -> "Hace $days días"
+            else -> "Hace meses"
+        }
+    }
+
+    // NOTA: 'hasUserReviewedProduct' ahora es difícil de calcular síncronamente en listas grandes.
+    // Lo ideal es verificarlo en el backend o manejarlo en la UI al cargar la lista.
+    suspend fun hasUserReviewedProduct(productId: String, userId: String): Boolean {
+        // Obtenemos las reseñas frescas y verificamos
+        val reviews = getReviewsForProduct(productId)
+        return reviews.any { it.authorId == userId }
+    }
+
+    suspend fun toggleLike(reviewId: String, userId: String): Boolean {
+        return try {
+            // El backend espera un JSON { "userId": "..." }
+            val body = mapOf("userId" to userId)
+            val response = api.toggleLike(reviewId, body)
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Error toggleLike", e)
+            false
+        }
+    }
+
+    suspend fun deleteReview(reviewId: String, userId: String): Boolean {
+        return try {
+            // El backend espera un JSON { "userId": "..." } para verificar dueño
+            val body = mapOf("userId" to userId)
+            val response = api.deleteReview(reviewId, body)
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Error deleteReview", e)
+            false
+        }
+    }
+
+    suspend fun updateReview(reviewId: String, userId: String, comment: String, rating: Double): Boolean {
+        return try {
+            val request = com.example.marketelectronico.data.remote.UpdateReviewRequest(
+                userId = userId,
+                rating = rating,
+                comment = comment
+            )
+            val response = api.updateReview(reviewId, request)
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Error updateReview", e)
+            false
         }
     }
 }
