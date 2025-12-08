@@ -7,3 +7,4 @@
 /docker-compose.yml.*
 /package.json
 /package-lock.json
+backend/firebase-service-account.json

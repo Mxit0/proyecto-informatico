@@ -30,12 +30,14 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.data.model.Product
+// import com.example.marketelectronico.data.model.allSampleProducts // Ya no se usa
 import com.example.marketelectronico.data.model.sampleProduct1
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.repository.CartRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage // <-- IMPORTANTE: COIL
 import kotlinx.coroutines.flow.collectLatest
+import com.example.marketelectronico.utils.TokenManager
 
 /**
  * Pantalla de Detalles del Producto.
@@ -50,6 +52,9 @@ fun ProductScreen(
 ) {
     // --- 4. OBSERVAR ESTADO Y CARGAR DATOS ---
     val uiState by viewModel.uiState.collectAsState()
+
+    val rawId = TokenManager.getUserId()
+    val currentUserId = rawId?.toString()?.toIntOrNull() ?: -1
 
     LaunchedEffect(key1 = true) {
         viewModel.navigationEvent.collectLatest { route ->
@@ -137,6 +142,7 @@ fun ProductScreen(
                 ProductDetailsContent(
                     product = state.product,
                     navController = navController,
+                    currentUserId = currentUserId,
                     paddingValues = innerPadding,
                     onContactSeller = { sellerId ->
                         viewModel.contactSeller(sellerId)
@@ -150,6 +156,7 @@ fun ProductScreen(
 @Composable
 private fun ProductDetailsContent(
     product: Product,
+    currentUserId: Int,
     navController: NavController,
     paddingValues: PaddingValues,
     onContactSeller: (Int) -> Unit
@@ -275,14 +282,27 @@ private fun ProductDetailsContent(
                     Text("Añadir al Carrito")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                OutlinedButton(
-                    onClick = {
-                        onContactSeller(product.sellerId)
-                    },
-                    modifier = Modifier.weight(1f),
-                    // ... estilos ...
-                ) {
-                    Text("Mensaje al Vendedor")
+                if (product.sellerId == currentUserId) {
+                    // Si el producto es mío, deshabilito el botón y cambio el texto
+                    OutlinedButton(
+                        onClick = { },
+                        enabled = false, // Deshabilitado
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Es tu producto")
+                    }
+                } else {
+                    // Si es de otro, muestro el botón normal
+                    OutlinedButton(
+                        onClick = {
+                            onContactSeller(product.sellerId)
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Contactar")
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -350,7 +370,7 @@ private fun ProductDetailsContent(
                     Text("Ver reviews del vendedor")
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp)) // Espacio extra al final
         }
     }
 
@@ -405,7 +425,8 @@ fun SpecificationItem(label: String, value: String, modifier: Modifier = Modifie
 fun ProductScreenPreview() {
     MarketElectronicoTheme {
         ProductDetailsContent(
-            product = sampleProduct1,
+            product = sampleProduct1, // Usa el producto de SampleData
+            currentUserId = 1,
             navController = rememberNavController(),
             paddingValues = PaddingValues(0.dp),
             onContactSeller = {}

@@ -10,6 +10,9 @@ import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
+import carroRoutes from "./routes/carroRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
+import reviewRoutes from './routes/reviewRoutes.js';
 import { supabase } from "./lib/supabaseClient.js";
 import foroRoutes from "./routes/foroRoutes.js";
 
@@ -30,7 +33,13 @@ app.use("/api/auth", authRoutes);
 app.use("/api/productos", productRoutes);
 app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
+<<<<<<< HEAD
+app.use("/api/carro", carroRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/reviews', reviewRoutes);
+=======
 app.use("/api/foro", foroRoutes);
+>>>>>>> origin/Joaquin
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -73,7 +82,7 @@ io.use((socket, next) => {
   }
 });
 
-// 🔁 Helpers con Supabase
+// Helpers con Supabase
 
 async function getOrCreateChatBetween(userAId, userBId) {
   const [u1, u2] = normalizePair(userAId, userBId);
@@ -109,9 +118,13 @@ async function saveMessage({ chatId, senderId, contenido }) {
   return data;
 }
 
+<<<<<<< HEAD
+//  Lógica de tiempo real
+=======
 // Lógica de tiempo real
+>>>>>>> origin/Joaquin
 io.on("connection", (socket) => {
-  console.log("✅ Socket conectado:", socket.user?.id_usuario);
+  console.log(" Socket conectado:", socket.user?.id_usuario);
 
   /**
    * Abrir chat entre el usuario logueado y otro usuario (vendedor/comprador)
@@ -181,6 +194,27 @@ io.on("connection", (socket) => {
     } catch (err) {
       console.error("Error en send_message:", err);
       callback?.({ ok: false, error: "No se pudo enviar el mensaje" });
+    }
+  });
+
+  socket.on("mark_messages_read", async ({ chatId }) => {
+    try {
+      const userId = socket.user.id_usuario;
+
+      const { error } = await supabase
+        .from("mensaje")
+        .update({ leido: true })
+        .eq("id_chat", chatId)
+        .neq("id_remitente", userId) // Solo leo los mensajes del OTRO
+        .eq("leido", false); // Solo los que no estaban leídos
+
+      if (error) throw error;
+
+      const room = `chat_${chatId}`;
+      io.to(room).emit("messages_read_update", { chatId });
+
+    } catch (err) {
+      console.error("Error en mark_messages_read:", err);
     }
   });
 

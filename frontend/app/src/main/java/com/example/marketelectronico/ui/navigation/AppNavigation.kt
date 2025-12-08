@@ -114,7 +114,13 @@ fun AppNavigation() {
         composable("chat_list") {
             ChatListScreen(navController = navController)
         }
-        composable("conversation/{chatId}") {
+        composable(
+            route = "conversation/{chatId}/{otherUserId}",
+            arguments = listOf(
+                navArgument("chatId") { type = NavType.StringType },
+                navArgument("otherUserId") { type = NavType.IntType } // Nuevo parámetro
+            )
+        ) {
             ConversationScreen(navController = navController)
         }
         composable("forum") {

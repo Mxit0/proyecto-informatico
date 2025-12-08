@@ -32,6 +32,8 @@ import com.example.marketelectronico.data.repository.PaymentRepository
 import com.example.marketelectronico.data.repository.Order
 import com.example.marketelectronico.data.repository.OrderRepository
 import java.util.UUID
+import androidx.compose.runtime.collectAsState
+import com.example.marketelectronico.data.repository.UserRepository
 
 
 // --- 2. ELIMINAR EL MODELO Y LOS DATOS DE MUESTRA LOCALES ---
@@ -67,7 +69,10 @@ fun PaymentScreen(
     val taxes = subtotal * TAX_RATE
     val total = subtotal + SHIPPING_COST + taxes
 
-    // --- 3. LEER LA LISTA DESDE EL REPOSITORIO ---
+    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
+    // Si no hay usuario (no debería pasar), usamos "invitado" o el ID que prefieras
+    val currentUserId = currentUser?.id_usuario?.toString() ?: "invitado"
+
     val paymentMethods = PaymentRepository.paymentMethods
 
     // Estado para la barra de navegación inferior
@@ -109,12 +114,14 @@ fun PaymentScreen(
                         // Aquí iría tu lógica de pago (ej. llamar a una API).
                         // Al ser exitoso, navegas a la pantalla de confirmación.
                         val itemsToPurchase = CartRepository.cartItems.toList()
-                        val orderTotal = total
+                        //val orderTotal = total
                         val newOrder = Order(
-                            id = UUID.randomUUID().toString(), // Genera un ID único
+                            id = UUID.randomUUID().toString(),
+                            userId = currentUserId, // <-- ASIGNAR USUARIO
                             items = itemsToPurchase,
-                            totalAmount = orderTotal
+                            totalAmount = total
                         )
+
                         OrderRepository.addOrder(newOrder)
                         CartRepository.clearCart()
                         navController.navigate("pay_confirm/${newOrder.id}") {
@@ -340,25 +347,9 @@ fun SummaryRow(label: String, amount: String, isTotal: Boolean = false) {
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun PaymentScreenPreview() {
-    // Limpiamos carrito para evitar errores previos
+    // Añadimos un valor al repositorio para que la preview funcione
     CartRepository.clearCart()
-
-    // Usamos argumentos NOMBRADOS (name = "...", price = ...) para evitar errores de orden
-    val testProduct = Product(
-        id = "1",
-        name = "Test Product",
-        price = 120.0,
-        imageUrl = "",
-        status = "New",
-        sellerId = 4, // <-- Aquí definimos explícitamente el ID
-        sellerName = "Vendedor Test",
-        sellerRating = 4.5,
-        sellerReviews = 10,
-        description = "Descripción de prueba",
-        specifications = emptyMap()
-    )
-
-    CartRepository.addToCart(testProduct)
+    CartRepository.addToCart(Product("1", "Test Product", 120.0, "", "New", "", 0.0, 0, "", emptyMap()))
 
     MarketElectronicoTheme {
         PaymentScreen(navController = rememberNavController())

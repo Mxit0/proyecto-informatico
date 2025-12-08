@@ -59,17 +59,15 @@ class ProductViewModel(
     fun contactSeller(sellerId: Int) {
         viewModelScope.launch {
             try {
-                // Crea o recupera el chat existente
                 val chatDto = chatRepository.createOrGetChat(sellerId)
+
                 if (chatDto != null) {
-                    // Navega a la conversación
-                    _navigationEvent.send("conversation/${chatDto.id}")
+                    _navigationEvent.send("conversation/${chatDto.id}/$sellerId")
                 } else {
-                    Log.e("ProductViewModel", "Error al crear chat: respuesta nula")
+                    Log.e("ProductVM", "Error: No se obtuvo el chat")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
-                Log.e("ProductViewModel", "Excepción al contactar vendedor: ${e.message}")
+                Log.e("ProductVM", "Error al contactar vendedor", e)
             }
         }
     }
