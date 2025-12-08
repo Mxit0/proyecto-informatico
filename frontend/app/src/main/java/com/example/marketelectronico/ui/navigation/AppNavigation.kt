@@ -25,12 +25,17 @@ import com.example.marketelectronico.ui.product.ProductViewModel // <-- 3. IMPOR
 import com.example.marketelectronico.ui.profile.ProfileScreen
 import com.example.marketelectronico.ui.review.ReviewScreen
 
+import com.example.marketelectronico.ui.category.CategoryProductsScreen
+import com.example.marketelectronico.ui.category.CategoryProductsViewModel
+import android.net.Uri
+import androidx.navigation.NavHostController
+
 /**
  * Gestiona TODA la navegación de la aplicación.
  */
 @Composable
-fun AppNavigation() {
-    val navController = rememberNavController()
+fun AppNavigation(navController: NavHostController) {
+    //val navController = rememberNavController()
 
     NavHost(
         navController = navController,
@@ -81,11 +86,33 @@ fun AppNavigation() {
             )
         }
 
+        composable(
+            route = "category_products/{categoryId}/{categoryName}",
+            arguments = listOf(
+                navArgument("categoryId") { type = NavType.IntType },
+                navArgument("categoryName") { type = NavType.StringType }
+            )
+        ) { entry ->
+            val categoryId = entry.arguments?.getInt("categoryId") ?: 0
+            val rawName = entry.arguments?.getString("categoryName") ?: "Categoría"
+            val categoryName = Uri.decode(rawName)
+
+            CategoryProductsScreen(
+                navController = navController,
+                categoryId = categoryId,
+                categoryName = categoryName,
+                viewModel = viewModel<CategoryProductsViewModel>()
+            )
+        }
+
         composable("categories") {
             // CategoriesScreen(navController = navController)
         }
         composable("publish") {
-            // PublishScreen(navController = navController)
+            PublishScreen(
+                navController = navController,
+                viewModel = viewModel<PublishViewModel>()
+            )
         }
 
         // --- PANTALLAS DE PAGO (De 'master' - DESCOMENTADAS) ---

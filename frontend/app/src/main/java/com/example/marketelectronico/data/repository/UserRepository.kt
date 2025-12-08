@@ -61,4 +61,25 @@ class UserRepository {
             return instance ?: UserRepository().also { instance = it }
         }
     }
+
+    suspend fun updateFcmToken(token: String) {
+        try {
+            val userId = TokenManager.getUserId()
+            if (userId != null) {
+                // Creamos el objeto request que definiste en UserDto.kt
+                val request = com.example.marketelectronico.data.remote.FcmTokenRequest(token)
+
+                // Llamamos a la API
+                val response = userApi.saveFcmToken(request)
+
+                if (response.isSuccessful) {
+                    Log.d("UserRepository", "Token FCM actualizado en backend")
+                } else {
+                    Log.e("UserRepository", "Error actualizando token: ${response.code()}")
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }

@@ -12,19 +12,56 @@ function normalizePair(a, b) {
 /**
  * 🧾 Obtener todos los chats donde participa el usuario
  */
+
+// backend/routes/chatRoutes.js
+
 router.get("/", requireAuth, async (req, res) => {
-  const userId = req.user.id_usuario;
+  const userId = req.user.id_usuario; // Esto puede ser string o number
 
   try {
-    const { data, error } = await supabase
+    const { data: chats, error } = await supabase
       .from("chat")
       .select("id, id_usuario1, id_usuario2, fecha_creacion")
-      .or(`id_usuario1.eq.${userId},id_usuario2.eq.${userId}`)
-      .order("fecha_creacion", { ascending: false });
+      .or(`id_usuario1.eq.${userId},id_usuario2.eq.${userId}`);
 
     if (error) throw error;
 
-    res.json({ ok: true, chats: data });
+    const chatsCompleto = await Promise.all(chats.map(async (chat) => {
+        const otherUserId = (chat.id_usuario1 == userId) ? chat.id_usuario2 : chat.id_usuario1;
+
+        const { data: otherUser } = await supabase
+            .from("usuario")
+            .select("nombre_usuario, foto")
+            .eq("id_usuario", otherUserId)
+            .single();
+
+        const { data: lastMsg } = await supabase
+            .from("mensaje")
+            .select("contenido, fecha_envio") 
+            .eq("id_chat", chat.id)
+            .order("fecha_envio", { ascending: false }) 
+            .limit(1)
+            .maybeSingle();
+
+        return {
+            id: String(chat.id),
+            // Aseguramos que estos nombres coincidan con el DTO de Android
+            name: otherUser ? otherUser.nombre_usuario : "Usuario Desconocido",
+            photoUrl: otherUser ? otherUser.foto : null,
+            otherUserId: Number(otherUserId),
+            lastMessage: lastMsg ? lastMsg.contenido : "Sin mensajes",
+            lastMessageDate: lastMsg ? lastMsg.fecha_envio : chat.fecha_creacion
+        };
+    }));
+
+    chatsCompleto.sort((a, b) => {
+        const dateA = new Date(a.lastMessageDate);
+        const dateB = new Date(b.lastMessageDate);
+        return dateB - dateA; 
+    });
+
+    res.json({ ok: true, chats: chatsCompleto });
+
   } catch (err) {
     console.error("Error en GET /api/chat:", err);
     res.status(500).json({ ok: false, error: "Error al obtener chats" });

@@ -23,7 +23,8 @@ data class ChatPreview(
     val lastMessage: String,
     val timestamp: String,
     val otherUserId: Int = 0,
-    val photoUrl: String? = null
+    val photoUrl: String? = null,
+    val lastMessageDate: String? = null
 )
 
 data class Category(
