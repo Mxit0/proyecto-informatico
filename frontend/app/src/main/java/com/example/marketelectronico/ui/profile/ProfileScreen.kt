@@ -1,5 +1,8 @@
 package com.example.marketelectronico.ui.profile
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -16,8 +19,11 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,14 +55,23 @@ import java.util.Locale
 fun ProfileScreen(
     navController: NavController,
     modifier: Modifier = Modifier,
-    // Usamos el ViewModel que creó tu compañero
     viewModel: ProfileViewModel = viewModel()
 ) {
-    // Observamos el estado del perfil del usuario real
+    // Estado del perfil
     val userProfile by viewModel.userProfile.collectAsState()
     val userOrders by viewModel.userOrders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+
+    // Imagen local elegida desde la galería
+    var localImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Launcher para abrir la galería
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        localImageUri = uri
+    }
 
     // --- LÓGICA DE LA BOTTOM BAR ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
@@ -66,7 +81,7 @@ fun ProfileScreen(
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
-        Icons.Default.Info // O Icons.Default.Chat si lo prefieres
+        Icons.Default.Info
     )
     val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
 
@@ -101,8 +116,20 @@ fun ProfileScreen(
                     val selected = currentRoute == route
 
                     NavigationBarItem(
-                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
-                        label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
+                        icon = {
+                            Icon(
+                                navIcons[index],
+                                contentDescription = label,
+                                tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray
+                            )
+                        },
+                        label = {
+                            Text(
+                                label,
+                                color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray,
+                                fontSize = 9.sp
+                            )
+                        },
                         selected = selected,
                         onClick = {
                             navController.navigate(route) {
@@ -116,15 +143,25 @@ fun ProfileScreen(
             }
         }
     ) { padding ->
-        // Manejo de estados (Carga, Error, Éxito) del perfil
         when {
             isLoading -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator()
                 }
             }
+
             error != null -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Error: $error", color = MaterialTheme.colorScheme.error)
                         Button(onClick = { viewModel.loadUserProfile() }) {
@@ -133,52 +170,72 @@ fun ProfileScreen(
                     }
                 }
             }
+
             else -> {
-                // Si carga bien, mostramos la info del usuario y las pestañas
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    UserInfoSection(userProfile = userProfile)
-                    ProfileTabs(navController = navController, userProfile = userProfile, userOrders = userOrders)
+                    UserInfoSection(
+                        userProfile = userProfile,
+                        localImageUri = localImageUri,
+                        onChangePhotoClick = { imagePickerLauncher.launch("image/*") }
+                    )
+                    ProfileTabs(
+                        navController = navController,
+                        userProfile = userProfile,
+                        userOrders = userOrders
+                    )
                 }
             }
         }
     }
 }
 
+
 // --- SECCIÓN DE INFORMACIÓN DEL USUARIO (De tu compañero) ---
 @Composable
-private fun UserInfoSection(userProfile: com.example.marketelectronico.data.remote.UserProfileDto?) {
+private fun UserInfoSection(
+    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 24.dp, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Foto de perfil (con fallback si es nula)
-        if (userProfile?.foto != null) {
-            AsyncImage(
-                model = userProfile.foto,
-                contentDescription = "Foto de Perfil",
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
-                error = painterResource(id = android.R.drawable.ic_menu_camera)
-            )
-        } else {
-            Image(
-                painter = painterResource(id = android.R.drawable.ic_menu_camera),
-                contentDescription = "Foto de Perfil",
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-            )
+
+        //prueba prueba
+        IconButton(
+            onClick = {
+                // abrir selector de imagen y subir a Supabase
+            }
+        ) {
+            // Foto de perfil (con fallback si es nula)
+            if (userProfile?.foto != null) {
+                AsyncImage(
+                    model = userProfile.foto,
+                    contentDescription = "Foto de Perfil",
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
+                    error = painterResource(id = android.R.drawable.ic_menu_camera)
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = android.R.drawable.ic_menu_camera),
+                    contentDescription = "Foto de Perfil",
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                )
+            }
         }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Nombre y correo
