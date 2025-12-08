@@ -272,7 +272,11 @@ private fun ProductDetailsContent(
             ) {
                 Button(
                     onClick = {
+                        // ALERTA: Esta línea ahora envía los datos al Backend de Node.js
+                        // gracias al cambio que hiciste en CartRepository.
                         CartRepository.addToCart(product)
+
+                        // Muestra el mensaje visual de "Añadido"
                         showDialog = true
                     },
                     modifier = Modifier.weight(1f),
