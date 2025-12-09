@@ -22,6 +22,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.marketelectronico.data.remote.Publicacion
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +38,8 @@ fun PostDetailScreen(
 
     // Estado para editar comentario
     var postToEdit by remember { mutableStateOf<Publicacion?>(null) }
+
+    var postToDelete by remember { mutableStateOf<Publicacion?>(null) }
 
     val myUserId = viewModel.currentUserId
 
@@ -88,7 +92,7 @@ fun PostDetailScreen(
                             PostItem(
                                 post = post,
                                 isMyPost = post.idUsuario == myUserId, // Chequeo de propiedad
-                                onDelete = { viewModel.deletePost(post.id, forumId) },
+                                onDelete = { postToDelete = post },
                                 onEdit = { postToEdit = post } // Trigger editar
                             )
                             Spacer(modifier = Modifier.height(10.dp))
@@ -110,6 +114,30 @@ fun PostDetailScreen(
             }
         )
     }
+
+    postToDelete?.let { post ->
+        AlertDialog(
+            onDismissRequest = { postToDelete = null },
+            title = { Text("Eliminar Comentario") },
+            text = { Text("¿Estás seguro de que deseas eliminar este comentario?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deletePost(post.id, forumId)
+                        postToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { postToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -119,44 +147,93 @@ fun PostItem(
     onDelete: () -> Unit,
     onEdit: () -> Unit
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
         Column(modifier = Modifier.padding(12.dp).fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.Top) {
                 // FOTO USUARIO
                 AsyncImage(
-                    model = post.usuario?.foto ?: "https://placehold.co/50",
+                    model = post.usuario?.foto,
                     contentDescription = null,
-                    modifier = Modifier.size(30.dp).clip(CircleShape),
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color.Gray),
                     contentScale = ContentScale.Crop
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
-                // NOMBRE USUARIO
-                Text(
-                    post.usuario?.nombre ?: "User #${post.idUsuario}",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    // NOMBRE Y FECHA
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = post.usuario?.nombre ?: "Usuario #${post.idUsuario}",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
 
-                // ACCIONES (Solo si es mi comentario)
-                if (isMyPost) {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Edit, "Editar", tint = Color.Blue)
+                        // Solo mostramos la fecha si no son mis acciones
+                        if (!isMyPost) {
+                            Text(
+                                text = post.fechaPublicacion.take(10),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Delete, "Borrar", tint = Color.Gray)
-                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // CONTENIDO DEL COMENTARIO
+                    Text(
+                        text = post.contenido,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(post.contenido, style = MaterialTheme.typography.bodyMedium)
+            // ACCIONES (Botonera inferior derecha para el dueño)
+            if (isMyPost) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Fecha a la izquierda de los botones
+                    Text(
+                        text = post.fechaPublicacion.take(10),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Text(post.fechaPublicacion.take(10), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    // Botón Editar (Sutil)
+                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Editar",
+                            tint = MaterialTheme.colorScheme.primary, // Color del tema
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Botón Borrar (Error)
+                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Borrar",
+                            tint = MaterialTheme.colorScheme.error, // Color del tema
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
         }
     }

@@ -23,6 +23,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.marketelectronico.data.remote.Foro
+import androidx.compose.foundation.background
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +39,8 @@ fun ForumScreen(
 
     // Estado para controlar qué foro se está editando
     var forumToEdit by remember { mutableStateOf<Foro?>(null) }
+
+    var forumToDelete by remember { mutableStateOf<Foro?>(null) }
 
     // ID del usuario actual para comparar permisos
     val myUserId = viewModel.currentUserId
@@ -76,7 +81,7 @@ fun ForumScreen(
                                 ForumItem(
                                     foro = foro,
                                     isMyForum = foro.idCreador == myUserId, // Verificar dueño
-                                    onDelete = { viewModel.deleteForum(foro.id) },
+                                    onDelete = { forumToDelete = foro },
                                     onEdit = { forumToEdit = foro }, // Abrir diálogo de edición
                                     onClick = { navController.navigate("forum_detail/${foro.id}") }
                                 )
@@ -111,6 +116,30 @@ fun ForumScreen(
             }
         )
     }
+
+    forumToDelete?.let { foro ->
+        AlertDialog(
+            onDismissRequest = { forumToDelete = null },
+            title = { Text("Eliminar Foro") },
+            text = { Text("¿Estás seguro de que deseas eliminar el foro \"${foro.titulo}\"? Esta acción también borrará todos los comentarios.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteForum(foro.id)
+                        forumToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { forumToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -121,47 +150,99 @@ fun ForumItem(
     onEdit: () -> Unit,
     onClick: () -> Unit
 ) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // --- ENCABEZADO: AUTOR ---
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // FOTO DEL CREADOR
                 AsyncImage(
-                    model = foro.usuario?.foto ?: "https://placehold.co/100",
+                    model = foro.usuario?.foto,
                     contentDescription = null,
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape),
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color.Gray),
                     contentScale = ContentScale.Crop
                 )
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                // TEXTOS
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(foro.titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(
-                        "Por: ${foro.usuario?.nombre ?: "Anónimo"}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                // ACCIONES (Solo si soy el dueño)
-                if (isMyForum) {
-                    // Editar
-                    IconButton(onClick = onEdit, modifier = Modifier.size(34.dp)) {
-                        Icon(Icons.Default.Edit, "Editar", tint = Color.Blue)
-                    }
-                    // Borrar
-                    IconButton(onClick = onDelete, modifier = Modifier.size(34.dp)) {
-                        Icon(Icons.Default.Delete, "Borrar", tint = Color.Red)
-                    }
-                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = foro.usuario?.nombre ?: "Anónimo",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                // Fecha o indicador opcional aquí
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // --- TÍTULO Y DESCRIPCIÓN ---
+            Text(
+                text = foro.titulo,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
             if (!foro.descripcion.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(foro.descripcion, style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = foro.descripcion,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // --- ACCIONES (SOLO SI ES MI FORO) ---
+            if (isMyForum) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    // Botón Editar
+                    OutlinedButton(
+                        onClick = onEdit,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Editar", fontSize = 12.sp)
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Botón Borrar (Estilo Alerta/Error)
+                    OutlinedButton(
+                        onClick = onDelete,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        border = ButtonDefaults.outlinedButtonBorder.copy(
+                            brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Borrar", fontSize = 12.sp)
+                    }
+                }
             }
         }
     }
