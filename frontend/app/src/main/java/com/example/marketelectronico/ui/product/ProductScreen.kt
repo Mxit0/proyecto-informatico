@@ -38,6 +38,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage // <-- IMPORTANTE: COIL
 import kotlinx.coroutines.flow.collectLatest
 import com.example.marketelectronico.utils.TokenManager
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 
 /**
  * Pantalla de Detalles del Producto.
@@ -146,6 +148,15 @@ fun ProductScreen(
                     paddingValues = innerPadding,
                     onContactSeller = { sellerId ->
                         viewModel.contactSeller(sellerId)
+                    },
+                    onDelete = { id ->
+                        viewModel.deleteCurrentProduct(id) {
+                            // Al borrar exitosamente, volvemos atrás
+                            navController.popBackStack()
+                        }
+                    },
+                    onUpdate = { id, name, desc, price, stock ->
+                        viewModel.updateCurrentProduct(id, name, desc, price, stock)
                     }
                 )
             }
@@ -159,9 +170,13 @@ private fun ProductDetailsContent(
     currentUserId: Int,
     navController: NavController,
     paddingValues: PaddingValues,
-    onContactSeller: (Int) -> Unit
+    onContactSeller: (Int) -> Unit,
+    onDelete: (String) -> Unit,
+    onUpdate: (String, String, String, Double, Int) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -209,6 +224,59 @@ private fun ProductDetailsContent(
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onBackground
             )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // CONDICIÓN: ¿Soy el dueño del producto?
+                if (product.sellerId == currentUserId) {
+                    // === VISTA DE DUEÑO ===
+
+                    // Botón Editar
+                    Button(
+                        onClick = { showEditDialog = true },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Editar")
+                    }
+
+                    // Botón Borrar
+                    OutlinedButton(
+                        onClick = { showDeleteConfirm = true },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Borrar")
+                    }
+                } else {
+                    // === VISTA DE COMPRADOR (Lo que ya tenías) ===
+                    Button(
+                        onClick = {
+                            CartRepository.addToCart(product)
+                            showDialog = true
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Añadir al Carrito")
+                    }
+
+                    OutlinedButton(
+                        onClick = { onContactSeller(product.sellerId) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Contactar")
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
 
             // 👇 NUEVA ESTRUCTURA VISUAL
@@ -264,51 +332,6 @@ private fun ProductDetailsContent(
                 }
             }
             // ----------------------------------------
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Button(
-                    onClick = {
-                        // ALERTA: Esta línea ahora envía los datos al Backend de Node.js
-                        // gracias al cambio que hiciste en CartRepository.
-                        CartRepository.addToCart(product)
-
-                        // Muestra el mensaje visual de "Añadido"
-                        showDialog = true
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Añadir al Carrito")
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                if (product.sellerId == currentUserId) {
-                    // Si el producto es mío, deshabilito el botón y cambio el texto
-                    OutlinedButton(
-                        onClick = { },
-                        enabled = false, // Deshabilitado
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Es tu producto")
-                    }
-                } else {
-                    // Si es de otro, muestro el botón normal
-                    OutlinedButton(
-                        onClick = {
-                            onContactSeller(product.sellerId)
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Contactar")
-                    }
-                }
-            }
             Spacer(modifier = Modifier.height(24.dp))
 
             // Sección de Descripción
@@ -378,6 +401,39 @@ private fun ProductDetailsContent(
         }
     }
 
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("¿Eliminar producto?") },
+            text = { Text("Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete(product.id)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    if (showEditDialog) {
+        EditProductDialog(
+            product = product,
+            onDismiss = { showEditDialog = false },
+            onConfirm = { name, desc, price, stock ->
+                showEditDialog = false
+                onUpdate(product.id, name, desc, price, stock)
+            }
+        )
+    }
+
     // --- DIÁLOGO DE "AÑADIDO AL CARRITO" ---
     if (showDialog) {
         AlertDialog(
@@ -422,6 +478,53 @@ fun SpecificationItem(label: String, value: String, modifier: Modifier = Modifie
     }
 }
 
+@Composable
+fun EditProductDialog(
+    product: Product,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, Double, Int) -> Unit
+) {
+    var name by remember { mutableStateOf(product.name) }
+    var desc by remember { mutableStateOf(product.description) }
+    var priceStr by remember { mutableStateOf(product.price.toString()) }
+    var stockStr by remember { mutableStateOf(product.specifications["Stock"] ?: "1") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar Producto") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nombre") })
+                OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Descripción") })
+                OutlinedTextField(
+                    value = priceStr,
+                    onValueChange = { priceStr = it },
+                    label = { Text("Precio") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value = stockStr,
+                    onValueChange = { stockStr = it },
+                    label = { Text("Stock") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val price = priceStr.toDoubleOrNull() ?: product.price
+                val stock = stockStr.toIntOrNull() ?: 1
+                onConfirm(name, desc, price, stock)
+            }) {
+                Text("Guardar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
 
 // --- Vista Previa ---
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
@@ -429,11 +532,13 @@ fun SpecificationItem(label: String, value: String, modifier: Modifier = Modifie
 fun ProductScreenPreview() {
     MarketElectronicoTheme {
         ProductDetailsContent(
-            product = sampleProduct1, // Usa el producto de SampleData
+            product = sampleProduct1,
             currentUserId = 1,
             navController = rememberNavController(),
             paddingValues = PaddingValues(0.dp),
-            onContactSeller = {}
+            onContactSeller = {},
+            onDelete = {},
+            onUpdate = { _, _, _, _, _ -> }
         )
     }
 }

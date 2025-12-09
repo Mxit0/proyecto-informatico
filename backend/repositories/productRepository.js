@@ -373,3 +373,36 @@ export async function getProductsByCategory(categoryId) {
     throw error;
   }
 }
+
+export async function deleteProduct(id) {
+  try {
+    // 1. Borrar de Supabase
+    // Nota: Supabase borrará en cascada las imágenes si la FK está configurada así,
+    // de lo contrario podrían quedar huérfanas en la tabla 'producto_imagenes'.
+    const { error } = await supabase
+      .from(TABLE)
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+
+    // 2. Limpiar Caché (Redis) para que desaparezca de la app inmediatamente
+    console.log(`Eliminando caché para producto ${id}`);
+    
+    // A. Borrar la caché del detalle individual (coincide con getProductById)
+    const cacheKeyDetail = `producto_full:${id}`;
+    await redisClient.del(cacheKeyDetail);
+
+    // B. Borrar todas las listas cacheadas (paginación, filtros, etc.)
+    // Usamos un patrón amplio para asegurar que se limpie todo lo que empiece por "productos"
+    const listKeys = await redisClient.keys("productos*");
+    if (listKeys.length > 0) {
+      await redisClient.del(listKeys);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error en deleteProduct:", error);
+    return false;
+  }
+}

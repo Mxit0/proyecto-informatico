@@ -9,6 +9,8 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.Multipart
 import retrofit2.http.Part
+import retrofit2.http.PATCH
+import retrofit2.http.DELETE
 // --- 1. Interfaz ---
 interface ProductApi {
     // GET /productos
@@ -41,6 +43,16 @@ interface ProductApi {
         @Path("id") productId: String,
         @Part images: List<MultipartBody.Part>
     ): ImageUploadResponse
+
+    @PATCH("api/productos/{id}")
+    suspend fun updateProduct(
+        @Path("id") id: String,
+        @Body updates: UpdateProductRequest
+    ): ProductResponse
+
+    // DELETE para borrar
+    @DELETE("api/productos/{id}")
+    suspend fun deleteProduct(@Path("id") id: String): retrofit2.Response<Unit>
 }
 
 // --- 2. DTOs ---
@@ -96,6 +108,16 @@ data class ComponentResponse(
     val nombre_componente: String,
     val categoria: Int,
     val especificaciones: Map<String, Any>? = null
+)
+
+data class UpdateProductRequest(
+    val nombre: String? = null,
+
+    @SerializedName("descripcion")
+    val description: String? = null,
+
+    val precio: Double? = null,
+    val stock: Int? = null
 )
 
 // --- 3. Servicio ---

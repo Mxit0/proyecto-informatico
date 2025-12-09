@@ -11,6 +11,7 @@ import {
   getProductsByCategory,
 } from "../repositories/productRepository.js";
 import { getComponentsByCategory } from "../repositories/componenteRepository.js";
+import { deleteProduct } from "../repositories/productRepository.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -190,6 +191,24 @@ router.patch("/:id", async (req, res) => {
     res
       .status(500)
       .json({ error: "Error al actualizar el producto: " + error.message });
+  }
+});
+
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Aquí deberías validar que el usuario que pide borrar sea el dueño (usando token/session),
+    // pero por ahora implementaremos la lógica base.
+    const deleted = await deleteProduct(id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Producto no encontrado o no se pudo eliminar" });
+    }
+
+    res.json({ message: "Producto eliminado correctamente" });
+  } catch (error) {
+    res.status(500).json({ error: "Error al eliminar producto: " + error.message });
   }
 });
 

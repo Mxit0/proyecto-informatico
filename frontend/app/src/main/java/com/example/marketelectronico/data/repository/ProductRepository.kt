@@ -15,6 +15,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.InputStream
+import com.example.marketelectronico.data.remote.UpdateProductRequest
 
 class ProductRepository {
 
@@ -209,6 +210,27 @@ suspend fun uploadProductImages(
                 "Categoría" to this.categoria
             )
         )
+    }
+
+    suspend fun deleteProduct(productId: String): Boolean {
+        return try {
+            val response = api.deleteProduct(productId)
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ProductRepo", "Error borrando: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun updateProduct(productId: String, request: UpdateProductRequest): Boolean {
+        return try {
+            // Asumimos que si la API responde con el producto modificado, fue exitoso
+            val response = api.updateProduct(productId, request)
+            true
+        } catch (e: Exception) {
+            Log.e("ProductRepo", "Error actualizando: ${e.message}")
+            false
+        }
     }
 }
 
