@@ -14,6 +14,7 @@ import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import android.util.Log
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -28,6 +29,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     // Se llama cuando llega un mensaje
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
+
+        Log.d("FCM_DEBUG", "¡Mensaje recibido del servidor! Payload: ${remoteMessage.data}")
 
         val title = remoteMessage.notification?.title ?: "Nuevo mensaje"
         val body = remoteMessage.notification?.body ?: ""
@@ -63,7 +66,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Chats", NotificationManager.IMPORTANCE_HIGH)
+            val channel = NotificationChannel(
+                channelId, // "chat_channel"
+                "Mensajes de Chat",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                enableVibration(true) // Forzar vibración
+                enableLights(true)
+            }
             manager.createNotificationChannel(channel)
         }
 

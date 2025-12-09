@@ -131,7 +131,7 @@ fun ConversationScreen(
             // Al usar reversed(), el índice 0 es el mensaje MÁS NUEVO (el de más abajo).
             val reversedList = messages.reversed()
 
-            itemsIndexed(reversedList) { index, message ->
+            itemsIndexed(messages) { index, message ->
                 // Condición: Mostrar solo si es el último mensaje (index 0) Y es mío.
                 // Si el índice 0 es de la otra persona, isSentByMe será false y no se mostrará nada.
                 val showStatus = (index == 0 && message.isSentByMe)

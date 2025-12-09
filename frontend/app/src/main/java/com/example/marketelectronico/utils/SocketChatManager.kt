@@ -1,11 +1,15 @@
 package com.example.marketelectronico.utils
 
 import android.util.Log
-import io.socket.client.Ack // <-- Importante: Importar Ack
+import com.example.marketelectronico.data.model.Message
+import com.example.marketelectronico.data.model.MessageStatus
+import com.example.marketelectronico.utils.TokenManager
+import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
 import org.json.JSONObject
-import java.util.Collections
+import android.os.Handler
+import android.os.Looper
 
 object SocketChatManager {
 
@@ -106,5 +110,41 @@ object SocketChatManager {
     // Helper por si lo necesitas en ViewModels
     fun getSocket(): Socket? {
         return if (::socket.isInitialized) socket else null
+    }
+
+    fun onMessageReceived(callback: (Message) -> Unit) {
+        socket?.on("new_message") { args ->
+            if (args.isNotEmpty()) {
+                val data = args[0] as JSONObject
+                try {
+                    // Mapeamos el JSON del backend (server.js) al objeto Message de Android
+                    val message = Message(
+                        id = data.optString("id"),
+                        text = data.optString("contenido"),
+                        senderId = data.optString("id_remitente"),
+                        isSentByMe = false, // El ViewModel decidirá esto
+                        status = MessageStatus.SENT
+                    )
+
+                    // IMPORTANTE: Ejecutar en el Hilo Principal (UI Thread)
+                    Handler(Looper.getMainLooper()).post {
+                        callback(message)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parseando mensaje", e)
+                }
+            }
+        }
+    }
+
+    fun markMessagesAsRead(chatId: Int) {
+        val payload = JSONObject().apply { put("chatId", chatId) }
+        socket?.emit("mark_messages_read", payload)
+    }
+
+    fun onMessagesReadUpdate(callback: () -> Unit) {
+        socket?.on("messages_read_update") {
+            Handler(Looper.getMainLooper()).post { callback() }
+        }
     }
 }

@@ -13,7 +13,6 @@ import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
-// 👇 1. AGREGADO: Importamos la ruta de foros de Joaquín
 import foroRoutes from "./routes/foroRoutes.js"; 
 
 import { supabase } from "./lib/supabaseClient.js";
@@ -39,13 +38,13 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/carro", carroRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/reviews", reviewRoutes);
-// 👇 2. AGREGADO: Habilitamos la ruta de foros en la API
+// AGREGADO: Habilitamos la ruta de foros en la API
 app.use("/api/foros", foroRoutes); 
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// 🔌 Servidor HTTP + Socket.IO
+// Servidor HTTP + Socket.IO
 const server = http.createServer(app);
 
 const io = new SocketIOServer(server, {
@@ -55,7 +54,7 @@ const io = new SocketIOServer(server, {
   },
 });
 
-// 👇 3. AGREGADO: Vital para que el Foro emita eventos sin estar conectado al socket directo
+// AGREGADO: Vital para que el Foro emita eventos sin estar conectado al socket directo
 // Esto permite que cuando hagas un POST /api/foros/../publicaciones, el controlador use req.app.get('io')
 app.set("io", io);
 
@@ -123,7 +122,7 @@ async function saveMessage({ chatId, senderId, contenido }) {
 
 //  Lógica de tiempo real
 io.on("connection", (socket) => {
-  console.log("✅ Socket conectado:", socket.user?.id_usuario);
+  console.log("Socket conectado:", socket.user?.id_usuario);
 
   /**
    * Abrir chat entre usuarios
@@ -147,7 +146,7 @@ io.on("connection", (socket) => {
   });
 
   /**
-   * 👇 4. MODIFICADO: Unirse a Chat O Foro
+   * Unirse a Chat O Foro
    * Ahora soporta unirse a foros ("foro_1") y chats privados ("chat_1")
    */
   socket.on("join_chat", (data) => {
@@ -170,7 +169,7 @@ io.on("connection", (socket) => {
     try {
       const userId = socket.user.id_usuario;
 
-      // 1. Validar chat
+      // Validar chat
       const { data: chat, error: chatError } = await supabase
         .from("chat")
         .select("id, id_usuario1, id_usuario2")
@@ -186,22 +185,22 @@ io.on("connection", (socket) => {
         return callback?.({ ok: false, error: "No perteneces a este chat" });
       }
 
-      // 2. Guardar mensaje
+      // Guardar mensaje
       const msg = await saveMessage({
         chatId,
         senderId: userId,
         contenido,
       });
 
-      // 3. Emitir mensaje al room
+      // Emitir mensaje al room
       const room = `chat_${chatId}`;
       io.to(room).emit("new_message", msg);
 
-      // 4. Determinar receptor
+      // Determinar receptor
       const receptorId =
         chat.id_usuario1 === userId ? chat.id_usuario2 : chat.id_usuario1;
 
-      // 5. Buscar receptor y token FCM
+      // Buscar receptor y token FCM
       const { data: receptor, error: receptorError } = await supabase
         .from("usuario")
         .select("id_usuario, nombre_usuario, fcm_token")
@@ -210,7 +209,7 @@ io.on("connection", (socket) => {
 
       if (receptorError) console.error("Error buscando receptor:", receptorError);
 
-      // 6. Enviar Notificación Push (Lógica de Cuello)
+      // Enviar Notificación Push (Lógica de Cuello)
       if (receptor?.fcm_token) {
         const notifBody = contenido.length > 50 ? contenido.slice(0, 47) + "..." : contenido;
         const titulo = socket.user?.nombre_usuario 
@@ -228,8 +227,17 @@ io.on("connection", (socket) => {
               chatId: String(chatId),
               remitenteId: String(userId),
             },
+            android: {
+              priority: "high",
+              notification: {
+                channelId: "chat_channel",
+                priority: "high",
+                defaultSound: true,
+                visibility: "public"
+              }
+            }
           });
-          console.log("📨 FCM enviada a", receptorId);
+          console.log("FCM enviada a", receptorId);
         } catch (errFCM) {
           console.error("Error enviando FCM:", errFCM);
         }
@@ -262,7 +270,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log("🔌 Socket desconectado:", socket.user?.id_usuario);
+    console.log("Socket desconectado:", socket.user?.id_usuario);
   });
 });
 
