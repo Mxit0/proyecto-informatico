@@ -12,9 +12,8 @@ import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
-import reviewRoutes from "./routes/reviewRoutes.js";
-import foroRoutes from "./routes/foroRoutes.js"; 
-
+import reviewRoutes from './routes/reviewRoutes.js';
+import foroRoutes from "./routes/foroRoutes.js";
 import { supabase } from "./lib/supabaseClient.js";
 import { admin } from "./lib/firebaseAdmin.js"; // <-- Importante: Esto viene de Cuello (Notificaciones)
 
@@ -30,21 +29,139 @@ app.use(
 );
 app.use(express.json());
 
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "*",
+    credentials: true,
+  })
+);
+app.use(express.json());
+
+//multer para manejar archivos en memoria
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+});
+
+// middleware simple de auth para rutas HTTP
+function authMiddleware(req, res, next) {
+  try {
+    const header = req.headers.authorization || "";
+    const token = header.startsWith("Bearer ")
+      ? header.slice(7)
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ message: "Token no proporcionado" });
+    }
+
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // mismo payload que se usa en el socket: debe tener id_usuario
+    req.user = payload;
+    next();
+  } catch (err) {
+    console.error("Error en authMiddleware:", err.message);
+    return res.status(401).json({ message: "Token inválido" });
+  }
+}
+
+
+
 // Rutas HTTP normales
 app.use("/api/auth", authRoutes);
 app.use("/api/productos", productRoutes);
-app.use("/usuarios", userRoutes);          
+app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/carro", carroRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/reviews", reviewRoutes);
 // AGREGADO: Habilitamos la ruta de foros en la API
-app.use("/api/foros", foroRoutes); 
+app.use("/api/foros", foroRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// Servidor HTTP + Socket.IO
+
+// === NUEVO: endpoint para subir foto de perfil ===
+// POST /api/profile/photo  (body: multipart/form-data con campo "photo")
+app.post(
+  "/api/profile/photo",
+  authMiddleware,
+  upload.single("photo"),
+  async (req, res) => {
+    try {
+      const userFromToken = req.user;
+      const userId = userFromToken?.id_usuario;
+
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ message: "No se encontró id_usuario en el token" });
+      }
+
+      if (!req.file) {
+        return res
+          .status(400)
+          .json({ message: "No se envió archivo en el campo 'photo'" });
+      }
+
+      const bucket = process.env.SUPABASE_STORAGE_BUCKET;
+      if (!bucket) {
+        return res
+          .status(500)
+          .json({ message: "Falta SUPABASE_STORAGE_BUCKET en .env" });
+      }
+
+      const ext = path.extname(req.file.originalname) || ".jpg";
+      const filePath = `avatars/${userId}_${Date.now()}${ext}`;
+
+      // Subir a Supabase Storage (bucket product_im)
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true,
+        });
+
+      if (error) {
+        console.error("Error subiendo a Supabase Storage:", error);
+        return res.status(500).json({ message: "Error subiendo imagen" });
+      }
+
+      // Obtener URL pública
+      const { data: publicData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicData?.publicUrl;
+      if (!publicUrl) {
+        return res
+          .status(500)
+          .json({ message: "No se pudo obtener URL pública de la imagen" });
+      }
+
+      // Actualizar la tabla public.usuario, columna foto, PK id_usuario
+      const { error: updateError } = await supabase
+        .from("usuario")
+        .update({ foto: publicUrl })
+        .eq("id_usuario", userId);
+
+      if (updateError) {
+        console.error("Error actualizando foto en BD:", updateError);
+        return res.status(500).json({ message: "Error actualizando perfil" });
+      }
+
+      return res.json({ foto: publicUrl });
+    } catch (err) {
+      console.error("Error en /api/profile/photo:", err);
+      return res.status(500).json({ message: "Error interno al subir foto" });
+    }
+  }
+);
+
+
+
+// 🔌 Servidor HTTP + Socket.IO
 const server = http.createServer(app);
 
 const io = new SocketIOServer(server, {
@@ -66,8 +183,7 @@ function normalizePair(a, b) {
 // Middleware de autenticación para sockets
 io.use((socket, next) => {
   try {
-    const header =
-      socket.handshake.auth?.token ||
+    const header = socket.handshake.auth?.token ||
       (socket.handshake.headers?.authorization || "");
 
     const token = header.startsWith("Bearer ")
@@ -77,6 +193,7 @@ io.use((socket, next) => {
     if (!token) return next(new Error("No token"));
 
     const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // payload es el user que firmaste en authRoutes (incluye id_usuario, correo, etc.)
     socket.user = payload;
     next();
   } catch (err) {
@@ -86,6 +203,7 @@ io.use((socket, next) => {
 });
 
 // Helpers con Supabase
+
 async function getOrCreateChatBetween(userAId, userBId) {
   const [u1, u2] = normalizePair(userAId, userBId);
 
@@ -125,7 +243,8 @@ io.on("connection", (socket) => {
   console.log("Socket conectado:", socket.user?.id_usuario);
 
   /**
-   * Abrir chat entre usuarios
+   * Abrir chat entre el usuario logueado y otro usuario (vendedor/comprador)
+   * payload: { otherUserId: number }
    */
   socket.on("open_chat_with_user", async ({ otherUserId }, callback) => {
     try {
@@ -146,15 +265,15 @@ io.on("connection", (socket) => {
   });
 
   /**
-   * Unirse a Chat O Foro
-   * Ahora soporta unirse a foros ("foro_1") y chats privados ("chat_1")
+   * Unirse explícitamente a un chat (para cargar historial y escuchar mensajes)
+   * payload: { chatId: number }
    */
   socket.on("join_chat", (data) => {
     // Caso Foro (Joaquín)
     if (data.room) {
         socket.join(data.room);
         console.log(`Socket unido a sala: ${data.room}`);
-    } 
+    }
     // Caso Chat Privado (Cuello)
     else if (data.chatId) {
         const room = `chat_${data.chatId}`;
@@ -163,13 +282,14 @@ io.on("connection", (socket) => {
   });
 
   /**
-   * Enviar mensaje (Mantenemos la lógica de Cuello con FCM)
+   * Enviar mensaje
+   * payload: { chatId: number, contenido: string }
    */
   socket.on("send_message", async ({ chatId, contenido }, callback) => {
     try {
       const userId = socket.user.id_usuario;
 
-      // Validar chat
+      // Validar que el chat existe y que el usuario pertenece a él
       const { data: chat, error: chatError } = await supabase
         .from("chat")
         .select("id, id_usuario1, id_usuario2")
@@ -185,14 +305,12 @@ io.on("connection", (socket) => {
         return callback?.({ ok: false, error: "No perteneces a este chat" });
       }
 
-      // Guardar mensaje
       const msg = await saveMessage({
         chatId,
         senderId: userId,
         contenido,
       });
 
-      // Emitir mensaje al room
       const room = `chat_${chatId}`;
       io.to(room).emit("new_message", msg);
 
@@ -212,8 +330,8 @@ io.on("connection", (socket) => {
       // Enviar Notificación Push (Lógica de Cuello)
       if (receptor?.fcm_token) {
         const notifBody = contenido.length > 50 ? contenido.slice(0, 47) + "..." : contenido;
-        const titulo = socket.user?.nombre_usuario 
-            ? `${socket.user.nombre_usuario} te escribió` 
+        const titulo = socket.user?.nombre_usuario
+            ? `${socket.user.nombre_usuario} te escribió`
             : "Nuevo mensaje";
 
         try {
@@ -253,6 +371,7 @@ io.on("connection", (socket) => {
   socket.on("mark_messages_read", async ({ chatId }) => {
     try {
       const userId = socket.user.id_usuario;
+
       const { error } = await supabase
         .from("mensaje")
         .update({ leido: true })

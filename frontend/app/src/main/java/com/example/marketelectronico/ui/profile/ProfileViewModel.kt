@@ -1,5 +1,7 @@
 package com.example.marketelectronico.ui.profile
 
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.marketelectronico.data.remote.UserProfileDto
@@ -10,6 +12,10 @@ import com.example.marketelectronico.utils.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import android.content.Context
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+
 
 class ProfileViewModel : ViewModel() {
     private val userRepository = UserRepository.getInstance()
@@ -31,6 +37,28 @@ class ProfileViewModel : ViewModel() {
         loadUserOrders()
     }
 
+    fun onNewProfileImageSelected(uri: Uri, context: Context) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                _error.value = null
+
+                Log.d("ProfileViewModel", "Nueva imagen de perfil seleccionada: $uri")
+
+                // Subir la foto al backend / Supabase
+                userRepository.uploadProfilePhoto(uri, context)
+
+                // Al terminar, recargamos el perfil para traer la nueva URL en userProfile.foto
+                loadUserProfile()
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Error al actualizar la foto de perfil"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
     fun loadUserProfile() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -50,9 +78,7 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun loadUserOrders() {
-        // CORRECCIÓN: Agregar .toString()
         val currentUserId = TokenManager.getUserId()?.toString()
-
         if (currentUserId != null) {
             viewModelScope.launch {
                 try {
