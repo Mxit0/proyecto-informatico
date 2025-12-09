@@ -177,6 +177,7 @@ private fun ProductDetailsContent(
     var showDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
+    var showNoStockDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -258,14 +259,31 @@ private fun ProductDetailsContent(
                     // === VISTA DE COMPRADOR (Lo que ya tenías) ===
                     Button(
                         onClick = {
-                            CartRepository.addToCart(product)
-                            showDialog = true
+                            // 2. MODIFICACIÓN: Verificar stock antes de llamar al repositorio
+
+                            // Extraemos el stock del mapa de especificaciones (así lo guardaste en el Mapper)
+                            val currentStock = product.specifications["Stock"]?.toIntOrNull() ?: 0
+
+                            if (currentStock > 0) {
+                                CartRepository.addToCart(product)
+                                showDialog = true
+                            } else {
+                                // Si no hay stock, mostramos el mensaje de error
+                                showNoStockDialog = true
+                            }
                         },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        colors = ButtonDefaults.buttonColors(
+                            // Opcional: Cambiar color a gris si no hay stock visualmente
+                            containerColor = if ((product.specifications["Stock"]?.toIntOrNull() ?: 0) > 0)
+                                MaterialTheme.colorScheme.primary
+                            else Color.Gray
+                        ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Añadir al Carrito")
+                        // Opcional: Cambiar texto si está agotado
+                        val stock = product.specifications["Stock"]?.toIntOrNull() ?: 0
+                        Text(if (stock > 0) "Añadir al Carrito" else "Agotado")
                     }
 
                     OutlinedButton(
@@ -399,6 +417,20 @@ private fun ProductDetailsContent(
             }
             Spacer(modifier = Modifier.height(16.dp)) // Espacio extra al final
         }
+    }
+
+    if (showNoStockDialog) {
+        AlertDialog(
+            onDismissRequest = { showNoStockDialog = false },
+            title = { Text("Producto Agotado") },
+            text = { Text("Lo sentimos, este producto no tiene stock disponible por el momento.") },
+            confirmButton = {
+                TextButton(onClick = { showNoStockDialog = false }) {
+                    Text("Entendido")
+                }
+            },
+            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Yellow) }
+        )
     }
 
     if (showDeleteConfirm) {

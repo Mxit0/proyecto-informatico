@@ -10,7 +10,24 @@ export async function createOrderFromCart(userId) {
       throw new Error("El carrito está vacío");
     }
 
-    // 2. Crear la cabecera de la compra en tabla 'compras'
+    // --- NUEVO: VALIDACIÓN DE STOCK ---
+    // Antes de crear nada, verificamos que haya stock suficiente para TODOS los items
+    for (const item of cartData.items) {
+      const { data: product, error: productError } = await supabase
+        .from('producto')
+        .select('nombre, stock')
+        .eq('id', item.id_producto)
+        .single();
+
+      if (productError) throw new Error(`Error verificando producto ${item.id_producto}`);
+      
+      if (product.stock < item.cantidad) {
+        throw new Error(`Stock insuficiente para: ${product.nombre}. Disponible: ${product.stock}`);
+      }
+    }
+    // ----------------------------------
+
+    // 2. Crear la cabecera de la compra
     const { data: newOrder, error: orderError } = await supabase
       .from('compras')
       .insert({
@@ -38,14 +55,37 @@ export async function createOrderFromCart(userId) {
 
     if (detailsError) throw detailsError;
 
-    // 4. Vaciar el carrito (porque ya se compró)
+    // --- NUEVO: DESCONTAR STOCK ---
+    // Actualizamos el stock de cada producto comprado
+    for (const item of cartData.items) {
+      // 1. Obtenemos el stock actual (lo volvemos a pedir para asegurar el dato más reciente)
+      const { data: currentProd } = await supabase
+        .from('producto')
+        .select('stock')
+        .eq('id', item.id_producto)
+        .single();
+      
+      if (currentProd) {
+        const nuevoStock = currentProd.stock - item.cantidad;
+        
+        // 2. Actualizamos la tabla
+        await supabase
+          .from('producto')
+          .update({ stock: nuevoStock >= 0 ? nuevoStock : 0 }) // Evitar negativos por seguridad
+          .eq('id', item.id_producto);
+      }
+    }
+    // ------------------------------
+
+    // 4. Vaciar el carrito
     await clearCart(userId);
 
-    // 5. Devolver el ID de la orden creada
+    // 5. Devolver el ID
     return newOrder.id;
 
   } catch (err) {
-    throw new Error('Error creando orden: ' + err.message);
+    // Si algo falla, el error se propagará al controller y el frontend recibirá el mensaje (ej: "Stock insuficiente...")
+    throw new Error(err.message); 
   }
 }
 
