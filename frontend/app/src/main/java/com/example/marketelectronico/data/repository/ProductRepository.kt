@@ -8,6 +8,8 @@ import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.remote.CreateProductRequest
 import com.example.marketelectronico.data.remote.ProductResponse
 import com.example.marketelectronico.data.remote.ProductService
+import com.example.marketelectronico.data.remote.ComponentResponse
+import com.example.marketelectronico.data.model.ComponenteMaestro
 import com.example.marketelectronico.data.remote.UserService
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -129,12 +131,31 @@ suspend fun uploadProductImages(
         }
     }
 
+    suspend fun getComponentsByCategory(categoryId: Int): List<ComponenteMaestro> {
+        return try {
+            val response: List<ComponentResponse> = api.getComponentsByCategory(categoryId)
+            response.map { cr ->
+                ComponenteMaestro(
+                    id = cr.id,
+                    nombre_componente = cr.nombre_componente,
+                    categoria = cr.categoria,
+                    especificaciones = cr.especificaciones ?: emptyMap()
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
     suspend fun createProduct(
-        nombre: String,    precio: Double,
+        nombre: String,
+        precio: Double,
         descripcion: String,
         idUsuario: Long,
         categoria: Int,
-        stock: Int = 1
+        stock: Int = 1,
+        idComponenteMaestro: String? // <-- NUEVO PARÁMETRO
     ): Product? {
         return try {
             val request = CreateProductRequest(
@@ -143,7 +164,8 @@ suspend fun uploadProductImages(
                 descripcion = descripcion,
                 idUsuario = idUsuario,
                 categoria = categoria,
-                stock = stock
+                stock = stock,
+                idComponenteMaestro = idComponenteMaestro // <-- PASAR EL NUEVO DATO
             )
             val response = api.createProduct(request)
             Log.d("ProductRepository", "Producto creado en API: ${response.id}")
