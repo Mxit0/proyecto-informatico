@@ -20,6 +20,24 @@ interface ForumApi {
         @Path("id") id: Int,
         @Body request: CreatePublicacionRequest
     ): CreatePublicacionResponse
+
+    @DELETE("api/foros/{id}")
+    suspend fun deleteForum(@Path("id") id: Int): GenericResponse
+
+    @DELETE("api/foros/publicaciones/{id}")
+    suspend fun deletePost(@Path("id") id: Int): GenericResponse
+
+    @PUT("api/foros/{id}")
+    suspend fun updateForum(
+        @Path("id") id: Int,
+        @Body request: UpdateForoRequest
+    ): ForoDetailResponse
+
+    @PUT("api/foros/publicaciones/{id}")
+    suspend fun updatePost(
+        @Path("id") id: Int,
+        @Body request: UpdatePublicacionRequest
+    ): CreatePublicacionResponse
 }
 
 object ForumService {
