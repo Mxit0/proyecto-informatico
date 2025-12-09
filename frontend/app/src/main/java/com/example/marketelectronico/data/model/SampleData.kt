@@ -59,6 +59,13 @@ data class ForumReply(
     val content: String
 )
 
+data class ComponenteMaestro(
+    val id: String,
+    val nombre_componente: String,
+    val categoria: Int,
+    val especificaciones: Map<String, Any>
+)
+
 // --- DATOS DE MUESTRA (RESTAURADOS) ---
 // Dejamos todos los datos de muestra para que las Previews
 // y las pantallas no migradas sigan funcionando.
@@ -120,4 +127,20 @@ val postContent = "Estoy pensando en actualizar mi vieja 2060 y vi la 4060 a bue
 val sampleReplies = listOf(
     ForumReply("1", "TechTrader", "Depende de tu monitor. Para 1080p, la 4060 es genial."),
     ForumReply("2", "User123", "Yo ahorraría para la 4070, mucho más futuro.")
+)
+
+val sampleComponentesMaestros = listOf(
+    // Componentes para categoría 1 (simulando "Procesadores")
+    ComponenteMaestro("cmp_i7_10700k", "Intel Core i7-10700K", 1, mapOf("Núcleos" to 8, "Frecuencia" to "3.8 GHz")),
+    ComponenteMaestro("cmp_i9_11900k", "Intel Core i9-11900K", 1, mapOf("Núcleos" to 8, "Frecuencia" to "3.5 GHz")),
+    ComponenteMaestro("cmp_ryzen7_5800x", "AMD Ryzen 7 5800X", 1, mapOf("Núcleos" to 8, "Frecuencia" to "3.8 GHz")),
+
+    // Componentes para categoría 2 (simulando "Tarjetas Gráficas")
+    ComponenteMaestro("cmp_rtx_3080", "NVIDIA GeForce RTX 3080", 2, mapOf("Memoria" to "10GB GDDR6X", "Boost Clock" to "1.71 GHz")),
+    ComponenteMaestro("cmp_rtx_4090", "NVIDIA GeForce RTX 4090", 2, mapOf("Memoria" to "24GB GDDR6X", "Boost Clock" to "2.52 GHz")),
+    ComponenteMaestro("cmp_rx_6700xt", "AMD Radeon RX 6700 XT", 2, mapOf("Memoria" to "12GB GDDR6", "Boost Clock" to "2.58 GHz")),
+
+    // Componentes para categoría 3 (simulando "RAM")
+    ComponenteMaestro("cmp_ram_ddr4_16gb", "Corsair Vengeance LPX 16GB", 3, mapOf("Tipo" to "DDR4", "Velocidad" to "3200MHz")),
+    ComponenteMaestro("cmp_ram_ddr5_32gb", "G.Skill Trident Z5 32GB", 3, mapOf("Tipo" to "DDR5", "Velocidad" to "6000MHz"))
 )

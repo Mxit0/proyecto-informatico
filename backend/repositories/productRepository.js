@@ -184,6 +184,8 @@ export async function getProductById(id) {
 }
 
 // --- (El resto de funciones: createProduct, uploadProductImages... se quedan igual) ---
+import { getComponentById } from "./componenteRepository.js";
+
 export async function createProduct(productData) {
   const {
     nombre,
@@ -193,7 +195,26 @@ export async function createProduct(productData) {
     stock,
     categoria,
     fecha_publicacion,
+    id_componente_maestro,
   } = productData;
+
+  // Validación mínima: si se requiere componente maestro, verificar que exista y pertenezca a la categoría
+  if (!id_componente_maestro) {
+    throw new Error("Se requiere id_componente_maestro al crear el producto");
+  }
+
+  // Obtener componente y validar
+  const componente = await getComponentById(id_componente_maestro);
+  if (!componente) {
+    throw new Error("Componente maestro no encontrado");
+  }
+
+  // Validar que la categoría del componente coincida con la categoría enviada
+  if (componente.categoria !== categoria) {
+    throw new Error(
+      "El componente maestro no pertenece a la categoría seleccionada"
+    );
+  }
 
   const { data, error } = await supabase
     .from(TABLE)
@@ -206,6 +227,7 @@ export async function createProduct(productData) {
         stock,
         categoria,
         fecha_publicacion,
+        id_componente_maestro,
       },
     ])
     .select()

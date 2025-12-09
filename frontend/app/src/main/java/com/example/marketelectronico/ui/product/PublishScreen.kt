@@ -16,9 +16,9 @@ import com.example.marketelectronico.ui.base.BaseScreen
 import com.example.marketelectronico.ui.publish.PublishViewModel
 import com.example.marketelectronico.ui.publish.PublishUiState
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -40,14 +40,21 @@ fun PublishScreen(
     modifier: Modifier = Modifier,
     viewModel: PublishViewModel = viewModel()
 ) {
-    val context = LocalContext.current // Agregar esto
+    val context = LocalContext.current
 
     var nombre by remember { mutableStateOf("") }
     var precio by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
+
+    // Estado para el dropdown de Categorías
     var categoriaExpanded by remember { mutableStateOf(false) }
     var selectedCategoriaId by remember { mutableStateOf<Int?>(null) }
     var selectedCategoriaNombre by remember { mutableStateOf<String?>(null) }
+
+    // --- 1. ESTADO PARA EL NUEVO DROPDOWN DE COMPONENTES ---
+    var componenteExpanded by remember { mutableStateOf(false) }
+    var selectedComponenteId by remember { mutableStateOf<String?>(null) }
+    var selectedComponenteNombre by remember { mutableStateOf<String?>(null) }
 
     var selectedImages by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
     val launcher = rememberLauncherForActivityResult(
@@ -57,20 +64,21 @@ fun PublishScreen(
     }
 
     val categories by viewModel.categories.collectAsState()
+    val masterComponents by viewModel.masterComponents.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
 
-    // Manejar el estado de éxito
     LaunchedEffect(uiState) {
         if (uiState is PublishUiState.Success) {
-            // Limpiar el formulario
+            // Limpiar todo el formulario
             nombre = ""
             precio = ""
             descripcion = ""
             selectedCategoriaId = null
             selectedCategoriaNombre = null
-            selectedImages = emptyList() // Limpiar imágenes al publicar
-
-            // Navegar de vuelta
+            selectedComponenteId = null
+            selectedComponenteNombre = null
+            selectedImages = emptyList()
+            viewModel.clearMasterComponents()
             navController.popBackStack()
         }
     }
@@ -87,7 +95,7 @@ fun PublishScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Campo: Nombre del producto
+            // Campos existentes (nombre, precio, descripción) ...
             OutlinedTextField(
                 value = nombre,
                 onValueChange = { nombre = it },
@@ -102,11 +110,9 @@ fun PublishScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Campo: Precio
             OutlinedTextField(
                 value = precio,
                 onValueChange = {
-                    // Solo permitir números y punto decimal
                     if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d*$"))) {
                         precio = it
                     }
@@ -126,7 +132,6 @@ fun PublishScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Campo: Descripción
             OutlinedTextField(
                 value = descripcion,
                 onValueChange = { descripcion = it },
@@ -143,7 +148,7 @@ fun PublishScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Campo: Categoría (Dropdown)
+            // Dropdown de Categorías (sin cambios funcionales)
             ExposedDropdownMenuBox(
                 expanded = categoriaExpanded,
                 onExpandedChange = { categoriaExpanded = !categoriaExpanded },
@@ -154,12 +159,8 @@ fun PublishScreen(
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Categoría *") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoriaExpanded)
-                    },
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth(),
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoriaExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -170,28 +171,78 @@ fun PublishScreen(
                     expanded = categoriaExpanded,
                     onDismissRequest = { categoriaExpanded = false }
                 ) {
-                    if (categories.isEmpty()) {
+                    categories.forEach { category ->
                         DropdownMenuItem(
-                            text = { Text("Cargando categorías...") },
-                            onClick = {}
+                            text = { Text(category.nombre) },
+                            onClick = {
+                                // --- 2. LÓGICA AL SELECCIONAR CATEGORÍA ---
+                                selectedCategoriaId = category.id
+                                selectedCategoriaNombre = category.nombre
+                                categoriaExpanded = false
+
+                                // Limpiar selección de componente anterior
+                                selectedComponenteId = null
+                                selectedComponenteNombre = null
+
+                                // Cargar los nuevos componentes
+                                viewModel.loadMasterComponents(category.id)
+                            }
                         )
-                    } else {
-                        categories.forEach { category ->
-                            DropdownMenuItem(
-                                text = { Text(category.nombre) },
-                                onClick = {
-                                    selectedCategoriaId = category.id
-                                    selectedCategoriaNombre = category.nombre
-                                    categoriaExpanded = false
-                                }
-                            )
-                        }
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Sección de imágenes
+            // --- 3. NUEVO DROPDOWN DE COMPONENTES MAESTROS ---
+            AnimatedVisibility(visible = selectedCategoriaId != null) {
+                Column {
+                    ExposedDropdownMenuBox(
+                        expanded = componenteExpanded,
+                        onExpandedChange = { componenteExpanded = !componenteExpanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = selectedComponenteNombre ?: "",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Componente Maestro *") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = componenteExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+                        ExposedDropdownMenu(
+                            expanded = componenteExpanded,
+                            onDismissRequest = { componenteExpanded = false }
+                        ) {
+                            if (masterComponents.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Selecciona una categoría primero...") },
+                                    onClick = {},
+                                    enabled = false
+                                )
+                            } else {
+                                masterComponents.forEach { componente ->
+                                    DropdownMenuItem(
+                                        text = { Text(componente.nombre_componente) },
+                                        onClick = {
+                                            selectedComponenteId = componente.id
+                                            selectedComponenteNombre = componente.nombre_componente
+                                            componenteExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
+
+            // Sección de imágenes (sin cambios)
             Text(
                 text = "Imágenes del producto (mínimo 3) *",
                 style = MaterialTheme.typography.titleSmall,
@@ -200,7 +251,7 @@ fun PublishScreen(
 
             if (selectedImages.isEmpty()) {
                 Button(
-                    onClick = { launcher.launch(PickVisualMediaRequest()) },
+                    onClick = { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Seleccionar imágenes")
@@ -237,7 +288,7 @@ fun PublishScreen(
                 }
 
                 Button(
-                    onClick = { launcher.launch(PickVisualMediaRequest()) },
+                    onClick = { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Agregar más imágenes")
@@ -245,7 +296,7 @@ fun PublishScreen(
             }
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Mostrar error si existe
+            // Mostrar error si existe (sin cambios)
             if (uiState is PublishUiState.Error) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -263,7 +314,7 @@ fun PublishScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Botón: Publicar
+            // --- 4. ACTUALIZAR LLAMADA AL VIEWMODEL ---
             Button(
                 onClick = {
                     viewModel.publishProduct(
@@ -271,15 +322,14 @@ fun PublishScreen(
                         precio = precio,
                         descripcion = descripcion,
                         categoriaId = selectedCategoriaId,
+                        masterComponentId = selectedComponenteId, // <-- PASAR EL NUEVO ID
                         imageUris = selectedImages,
-                        context = context // Pasar el contexto
+                        context = context
                     )
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
-                enabled = uiState !is PublishUiState.Loading && selectedImages.size >= 3
+                enabled = uiState !is PublishUiState.Loading && selectedImages.size >= 3 && selectedComponenteId != null
             ) {
                 if (uiState is PublishUiState.Loading) {
                     CircularProgressIndicator(

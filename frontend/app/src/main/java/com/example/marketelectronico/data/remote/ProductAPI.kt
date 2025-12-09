@@ -31,6 +31,10 @@ interface ProductApi {
     @POST("api/productos")
     suspend fun createProduct(@Body product: CreateProductRequest): ProductResponse
 
+    // GET /productos/componentes/categoria/:categoryId
+    @GET("api/productos/componentes/categoria/{categoryId}")
+    suspend fun getComponentsByCategory(@Path("categoryId") categoryId: Int): List<ComponentResponse>
+
     @Multipart
     @POST("api/productos/{id}/imagenes")
     suspend fun uploadProductImages(
@@ -82,7 +86,16 @@ data class CreateProductRequest(
     @SerializedName("id_usuario")
     val idUsuario: Long,
     val stock: Int = 1, // Valor por defecto
-    val categoria: Int // ID de la categoría
+    val categoria: Int, // ID de la categoría
+    @SerializedName("id_componente_maestro")
+    val idComponenteMaestro: String?
+)
+
+data class ComponentResponse(
+    val id: String,
+    val nombre_componente: String,
+    val categoria: Int,
+    val especificaciones: Map<String, Any>? = null
 )
 
 // --- 3. Servicio ---
