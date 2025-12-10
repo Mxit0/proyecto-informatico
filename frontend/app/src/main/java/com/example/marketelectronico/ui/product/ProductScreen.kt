@@ -413,13 +413,13 @@ private fun ProductDetailsContent(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 OutlinedButton(
-                    onClick = { /* TODO: Ver review del vendedor */ },
+                    onClick = { navController.navigate("add_seller_review/${product.sellerId}/${product.sellerName}") },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
                     border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Ver reviews del vendedor")
+                    Text("Calificar Vendedor")
                 }
             }
             Spacer(modifier = Modifier.height(16.dp)) // Espacio extra al final

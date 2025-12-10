@@ -7,6 +7,7 @@ import com.example.marketelectronico.data.remote.ReviewDto
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.marketelectronico.data.remote.CreateUserReviewRequest
 
 // Mantenemos tu modelo 'Review' para la UI (Mappearemos el DTO a este)
 data class Review(
@@ -151,6 +152,48 @@ object ReviewRepository {
         } catch (e: Exception) {
             Log.e("ReviewRepo", "Error updateReview", e)
             false
+        }
+    }
+
+    suspend fun addUserReview(authorId: String, targetUserId: String, rating: Double, comment: String): Boolean {
+        return try {
+            val request = CreateUserReviewRequest(authorId, targetUserId, rating, comment)
+            val response = api.addUserReview(request)
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Error creando reseña de usuario", e)
+            false
+        }
+    }
+
+    suspend fun getUserReviews(userId: String): List<Review> {
+        return try {
+            val response = api.getUserReviews(userId)
+            if (response.isSuccessful && response.body() != null) {
+                // Mapeamos el DTO de usuario al modelo Review genérico de la UI
+                response.body()!!.map { dto ->
+                    Review(
+                        id = dto.id,
+                        productId = "", // No aplica
+                        productName = "Vendedor", // Indicativo
+                        productImageUrl = "",
+                        author = dto.authorName,
+                        authorId = dto.authorId,
+                        authorImageUrl = dto.authorPhoto,
+                        date = try {
+                            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(dto.date) ?: Date()
+                        } catch (e: Exception) { Date() },
+                        rating = dto.rating,
+                        comment = dto.comment,
+                        likedByUserIds = emptyList()
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Error obteniendo reseñas de usuario", e)
+            emptyList()
         }
     }
 }

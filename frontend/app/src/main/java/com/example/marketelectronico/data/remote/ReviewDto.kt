@@ -30,3 +30,25 @@ data class UpdateReviewRequest(
     val rating: Double,
     val comment: String
 )
+
+data class UserReviewDto(
+    val id: String,
+    val targetUserId: String, // A quién se reseñó
+    val authorId: String,     // Quién escribió
+    val authorName: String,
+    val authorPhoto: String?,
+    val date: String,
+    val rating: Double,
+    val comment: String
+)
+
+data class CreateUserReviewRequest(
+    val authorId: String,
+    val targetUserId: String,
+    val rating: Double,
+    val comment: String
+)
+
+data class UserRatingResponse(
+    val average: Double
+)

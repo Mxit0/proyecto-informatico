@@ -29,4 +29,16 @@ interface ReviewAPI {
 
     @PUT("api/reviews/{reviewId}")
     suspend fun updateReview(@Path("reviewId") reviewId: String, @Body body: UpdateReviewRequest): Response<Any>
+
+    // Crear reseña de usuario
+    @POST("api/reviews/user")
+    suspend fun addUserReview(@Body request: CreateUserReviewRequest): Response<Any>
+
+    // Obtener reseñas de un usuario (vendedor)
+    @GET("api/reviews/user/{userId}")
+    suspend fun getUserReviews(@Path("userId") userId: String): Response<List<UserReviewDto>>
+
+    // Obtener promedio (opcional, útil para la UI)
+    @GET("api/reviews/user/{userId}/average")
+    suspend fun getUserRating(@Path("userId") userId: String): Response<UserRatingResponse>
 }

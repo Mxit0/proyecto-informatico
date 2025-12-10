@@ -6,7 +6,10 @@ import {
   getReviewsReceivedBySeller,
   deleteReview,        
   toggleReviewLike,    
-  updateReview 
+  updateReview,
+  addUserReview,
+  getReviewsForUser,
+  getUserRatingAverage 
 } from '../repositories/reviewRepository.js';
 
 const router = express.Router();
@@ -116,6 +119,50 @@ router.put('/:reviewId', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+});
+
+// POST /api/reviews/user -> Crear reseña a un vendedor
+router.post('/user', async (req, res) => {
+  try {
+    const { authorId, targetUserId, rating, comment } = req.body;
+
+    if (!authorId || !targetUserId || !rating) {
+      return res.status(400).json({ error: 'Faltan datos (authorId, targetUserId, rating)' });
+    }
+
+    const result = await addUserReview({
+      id_autor: authorId,
+      id_destinatario: targetUserId,
+      calificacion: rating,
+      comentario: comment
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/reviews/user/:userId -> Ver las reseñas de un vendedor
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const reviews = await getReviewsForUser(userId);
+    res.json(reviews);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/reviews/user/:userId/average -> Obtener promedio simple (Opcional)
+router.get('/user/:userId/average', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const average = await getUserRatingAverage(userId);
+    res.json({ average });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default router;

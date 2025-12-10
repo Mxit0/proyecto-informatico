@@ -26,6 +26,7 @@ import com.example.marketelectronico.ui.profile.ProfileScreen
 import com.example.marketelectronico.ui.review.ReviewScreen
 import com.example.marketelectronico.ui.product.PublishScreen
 import com.example.marketelectronico.ui.publish.PublishViewModel
+import com.example.marketelectronico.ui.review.UserReviewScreen
 
 import com.example.marketelectronico.ui.category.CategoryProductsScreen
 import com.example.marketelectronico.ui.category.CategoryProductsViewModel
@@ -146,6 +147,20 @@ fun AppNavigation(navController: NavHostController) {
                 navController = navController,
                 orderId = orderId
             )
+        }
+
+        composable(
+            route = "add_seller_review/{sellerId}/{sellerName}",
+            arguments = listOf(
+                navArgument("sellerId") { type = NavType.StringType },
+                navArgument("sellerName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val sellerId = backStackEntry.arguments?.getString("sellerId") ?: ""
+            val sellerName = backStackEntry.arguments?.getString("sellerName") ?: "Vendedor"
+
+            // Importa tu nueva pantalla
+            UserReviewScreen(navController, sellerId, sellerName)
         }
 
         // --- TUS PANTALLAS (De 'max') ---

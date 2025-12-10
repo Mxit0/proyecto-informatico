@@ -226,3 +226,93 @@ export async function updateReview(reviewId, userId, newRating, newComment) {
       throw new Error('Error editando reseña: ' + err.message);
     }
 }
+
+// Función auxiliar privada para enriquecer reseñas de usuarios (poner nombre y foto del autor)
+async function enrichUserReviews(reviews) {
+  if (!reviews || reviews.length === 0) return [];
+
+  const authorIds = [...new Set(reviews.map(r => r.id_autor))];
+
+  // Obtenemos datos de los autores
+  const { data: authorsData, error } = await supabase
+    .from('usuario')
+    .select('id_usuario, nombre_usuario, foto')
+    .in('id_usuario', authorIds);
+
+  if (error) throw error;
+
+  return reviews.map(r => {
+    const author = authorsData.find(u => u.id_usuario === r.id_autor);
+    return {
+      id: String(r.id),
+      targetUserId: String(r.id_destinatario),
+      
+      // Datos del Autor
+      authorId: String(r.id_autor),
+      authorName: author ? author.nombre_usuario : 'Usuario eliminado',
+      authorPhoto: author ? author.foto : null,
+
+      date: r.fecha,
+      rating: Number(r.calificacion),
+      comment: r.comentario || ''
+    };
+  });
+}
+
+// Crear una reseña a un usuario
+export async function addUserReview({ id_autor, id_destinatario, calificacion, comentario }) {
+  try {
+    // Validar que no se esté reseñando a sí mismo
+    if (String(id_autor) === String(id_destinatario)) {
+        throw new Error("No puedes reseñarte a ti mismo.");
+    }
+
+    const { data, error } = await supabase
+      .from('resenas_usuarios') // <--- Nueva tabla
+      .insert([{ id_autor, id_destinatario, calificacion, comentario }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    throw new Error('Error creando reseña de usuario: ' + err.message);
+  }
+}
+
+// Obtener reseñas que ha recibido un usuario (Para mostrar en su perfil)
+export async function getReviewsForUser(userId) {
+  try {
+    const { data: reviews, error } = await supabase
+      .from('resenas_usuarios')
+      .select('*')
+      .eq('id_destinatario', userId)
+      .order('fecha', { ascending: false });
+
+    if (error) throw error;
+    
+    // Usamos el enriquecedor específico para usuarios
+    return await enrichUserReviews(reviews);
+  } catch (err) {
+    throw new Error('Error obteniendo reseñas del usuario: ' + err.message);
+  }
+}
+
+// Calcular promedio de calificación de usuario (Útil para la reputación visual)
+export async function getUserRatingAverage(userId) {
+    try {
+        const { data, error } = await supabase
+            .from('resenas_usuarios')
+            .select('calificacion')
+            .eq('id_destinatario', userId);
+            
+        if(error) throw error;
+        
+        if(!data || data.length === 0) return 0.0;
+        
+        const sum = data.reduce((acc, curr) => acc + Number(curr.calificacion), 0);
+        return sum / data.length;
+    } catch (err) {
+        return 0.0;
+    }
+}
