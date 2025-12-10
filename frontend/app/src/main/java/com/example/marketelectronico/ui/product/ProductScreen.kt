@@ -1,5 +1,8 @@
 package com.example.marketelectronico.ui.product
 
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border // Agregado para el borde de la foto
@@ -247,24 +250,85 @@ private fun ProductDetailsContent(
 
     var showEditReviewDialog by remember { mutableStateOf(false) }
 
+    // --- GALERÍA DE IMÁGENES ---
+    // Lista final de imágenes: si no hay imageUrls, usamos solo imageUrl
+    val imageList = remember(product) {
+        val baseList = if (product.imageUrls.isNotEmpty()) {
+            product.imageUrls
+        } else {
+            listOf(product.imageUrl)
+        }
+        baseList.filter { it.isNotBlank() }
+    }
+
+    var selectedIndex by rememberSaveable { mutableStateOf(0) }
+    val mainImageUrl = imageList.getOrNull(selectedIndex) ?: product.imageUrl
+    // --- FIN GALERÍA DE IMÁGENES ---
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
             .verticalScroll(rememberScrollState())
     ) {
-        // Imagen del producto
-        AsyncImage(
-            model = product.imageUrl,
-            contentDescription = product.name,
-            contentScale = ContentScale.Crop,
-            placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
-            error = painterResource(id = android.R.drawable.ic_menu_gallery),
+        // --- GALERÍA: MINIATURAS + IMAGEN PRINCIPAL ---
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(250.dp)
                 .background(Color.DarkGray)
-        )
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Columna de miniaturas (solo si hay más de una imagen)
+            if (imageList.size > 1) {
+                LazyColumn(
+                    modifier = Modifier
+                        .width(72.dp)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(imageList) { index, url ->
+                        AsyncImage(
+                            model = url,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                            error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(
+                                    width = if (index == selectedIndex) 2.dp else 0.dp,
+                                    brush = SolidColor(
+                                        if (index == selectedIndex)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            Color.Transparent
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable { selectedIndex = index }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+            }
+
+            // Imagen principal
+            AsyncImage(
+                model = mainImageUrl,
+                contentDescription = product.name,
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(12.dp))
+            )
+        }
+        // --- FIN GALERÍA ---
 
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -309,6 +373,8 @@ private fun ProductDetailsContent(
                         Spacer(Modifier.width(8.dp))
                         Text("Editar")
                     }
+
+                    // Botón Borrar
                     OutlinedButton(
                         onClick = { showDeleteConfirm = true },
                         modifier = Modifier.weight(1f),
@@ -319,6 +385,7 @@ private fun ProductDetailsContent(
                         Text("Borrar")
                     }
                 } else {
+                    // === VISTA DE COMPRADOR (Lo que ya tenías) ===
                     Button(
                         onClick = {
                             val currentStock = product.specifications["Stock"]?.toIntOrNull() ?: 0
@@ -335,9 +402,11 @@ private fun ProductDetailsContent(
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
+                        // Opcional: Cambiar texto si está agotado
                         val stock = product.specifications["Stock"]?.toIntOrNull() ?: 0
                         Text(if (stock > 0) "Añadir al Carrito" else "Agotado")
                     }
+
                     OutlinedButton(
                         onClick = { onContactSeller(product.sellerId) },
                         modifier = Modifier.weight(1f),
@@ -349,7 +418,7 @@ private fun ProductDetailsContent(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tarjeta del Vendedor (Clickable)
+            // 👇 NUEVA ESTRUCTURA VISUAL
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -359,6 +428,7 @@ private fun ProductDetailsContent(
                     .clickable { onSellerClick(product.sellerId) }
                     .padding(12.dp)
             ) {
+                // 👇 FOTO CON COIL
                 AsyncImage(
                     model = product.sellerImageUrl ?: "https://i.pravatar.cc/150?u=${product.sellerId}",
                     contentDescription = "Avatar del vendedor",
@@ -498,8 +568,6 @@ private fun ProductDetailsContent(
         }
     }
 
-    // --- DIÁLOGOS ---
-
     if (showNoStockDialog) {
         AlertDialog(
             onDismissRequest = { showNoStockDialog = false },
@@ -539,6 +607,7 @@ private fun ProductDetailsContent(
         )
     }
 
+    // --- DIÁLOGO DE "AÑADIDO AL CARRITO" ---
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },

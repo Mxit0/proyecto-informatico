@@ -14,7 +14,9 @@ data class Product(
     val sellerRating: Double = 0.0,
     val sellerReviews: Int = 0,
     val description: String = "No hay descripción disponible.",
-    val specifications: Map<String, String> = emptyMap()
+    val specifications: Map<String, String> = emptyMap(),
+    val imageUrls: List<String> = emptyList()
+
 )
 
 data class ChatPreview(

@@ -192,7 +192,12 @@ suspend fun uploadProductImages(
         resolvedSellerRating: Double = 0.0,
         resolvedSellerReviews: Int = 0
     ): Product {
-        val mainImage = this.imagenes.firstOrNull()?.urlImagen
+        // 👇 TODAS LAS IMÁGENES DEL PRODUCTO
+        val allImages: List<String> =
+            this.imagenes?.mapNotNull { it.urlImagen } ?: emptyList()
+
+        // 👇 IMAGEN PRINCIPAL = PRIMERA O PLACEHOLDER
+        val mainImage = allImages.firstOrNull()
             ?: "https://placehold.co/300x300/CCCCCC/FFFFFF?text=No+Imagen"
 
         return Product(
@@ -212,7 +217,9 @@ suspend fun uploadProductImages(
             specifications = mapOf(
                 "Stock" to this.stock.toString(),
                 "Categoría" to this.categoria
-            )
+            ),
+            // 👇 NUEVO CAMPO: GALERÍA COMPLETA
+            imageUrls = allImages
         )
     }
 
@@ -254,7 +261,10 @@ suspend fun uploadProductImages(
  * Función "Mapper" simple que convierte el DTO al modelo de UI (Product).
  */
 private fun ProductResponse.toProduct(): Product {
-    val imageUrl = this.imagenes?.firstOrNull()?.urlImagen
+    val allImages: List<String> =
+        this.imagenes?.mapNotNull { it.urlImagen } ?: emptyList()
+
+    val imageUrl = allImages.firstOrNull()
         ?: "https://placehold.co/300x300/CCCCCC/FFFFFF?text=No+Imagen"
 
     val productStatus = this.categoria ?: "Sin categoría"
@@ -276,6 +286,8 @@ private fun ProductResponse.toProduct(): Product {
         specifications = mapOf(
             "Stock" to this.stock.toString(),
             "Categoría" to productStatus
-        )
+        ),
+        // 👇 aquí también
+        imageUrls = allImages
     )
 }
