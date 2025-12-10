@@ -316,3 +316,33 @@ export async function getUserRatingAverage(userId) {
         return 0.0;
     }
 }
+
+export async function deleteUserReview(reviewId, authorId) {
+  try {
+    const { error } = await supabase
+      .from('resenas_usuarios') // <-- Tabla de usuarios
+      .delete()
+      .eq('id', reviewId)
+      .eq('id_autor', authorId); // Seguridad: Solo el autor borra
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    throw new Error('Error eliminando reseña de usuario: ' + err.message);
+  }
+}
+
+export async function updateUserReview(reviewId, authorId, rating, comment) {
+  try {
+    const { error } = await supabase
+      .from('resenas_usuarios') // <-- Tabla de usuarios
+      .update({ calificacion: rating, comentario: comment })
+      .eq('id', reviewId)
+      .eq('id_autor', authorId); // Seguridad
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    throw new Error('Error actualizando reseña de usuario: ' + err.message);
+  }
+}

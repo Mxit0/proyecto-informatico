@@ -8,8 +8,10 @@ import {
   toggleReviewLike,    
   updateReview,
   addUserReview,
+  deleteUserReview,
+  updateUserReview,
   getReviewsForUser,
-  getUserRatingAverage 
+  getUserRatingAverage
 } from '../repositories/reviewRepository.js';
 
 const router = express.Router();
@@ -160,6 +162,37 @@ router.get('/user/:userId/average', async (req, res) => {
     const { userId } = req.params;
     const average = await getUserRatingAverage(userId);
     res.json({ average });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/reviews/user/:reviewId
+router.delete('/user/:reviewId', async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    // BUSCAMOS EN QUERY O BODY (Prioridad a Query para DELETE)
+    const userId = req.query.userId || req.body.userId; 
+
+    if (!userId) return res.status(400).json({ error: 'Falta userId (query param)' });
+
+    await deleteUserReview(reviewId, userId);
+    res.json({ message: 'Reseña de usuario eliminada' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/reviews/user/:reviewId
+router.put('/user/:reviewId', async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { userId, rating, comment } = req.body;
+
+    if (!userId) return res.status(400).json({ error: 'Falta userId' });
+
+    await updateUserReview(reviewId, userId, rating, comment);
+    res.json({ message: 'Reseña de usuario actualizada' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

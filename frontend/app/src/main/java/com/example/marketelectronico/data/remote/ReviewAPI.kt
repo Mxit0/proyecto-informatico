@@ -7,6 +7,8 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.HTTP
 import retrofit2.http.PUT
+import retrofit2.http.DELETE
+import retrofit2.http.Query
 interface ReviewAPI {
 
     // Obtener reseñas de un producto
@@ -41,4 +43,15 @@ interface ReviewAPI {
     // Obtener promedio (opcional, útil para la UI)
     @GET("api/reviews/user/{userId}/average")
     suspend fun getUserRating(@Path("userId") userId: String): Response<UserRatingResponse>
+
+    // NUEVO: Borrar reseña de usuario
+    @DELETE("api/reviews/user/{reviewId}")
+    suspend fun deleteUserReview(
+        @Path("reviewId") reviewId: String,
+        @Query("userId") userId: String // <--- Ahora viaja en la URL
+    ): Response<Any>
+
+    // NUEVO: Editar reseña de usuario
+    @PUT("api/reviews/user/{reviewId}")
+    suspend fun updateUserReview(@Path("reviewId") reviewId: String, @Body body: UpdateReviewRequest): Response<Any>
 }

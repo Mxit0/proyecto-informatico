@@ -50,7 +50,9 @@ data class UserProfileDto(
     val foto: String?,
     val reputacion: Double?,
     @SerializedName("fecha_registro")
-    val fecha_registro: String?
+    val fecha_registro: String?,
+    @SerializedName("total_resenas")
+    val totalResenas: Int? = 0
 )
 
 data class ReputationRequest(

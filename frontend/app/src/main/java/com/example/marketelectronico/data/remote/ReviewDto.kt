@@ -26,9 +26,9 @@ data class CreateReviewRequest(
 )
 
 data class UpdateReviewRequest(
-    val userId: String,
-    val rating: Double,
-    val comment: String
+    @SerializedName("userId") val userId: String,
+    @SerializedName("rating") val rating: Double,
+    @SerializedName("comment") val comment: String
 )
 
 data class UserReviewDto(

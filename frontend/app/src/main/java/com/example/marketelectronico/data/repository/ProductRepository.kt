@@ -51,32 +51,35 @@ class ProductRepository {
     suspend fun getProductById(id: String): Product? {
         return try {
             // CONSERVADO (de master): Lógica completa para obtener el producto y enriquecerlo con datos del vendedor.
-            // 1. Obtener el producto.
+            // Obtener el producto.
             val productResponse = api.getProductById(id)
 
             // 2. Preparar variables para datos del vendedor.
             var sellerName = "Vendedor #${productResponse.idUsuario}"
             var sellerPhoto: String? = null
             var sellerReputation = 0.0
+            var sellerReviewsCount = 0
 
-            // 3. Intentar obtener datos reales del vendedor.
+            // Intentar obtener datos reales del vendedor.
             try {
                 val userResponse = userApi.getUserById(productResponse.idUsuario.toLong())
                 if (userResponse.ok && userResponse.user != null) {
                     sellerName = userResponse.user.nombre_usuario
                     sellerPhoto = userResponse.user.foto
                     sellerReputation = userResponse.user.reputacion ?: 0.0
+                    sellerReviewsCount = userResponse.user.totalResenas ?: 0
                 }
             } catch (e: Exception) {
                 // Si falla la API de usuarios, solo logueamos y seguimos.
                 Log.e("ProductRepository", "No se pudo cargar info del vendedor: ${e.message}")
             }
 
-            // 4. Mapear usando los datos combinados con el mapper sobrecargado.
+            // Mapear usando los datos combinados con el mapper sobrecargado.
             productResponse.toProduct(
                 resolvedSellerName = sellerName,
                 resolvedSellerPhoto = sellerPhoto,
-                resolvedSellerRating = sellerReputation
+                resolvedSellerRating = sellerReputation,
+                resolvedSellerReviews = sellerReviewsCount
             )
 
         } catch (e: Exception) {
@@ -186,7 +189,8 @@ suspend fun uploadProductImages(
     private fun ProductResponse.toProduct(
         resolvedSellerName: String? = null,
         resolvedSellerPhoto: String? = null,
-        resolvedSellerRating: Double = 0.0
+        resolvedSellerRating: Double = 0.0,
+        resolvedSellerReviews: Int = 0
     ): Product {
         val mainImage = this.imagenes.firstOrNull()?.urlImagen
             ?: "https://placehold.co/300x300/CCCCCC/FFFFFF?text=No+Imagen"
@@ -202,7 +206,7 @@ suspend fun uploadProductImages(
             sellerName = resolvedSellerName ?: "Vendedor #${this.idUsuario}",
             sellerImageUrl = resolvedSellerPhoto,
             sellerRating = resolvedSellerRating,
-            sellerReviews = 10, // Dato hardcodeado por ahora (API User no lo devuelve aún).
+            sellerReviews = resolvedSellerReviews,
             // --------------------------
             description = this.descripcion,
             specifications = mapOf(

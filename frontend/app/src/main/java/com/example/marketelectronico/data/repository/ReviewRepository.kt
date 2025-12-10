@@ -196,4 +196,34 @@ object ReviewRepository {
             emptyList()
         }
     }
+
+    suspend fun deleteUserReview(reviewId: String, userId: String): Boolean {
+        return try {
+            // Ya no creamos un mapa/body, pasamos el String directo
+            val response = api.deleteUserReview(reviewId, userId)
+
+            if (!response.isSuccessful) {
+                Log.e("ReviewRepo", "Fallo al borrar: ${response.code()} - ${response.errorBody()?.string()}")
+            }
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Excepción al borrar", e)
+            false
+        }
+    }
+
+    suspend fun updateUserReview(reviewId: String, userId: String, rating: Double, comment: String): Boolean {
+        return try {
+            val request = com.example.marketelectronico.data.remote.UpdateReviewRequest(
+                userId = userId,
+                rating = rating,
+                comment = comment
+            )
+            val response = api.updateUserReview(reviewId, request)
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Error updateUserReview", e)
+            false
+        }
+    }
 }

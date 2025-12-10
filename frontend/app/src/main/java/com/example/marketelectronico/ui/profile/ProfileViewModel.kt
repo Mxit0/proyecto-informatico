@@ -156,4 +156,20 @@ class ProfileViewModel : ViewModel() {
             }
         }
     }
+
+    fun deleteUserReview(reviewId: String, onResult: (Boolean) -> Unit) {
+        val currentUserId = TokenManager.getUserId()?.toString() ?: return
+        viewModelScope.launch {
+            val success = ReviewRepository.deleteUserReview(reviewId, currentUserId)
+            onResult(success) // Devolvemos el resultado a la UI
+        }
+    }
+
+    fun updateUserReview(reviewId: String, rating: Double, comment: String, onResult: (Boolean) -> Unit) {
+        val currentUserId = TokenManager.getUserId()?.toString() ?: return
+        viewModelScope.launch {
+            val success = ReviewRepository.updateUserReview(reviewId, currentUserId, rating, comment)
+            onResult(success)
+        }
+    }
 }

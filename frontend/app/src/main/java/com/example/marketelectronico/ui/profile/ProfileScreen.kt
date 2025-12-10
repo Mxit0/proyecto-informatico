@@ -60,6 +60,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import com.example.marketelectronico.data.model.Product
+import androidx.compose.runtime.mutableDoubleStateOf
+import android.widget.Toast
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -213,7 +215,9 @@ fun ProfileScreen(
                         userOrders = userOrders,
                         myProducts = myProducts,
                         receivedReviews = receivedReviews,
-                        isOwnProfile = isOwnProfile
+                        isOwnProfile = isOwnProfile,
+                        viewModel = viewModel,
+                        userIdToReload = userIdArgument
                     )
                 }
             }
@@ -327,7 +331,9 @@ private fun ProfileTabs(
     userOrders: List<Order>,
     myProducts: List<Product>,
     receivedReviews: List<Review>,
-    isOwnProfile: Boolean
+    isOwnProfile: Boolean,
+    viewModel: ProfileViewModel,
+    userIdToReload: String?
 ) {
     val tabTitles = remember(isOwnProfile) {
         if (isOwnProfile) {
@@ -366,7 +372,11 @@ private fun ProfileTabs(
                 // 2. SWITCH BASADO EN EL NOMBRE DE LA PESTAÑA (NO EN EL ÍNDICE)
                 // Como el índice cambia si quitamos pestañas, usamos el título para saber qué mostrar.
                 when (tabTitles[pageIndex]) {
-                    "Mi Nota" -> MyRatingPage(reviews = receivedReviews)
+                    "Mi Nota" -> MyRatingPage(
+                        reviews = receivedReviews,
+                        viewModel = viewModel,
+                        profileId = userIdToReload
+                    )
 
                     "Ventas" -> MySalesPage(
                         products = myProducts,
@@ -412,7 +422,11 @@ private fun ProfileTabs(
 }
 
 @Composable
-private fun MyRatingPage(reviews: List<Review>) {
+private fun MyRatingPage(
+    reviews: List<Review>,
+    viewModel: ProfileViewModel,
+    profileId: String?
+) {
     // Calcular promedio real
     val averageRating = remember(reviews) {
         if (reviews.isEmpty()) 0.0 else reviews.map { it.rating }.average()
@@ -447,7 +461,14 @@ private fun MyRatingPage(reviews: List<Review>) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 items(reviews) { review ->
-                    ReceivedReviewItem(review = review)
+                    ReceivedReviewItem(
+                        review = review,
+                        viewModel = viewModel,
+                        onUpdateSuccess = {
+                            // Ahora 'viewModel' y 'profileId' SÍ existen en este ámbito
+                            viewModel.loadData(profileId)
+                        }
+                    )
                 }
             }
         }
@@ -455,76 +476,136 @@ private fun MyRatingPage(reviews: List<Review>) {
 }
 
 @Composable
-private fun ReceivedReviewItem(review: Review) {
+private fun ReceivedReviewItem(
+    review: Review,
+    viewModel: ProfileViewModel,
+    onUpdateSuccess: () -> Unit
+) {
+    val context = LocalContext.current
+    val currentUserId = TokenManager.getUserId()?.toString()
+    val isMyReview = currentUserId == review.authorId
+
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(modifier = Modifier.padding(12.dp)) {
-            // Foto del autor
-            AsyncImage(
-                model = review.authorImageUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color.Gray),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = android.R.drawable.ic_menu_camera)
-            )
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row {
+                // Foto autor
+                AsyncImage(
+                    model = review.authorImageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.Gray),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column {
-                // Nombre y Fecha
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = review.author,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = ReviewRepository.formatDate(review.date),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
-                    )
-                }
-
-                Row {
-                    val rating = review.rating
-                    val fullStars = rating.toInt() // Parte entera (ej: 4)
-                    val hasHalfStar = (rating - fullStars) >= 0.5 // ¿Tiene decimal >= 0.5?
-                    val emptyStars = 5 - fullStars - (if (hasHalfStar) 1 else 0) // El resto
-
-                    // Estrellas Completas
-                    repeat(fullStars) {
-                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    // Nombre y Fecha
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = review.author, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = ReviewRepository.formatDate(review.date), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                     }
-
-                    // Media Estrella (Si corresponde)
-                    if (hasHalfStar) {
-                        Icon(Icons.Default.StarHalf, null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
-                    }
-
-                    // Estrellas Vacías
-                    repeat(emptyStars) {
-                        Icon(Icons.Default.StarOutline, null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                    // Estrellas (Copiado de tu versión anterior corregida)
+                    Row {
+                        val rating = review.rating
+                        val fullStars = rating.toInt()
+                        val hasHalfStar = (rating - fullStars) >= 0.5
+                        repeat(fullStars) { Icon(Icons.Default.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp)) }
+                        if (hasHalfStar) Icon(Icons.Default.StarHalf, null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
+                        repeat(5 - fullStars - (if (hasHalfStar) 1 else 0)) { Icon(Icons.Default.StarOutline, null, tint = Color.Gray, modifier = Modifier.size(14.dp)) }
                     }
                 }
-                // ------------------------------------------------
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                if (review.comment.isNotEmpty()) {
-                    Text(
-                        text = review.comment,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                // ICONOS DE ACCIÓN (SOLO SI ES MI RESEÑA)
+                if (isMyReview) {
+                    Row {
+                        IconButton(onClick = { showEditDialog = true }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                        }
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            if (review.comment.isNotEmpty()) {
+                Text(text = review.comment, style = MaterialTheme.typography.bodyMedium)
+            }
         }
+    }
+
+    // --- DIÁLOGOS ---
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("¿Borrar reseña?") },
+            text = { Text("Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteUserReview(review.id) { success ->
+                            if (success) {
+                                onUpdateSuccess()
+                            } else {
+                                Toast.makeText(context, "Error al eliminar reseña", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Borrar") }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") } }
+        )
+    }
+
+    if (showEditDialog) {
+        // Reutilizamos la lógica simple de variables de estado para el dialogo
+        var newRating by remember { mutableDoubleStateOf(review.rating) }
+        var newComment by remember { mutableStateOf(review.comment) }
+
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Editar Reseña") },
+            text = {
+                Column {
+                    // Importante: Asegúrate de importar RatingInput de tu paquete review
+                    com.example.marketelectronico.ui.review.RatingInput(
+                        currentRating = newRating,
+                        onRatingChanged = { newRating = it }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newComment,
+                        onValueChange = { newComment = it },
+                        label = { Text("Comentario") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showEditDialog = false
+                    viewModel.updateUserReview(review.id, newRating, newComment) { success ->
+                        if (success) {
+                            onUpdateSuccess()
+                        } else {
+                            Toast.makeText(context, "Error al editar reseña", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }) { Text("Guardar") }
+            },
+            dismissButton = { TextButton(onClick = { showEditDialog = false }) { Text("Cancelar") } }
+        )
     }
 }
 
