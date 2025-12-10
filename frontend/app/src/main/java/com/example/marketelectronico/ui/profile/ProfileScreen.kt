@@ -347,6 +347,9 @@ private fun ProfileTabs(
     val pagerState = rememberPagerState { tabTitles.size }
     val coroutineScope = rememberCoroutineScope()
 
+    val currentUserId = TokenManager.getUserId()?.toString() ?: ""
+    val targetProfileId = userIdToReload ?: currentUserId
+
     Column(modifier = Modifier.fillMaxHeight()) {
         TabRow(
             selectedTabIndex = pagerState.currentPage,
@@ -393,6 +396,7 @@ private fun ProfileTabs(
                     )
 
                     "Reviews" -> ReviewsHistoryPage(
+                        targetUserId = targetProfileId,
                         onReviewClick = { productId ->
                             navController.navigate("product_detail/$productId")
                         }
@@ -637,25 +641,30 @@ private fun PurchasesHistoryPage(
 }
 
 @Composable
-private fun ReviewsHistoryPage(onReviewClick: (String) -> Unit) {
+private fun ReviewsHistoryPage(targetUserId: String, onReviewClick: (String) -> Unit) {
     // Estado para las reseñas
     var myReviews by remember { mutableStateOf<List<Review>>(emptyList()) }
 
     val currentUserId = TokenManager.getUserId()?.toString()
+    val isMyProfile = targetUserId == currentUserId
 
     // Llamada asíncrona correcta
-    LaunchedEffect(currentUserId) {
-        if (currentUserId != null) {
-            myReviews = ReviewRepository.getReviewsByUser(currentUserId)
+    LaunchedEffect(targetUserId) {
+        if (targetUserId.isNotEmpty()) {
+            // Aquí cargamos las reviews escritas por el usuario del perfil (targetUserId)
+            myReviews = ReviewRepository.getReviewsByUser(targetUserId)
         }
     }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Reviews que has Escrito", style = MaterialTheme.typography.titleMedium)
+        // Título dinámico
+        val title = if (isMyProfile) "Reviews que has escrito" else "Reviews escritas por el usuario"
+        Text(title, style = MaterialTheme.typography.titleMedium)
+
         Spacer(modifier = Modifier.height(16.dp))
 
         if (myReviews.isEmpty()) {
-            Text("Aún no has escrito reviews.", style = MaterialTheme.typography.bodyMedium)
+            Text("Este usuario no ha escrito reviews.", style = MaterialTheme.typography.bodyMedium)
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -665,7 +674,6 @@ private fun ReviewsHistoryPage(onReviewClick: (String) -> Unit) {
                     MyReviewItem(
                         review = review,
                         onClick = {
-                            // 2. Al hacer click, pasamos el ID del producto
                             onReviewClick(review.productId)
                         }
                     )
