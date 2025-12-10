@@ -406,3 +406,36 @@ export async function deleteProduct(id) {
     return false;
   }
 }
+
+export async function getProductsByUserId(userId) {
+  try {
+    // 1. Obtener productos
+    const { data: products, error } = await supabase
+      .from('producto')
+      .select('*')
+      .eq('id_usuario', userId)
+      .order('fecha_publicacion', { ascending: false }); // Los más recientes primero
+
+    if (error) throw error;
+    if (!products || products.length === 0) return [];
+
+    // 2. Obtener imágenes (para mostrar la foto principal)
+    const productIds = products.map(p => p.id);
+    const { data: images } = await supabase
+      .from('producto_imagenes')
+      .select('id_prod, url_imagen')
+      .in('id_prod', productIds);
+
+    // 3. Unir imagen principal
+    return products.map(p => {
+      const img = images.find(i => i.id_prod === p.id);
+      return {
+        ...p,
+        producto_imagenes: img ? [{ url_imagen: img.url_imagen }] : []
+      };
+    });
+
+  } catch (err) {
+    throw new Error(err.message);
+  }
+}

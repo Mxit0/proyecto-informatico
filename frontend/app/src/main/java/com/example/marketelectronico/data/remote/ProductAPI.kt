@@ -53,6 +53,9 @@ interface ProductApi {
     // DELETE para borrar
     @DELETE("api/productos/{id}")
     suspend fun deleteProduct(@Path("id") id: String): retrofit2.Response<Unit>
+
+    @GET("api/productos/usuario/{userId}")
+    suspend fun getProductsByUser(@Path("userId") userId: Long): List<ProductResponse>
 }
 
 // --- 2. DTOs ---

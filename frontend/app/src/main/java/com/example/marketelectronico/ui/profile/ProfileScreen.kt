@@ -59,6 +59,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import com.example.marketelectronico.data.model.Product
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -69,6 +70,7 @@ fun ProfileScreen(
     // Estado del perfil
     val userProfile by viewModel.userProfile.collectAsState()
     val userOrders by viewModel.userOrders.collectAsState()
+    val myProducts by viewModel.myProducts.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val context = LocalContext.current
@@ -200,7 +202,8 @@ fun ProfileScreen(
                     ProfileTabs(
                         navController = navController,
                         userProfile = userProfile,
-                        userOrders = userOrders
+                        userOrders = userOrders,
+                        myProducts = myProducts
                     )
                 }
             }
@@ -286,11 +289,12 @@ private fun UserInfoSection(
 private fun ProfileTabs(
     navController: NavController,
     userProfile: com.example.marketelectronico.data.remote.UserProfileDto?,
-    userOrders: List<Order>
+    userOrders: List<Order>,
+    myProducts: List<Product>
 ) {
-    val pagerState = rememberPagerState { 3 }
+    val pagerState = rememberPagerState { 4 }
     val coroutineScope = rememberCoroutineScope()
-    val tabTitles = listOf("Mi Nota", "Compras", "Reviews")
+    val tabTitles = listOf("Mi Nota", "Ventas", "Compras", "Reviews")
 
     Column(modifier = Modifier.fillMaxHeight()) {
         TabRow(
@@ -311,29 +315,34 @@ private fun ProfileTabs(
             modifier = Modifier.weight(1f)
         ) { pageIndex ->
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxSize().padding(16.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 when (pageIndex) {
                     0 -> MyRatingPage(reputation = userProfile?.reputacion)
 
-                    1 -> PurchasesHistoryPage(
+                    // NUEVA PESTAÑA: VENTAS
+                    1 -> MySalesPage(
+                        products = myProducts,
+                        onProductClick = { productId ->
+                            navController.navigate("product_detail/$productId")
+                        }
+                    )
+
+                    2 -> PurchasesHistoryPage(
                         orders = userOrders,
                         onOrderClick = { orderId ->
                             navController.navigate("order_detail/$orderId")
                         }
                     )
 
-                    // --- AQUÍ ESTÁ EL CAMBIO ---
-                    2 -> ReviewsHistoryPage(
+                    // Pestaña 3: Historial de Reviews
+                    3 -> ReviewsHistoryPage(
                         onReviewClick = { productId ->
                             // Navegamos a la pantalla de detalle del producto
                             navController.navigate("product_detail/$productId")
                         }
-                    )
-                    // ---------------------------
+                    ) // Reviews ahora es índice 3
                 }
             }
         }
@@ -545,6 +554,94 @@ private fun OrderHistoryItem(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
+        }
+    }
+}
+
+@Composable
+private fun MySalesPage(
+    products: List<Product>,
+    onProductClick: (String) -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Mis Productos en Venta", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (products.isEmpty()) {
+            Text("No tienes productos publicados.", style = MaterialTheme.typography.bodyMedium)
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(products) { product ->
+                    MyProductItem(product = product, onClick = { onProductClick(product.id) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MyProductItem(product: Product, onClick: () -> Unit) {
+    // Calculamos si hay stock para cambiar el color del texto
+    val stock = product.specifications["Stock"]?.toIntOrNull() ?: 0
+    val hasStock = stock > 0
+
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 2.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(modifier = Modifier.padding(12.dp)) {
+            // Imagen
+            AsyncImage(
+                model = product.imageUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(70.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(Color.Gray),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(verticalArrangement = Arrangement.Center) {
+                Text(
+                    text = product.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "$${product.price}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Indicador de Stock
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if(hasStock) Icons.Default.CheckCircle else Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = if(hasStock) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if(hasStock) "Stock: $stock" else "Agotado",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if(hasStock) Color.Gray else MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
     }
 }

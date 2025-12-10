@@ -12,6 +12,7 @@ import {
 } from "../repositories/productRepository.js";
 import { getComponentsByCategory } from "../repositories/componenteRepository.js";
 import { deleteProduct } from "../repositories/productRepository.js";
+import { getProductsByUserId } from "../repositories/productRepository.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -209,6 +210,16 @@ router.delete("/:id", async (req, res) => {
     res.json({ message: "Producto eliminado correctamente" });
   } catch (error) {
     res.status(500).json({ error: "Error al eliminar producto: " + error.message });
+  }
+});
+
+router.get("/usuario/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const products = await getProductsByUserId(userId);
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: "Error obteniendo productos del usuario: " + error.message });
   }
 });
 

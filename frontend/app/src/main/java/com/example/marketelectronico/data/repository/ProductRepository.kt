@@ -232,6 +232,16 @@ suspend fun uploadProductImages(
             false
         }
     }
+
+    suspend fun getProductsByUser(userId: Long): List<Product> {
+        return try {
+            val response = api.getProductsByUser(userId)
+            response.map { it.toProduct() } // Reutilizamos tu mapper existente
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
 }
 
 // CONSERVADA (de tu stash, pero podría ser redundante): Mapper simple.

@@ -15,10 +15,13 @@ import kotlinx.coroutines.launch
 import android.content.Context
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import com.example.marketelectronico.data.model.Product
+import com.example.marketelectronico.data.repository.ProductRepository
 
 
 class ProfileViewModel : ViewModel() {
     private val userRepository = UserRepository.getInstance()
+    private val productRepository = ProductRepository()
 
     private val _userProfile = MutableStateFlow<UserProfileDto?>(null)
     val userProfile: StateFlow<UserProfileDto?> = _userProfile
@@ -32,9 +35,13 @@ class ProfileViewModel : ViewModel() {
     private val _userOrders = MutableStateFlow<List<Order>>(emptyList())
     val userOrders: StateFlow<List<Order>> = _userOrders
 
+    private val _myProducts = MutableStateFlow<List<Product>>(emptyList())
+    val myProducts: StateFlow<List<Product>> = _myProducts
+
     init {
         loadUserProfile()
         loadUserOrders()
+        loadMyProducts()
     }
 
     fun onNewProfileImageSelected(uri: Uri, context: Context) {
@@ -91,6 +98,20 @@ class ProfileViewModel : ViewModel() {
             }
         } else {
             _userOrders.value = emptyList()
+        }
+    }
+
+    fun loadMyProducts() {
+        val userId = TokenManager.getUserId()
+        if (userId != null) {
+            viewModelScope.launch {
+                try {
+                    val products = productRepository.getProductsByUser(userId)
+                    _myProducts.value = products
+                } catch (e: Exception) {
+                    Log.e("ProfileViewModel", "Error cargando mis productos", e)
+                }
+            }
         }
     }
 }
