@@ -77,6 +77,7 @@ fun ProfileScreen(
     val userProfile by viewModel.userProfile.collectAsState()
     val userOrders by viewModel.userOrders.collectAsState()
     val myProducts by viewModel.myProducts.collectAsState()
+    val receivedReviews by viewModel.receivedReviews.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val context = LocalContext.current
@@ -211,6 +212,7 @@ fun ProfileScreen(
                         userProfile = userProfile,
                         userOrders = userOrders,
                         myProducts = myProducts,
+                        receivedReviews = receivedReviews,
                         isOwnProfile = isOwnProfile
                     )
                 }
@@ -324,6 +326,7 @@ private fun ProfileTabs(
     userProfile: com.example.marketelectronico.data.remote.UserProfileDto?,
     userOrders: List<Order>,
     myProducts: List<Product>,
+    receivedReviews: List<Review>,
     isOwnProfile: Boolean
 ) {
     val tabTitles = remember(isOwnProfile) {
@@ -363,7 +366,7 @@ private fun ProfileTabs(
                 // 2. SWITCH BASADO EN EL NOMBRE DE LA PESTAÑA (NO EN EL ÍNDICE)
                 // Como el índice cambia si quitamos pestañas, usamos el título para saber qué mostrar.
                 when (tabTitles[pageIndex]) {
-                    "Mi Nota" -> MyRatingPage(reputation = userProfile?.reputacion)
+                    "Mi Nota" -> MyRatingPage(reviews = receivedReviews)
 
                     "Ventas" -> MySalesPage(
                         products = myProducts,
@@ -409,19 +412,119 @@ private fun ProfileTabs(
 }
 
 @Composable
-private fun MyRatingPage(reputation: Double?) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Tu Reputación como Vendedor", style = MaterialTheme.typography.titleMedium)
+private fun MyRatingPage(reviews: List<Review>) {
+    // Calcular promedio real
+    val averageRating = remember(reviews) {
+        if (reviews.isEmpty()) 0.0 else reviews.map { it.rating }.average()
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
+        Text("Reputación del Vendedor", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Gran Estrella y Nota
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(40.dp))
+            Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(48.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = String.format("%.1f", reputation ?: 0.0), // Mostramos la reputación real
-                style = MaterialTheme.typography.headlineLarge
+                text = String.format("%.1f", averageRating),
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Bold
             )
         }
-        Text("(Basado en tus ventas)", style = MaterialTheme.typography.bodySmall)
+        Text("(${reviews.size} reseñas recibidas)", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Lista de Reseñas Recibidas
+        if (reviews.isEmpty()) {
+            Text("Aún no hay reseñas recibidas.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(reviews) { review ->
+                    ReceivedReviewItem(review = review)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReceivedReviewItem(review: Review) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(modifier = Modifier.padding(12.dp)) {
+            // Foto del autor
+            AsyncImage(
+                model = review.authorImageUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.Gray),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_camera)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column {
+                // Nombre y Fecha
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = review.author,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = ReviewRepository.formatDate(review.date),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                }
+
+                Row {
+                    val rating = review.rating
+                    val fullStars = rating.toInt() // Parte entera (ej: 4)
+                    val hasHalfStar = (rating - fullStars) >= 0.5 // ¿Tiene decimal >= 0.5?
+                    val emptyStars = 5 - fullStars - (if (hasHalfStar) 1 else 0) // El resto
+
+                    // Estrellas Completas
+                    repeat(fullStars) {
+                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
+                    }
+
+                    // Media Estrella (Si corresponde)
+                    if (hasHalfStar) {
+                        Icon(Icons.Default.StarHalf, null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
+                    }
+
+                    // Estrellas Vacías
+                    repeat(emptyStars) {
+                        Icon(Icons.Default.StarOutline, null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                    }
+                }
+                // ------------------------------------------------
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                if (review.comment.isNotEmpty()) {
+                    Text(
+                        text = review.comment,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
     }
 }
 

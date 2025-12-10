@@ -17,6 +17,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.repository.ProductRepository
+import com.example.marketelectronico.data.repository.Review
+import com.example.marketelectronico.data.repository.ReviewRepository
 
 
 class ProfileViewModel : ViewModel() {
@@ -37,6 +39,9 @@ class ProfileViewModel : ViewModel() {
 
     private val _myProducts = MutableStateFlow<List<Product>>(emptyList())
     val myProducts: StateFlow<List<Product>> = _myProducts
+
+    private val _receivedReviews = MutableStateFlow<List<Review>>(emptyList())
+    val receivedReviews: StateFlow<List<Review>> = _receivedReviews
 
     //init {
         //loadUserProfile()
@@ -60,6 +65,9 @@ class ProfileViewModel : ViewModel() {
                     // 2. Cargar Productos de ese usuario
                     val products = productRepository.getProductsByUser(targetId.toLong())
                     _myProducts.value = products
+
+                    val reviews = ReviewRepository.getUserReviews(targetId)
+                    _receivedReviews.value = reviews
 
                     // 3. Cargar Compras (Solo si soy yo mismo, por privacidad)
                     if (targetId == currentUserId) {
