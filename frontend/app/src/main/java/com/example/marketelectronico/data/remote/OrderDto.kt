@@ -7,7 +7,7 @@ import com.google.gson.annotations.SerializedName
 data class OrderSummaryDto(
     @SerializedName("id") val id: String,
     @SerializedName("id_usuario") val userId: String,
-    @SerializedName("fecha_compra") val fechaCompra: String,
+    @SerializedName("fecha_compra") val fechaCompra: String?,
     @SerializedName("total") val total: Double,
     @SerializedName("estado") val estado: String? // Opcional
 )

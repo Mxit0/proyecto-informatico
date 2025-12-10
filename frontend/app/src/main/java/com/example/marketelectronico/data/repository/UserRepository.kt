@@ -123,4 +123,16 @@ class UserRepository {
             e.printStackTrace()
         }
     }
+
+    suspend fun getUserById(userId: Long): com.example.marketelectronico.data.remote.UserResponse {
+        return try {
+            userApi.getUserById(userId)
+        } catch (e: Exception) {
+            com.example.marketelectronico.data.remote.UserResponse(
+                ok = false,
+                user = null,
+                message = e.message
+            )
+        }
+    }
 }

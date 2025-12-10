@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.collectLatest
 import com.example.marketelectronico.utils.TokenManager
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.clickable
 
 /**
  * Pantalla de Detalles del Producto.
@@ -157,6 +158,10 @@ fun ProductScreen(
                     },
                     onUpdate = { id, name, desc, price, stock ->
                         viewModel.updateCurrentProduct(id, name, desc, price, stock)
+                    },
+                    onSellerClick = { sellerId ->
+                        // Navegamos a una nueva ruta pasando el ID
+                        navController.navigate("profile_public/$sellerId")
                     }
                 )
             }
@@ -172,7 +177,8 @@ private fun ProductDetailsContent(
     paddingValues: PaddingValues,
     onContactSeller: (Int) -> Unit,
     onDelete: (String) -> Unit,
-    onUpdate: (String, String, String, Double, Int) -> Unit
+    onUpdate: (String, String, String, Double, Int) -> Unit,
+    onSellerClick: (Int) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -302,10 +308,11 @@ private fun ProductDetailsContent(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp)) // Recortar para el efecto ripple
                     .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(12.dp)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                     )
+                    .clickable { onSellerClick(product.sellerId) } // 👈 AQUÍ LA MAGIA
                     .padding(12.dp)
             ) {
                 // 👇 FOTO CON COIL
@@ -570,7 +577,8 @@ fun ProductScreenPreview() {
             paddingValues = PaddingValues(0.dp),
             onContactSeller = {},
             onDelete = {},
-            onUpdate = { _, _, _, _, _ -> }
+            onUpdate = { _, _, _, _, _ -> },
+            onSellerClick = {}
         )
     }
 }

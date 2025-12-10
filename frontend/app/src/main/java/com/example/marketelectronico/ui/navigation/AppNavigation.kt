@@ -150,7 +150,16 @@ fun AppNavigation(navController: NavHostController) {
 
         // --- TUS PANTALLAS (De 'max') ---
         composable("profile") {
-            ProfileScreen(navController = navController)
+            // Al no pasar ID, ProfileScreen asume que es el usuario logueado
+            ProfileScreen(navController = navController, userIdArgument = null)
+        }
+
+        composable(
+            route = "profile_public/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            ProfileScreen(navController = navController, userIdArgument = userId)
         }
         composable("chat_list") {
             ChatListScreen(navController = navController)

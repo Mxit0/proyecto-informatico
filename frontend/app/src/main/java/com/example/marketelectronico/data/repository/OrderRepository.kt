@@ -22,10 +22,9 @@ object OrderRepository {
     private val api = ApiClient.orderApi
 
     // Función para parsear la fecha de Postgres/Node a Date de Java
-    private fun parseDate(dateString: String): Date {
+    private fun parseDate(dateString: String?): Date {
+        if (dateString.isNullOrEmpty()) return Date()
         return try {
-            // Ajusta este formato según cómo venga de tu backend (ej. ISO 8601)
-            // Supabase suele enviar: "2025-12-06T23:47:18.930878"
             val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
             format.parse(dateString) ?: Date()
         } catch (e: Exception) {
@@ -40,18 +39,21 @@ object OrderRepository {
         val userId = TokenManager.getUserId()?.toString() ?: return emptyList()
 
         return try {
+            // Llama a la API (OrderAPI usa OrderSummaryDto)
             val response = api.getOrdersByUser(userId)
+
             if (response.isSuccessful && response.body() != null) {
                 val dtos = response.body()!!
 
-                // Convertimos DTO a tu modelo Order
+                // Mapeo: DTO -> Modelo UI
                 dtos.map { dto ->
                     Order(
                         id = dto.id,
                         userId = dto.userId,
-                        items = emptyList(), // El endpoint de lista NO trae items
+                        items = emptyList(),
+                        // 👇 CORRECCIÓN AQUÍ: Usamos 'fechaCompra' (la variable Kotlin), no 'fecha_compra'
                         date = parseDate(dto.fechaCompra),
-                        totalAmount = dto.total
+                        totalAmount = dto.total ?: 0.0
                     )
                 }
             } else {
@@ -68,8 +70,9 @@ object OrderRepository {
             val response = api.getOrderDetail(orderId)
             if (response.isSuccessful && response.body() != null) {
                 val detailDto = response.body()!!
+                val compraDto = detailDto.compra
 
-                // Mapeamos los items del DTO a tu modelo Product
+                // Mapear items
                 val productList = detailDto.items.map { itemDto ->
                     Product(
                         id = itemDto.idProducto,
@@ -81,17 +84,20 @@ object OrderRepository {
                     )
                 }
 
+                // Mapear cabecera usando 'compraDto'
                 Order(
-                    id = detailDto.compra.id,
-                    userId = detailDto.compra.userId,
-                    items = productList, // ¡Aquí sí tenemos los productos!
-                    date = parseDate(detailDto.compra.fechaCompra),
-                    totalAmount = detailDto.compra.total
+                    id = compraDto.id,
+                    userId = compraDto.userId,
+                    items = productList,
+                    // 👇 Aquí también usamos 'fechaCompra'
+                    date = parseDate(compraDto.fechaCompra),
+                    totalAmount = compraDto.total ?: 0.0
                 )
             } else {
                 null
             }
         } catch (e: Exception) {
+            Log.e("OrderRepository", "Error getting order detail", e)
             null
         }
     }

@@ -38,10 +38,44 @@ class ProfileViewModel : ViewModel() {
     private val _myProducts = MutableStateFlow<List<Product>>(emptyList())
     val myProducts: StateFlow<List<Product>> = _myProducts
 
-    init {
-        loadUserProfile()
-        loadUserOrders()
-        loadMyProducts()
+    //init {
+        //loadUserProfile()
+        //loadUserOrders()
+        //loadMyProducts()
+    //}
+
+    fun loadData(userIdToLoad: String?) {
+        val currentUserId = TokenManager.getUserId()?.toString()
+        val targetId = userIdToLoad ?: currentUserId // Si es null, carga el mío
+
+        if (targetId != null) {
+            viewModelScope.launch {
+                _isLoading.value = true
+                try {
+                    // 1. Cargar Perfil (Reutilizamos la lógica del repo)
+                    // Nota: Asegúrate de tener getUserById en tu UserRepository
+                    val profile = userRepository.getUserById(targetId.toLong())
+                    _userProfile.value = profile.user // Asumiendo que devuelve UserResponse
+
+                    // 2. Cargar Productos de ese usuario
+                    val products = productRepository.getProductsByUser(targetId.toLong())
+                    _myProducts.value = products
+
+                    // 3. Cargar Compras (Solo si soy yo mismo, por privacidad)
+                    if (targetId == currentUserId) {
+                        // ... lógica de cargar órdenes ...
+                        loadUserOrders()
+                    } else {
+                        _userOrders.value = emptyList() // No ver compras ajenas
+                    }
+
+                } catch (e: Exception) {
+                    _error.value = e.message
+                } finally {
+                    _isLoading.value = false
+                }
+            }
+        }
     }
 
     fun onNewProfileImageSelected(uri: Uri, context: Context) {

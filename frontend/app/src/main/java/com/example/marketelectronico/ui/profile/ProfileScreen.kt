@@ -64,9 +64,15 @@ import com.example.marketelectronico.data.model.Product
 @Composable
 fun ProfileScreen(
     navController: NavController,
+    userIdArgument: String? = null,
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = viewModel()
 ) {
+    val currentUserId = TokenManager.getUserId()?.toString()
+    val isOwnProfile = userIdArgument == null || userIdArgument == currentUserId
+    LaunchedEffect(userIdArgument) {
+        viewModel.loadData(userIdArgument)
+    }
     // Estado del perfil
     val userProfile by viewModel.userProfile.collectAsState()
     val userOrders by viewModel.userOrders.collectAsState()
@@ -197,13 +203,15 @@ fun ProfileScreen(
                     UserInfoSection(
                         userProfile = userProfile,
                         localImageUri = localImageUri,
+                        isEditable = isOwnProfile,
                         onChangePhotoClick = { imagePickerLauncher.launch("image/*") }
                     )
                     ProfileTabs(
                         navController = navController,
                         userProfile = userProfile,
                         userOrders = userOrders,
-                        myProducts = myProducts
+                        myProducts = myProducts,
+                        isOwnProfile = isOwnProfile
                     )
                 }
             }
@@ -217,6 +225,7 @@ fun ProfileScreen(
 private fun UserInfoSection(
     userProfile: com.example.marketelectronico.data.remote.UserProfileDto?,
     localImageUri: Uri?,
+    isEditable: Boolean,
     onChangePhotoClick: () -> Unit
 ) {
     Column(
@@ -225,44 +234,67 @@ private fun UserInfoSection(
             .padding(top = 24.dp, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        IconButton(
-            onClick = { onChangePhotoClick() }
-        ) {
+        // Usamos Box para superponer el icono de lápiz sobre la foto
+        Box(contentAlignment = Alignment.BottomEnd) {
+
+            // DEFINIR EL MODIFICADOR COMÚN PARA LA IMAGEN
+            val imageModifier = Modifier
+                .size(100.dp) // Tamaño fijo y más grande
+                .clip(CircleShape)
+                .background(Color.LightGray) // Fondo por si la imagen es transparente o carga
+                .then(
+                    // Solo agregamos el efecto de click si es editable
+                    if (isEditable) Modifier.clickable { onChangePhotoClick() } else Modifier
+                )
+
+            // MOSTRAR LA IMAGEN SEGÚN EL ESTADO
             when {
-                // 1º: imagen elegida localmente
+                // Caso A: Imagen seleccionada de la galería (local)
                 localImageUri != null -> {
                     AsyncImage(
                         model = localImageUri,
                         contentDescription = "Foto de Perfil",
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                        placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
-                        error = painterResource(id = android.R.drawable.ic_menu_camera)
+                        modifier = imageModifier,
+                        contentScale = ContentScale.Crop
                     )
                 }
-                // 2º: foto guardada en el perfil (URL desde backend)
+                // Caso B: Foto guardada en el backend
                 userProfile?.foto != null -> {
                     AsyncImage(
                         model = userProfile.foto,
                         contentDescription = "Foto de Perfil",
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                        placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
-                        error = painterResource(id = android.R.drawable.ic_menu_camera)
+                        modifier = imageModifier,
+                        contentScale = ContentScale.Crop
                     )
                 }
-                // 3º: placeholder
+                // Caso C: Sin foto (Placeholder)
                 else -> {
                     Image(
                         painter = painterResource(id = android.R.drawable.ic_menu_camera),
                         contentDescription = "Foto de Perfil",
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape)
+                        modifier = imageModifier.padding(24.dp), // Padding interno para que el icono no se estire
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+
+            // EL ICONO DE EDITAR (LÁPIZ) - Superpuesto
+            if (isEditable) {
+                // Creamos un pequeño círculo azul para el lápiz
+                Box(
+                    modifier = Modifier
+                        .padding(4.dp) // Un pequeño margen respecto al borde de la foto
+                        .size(24.dp)   // Tamaño del círculo del botón
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable { onChangePhotoClick() }, // Click también aquí
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Editar foto",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp) // Tamaño del icono de lápiz dentro del círculo
                     )
                 }
             }
@@ -270,14 +302,15 @@ private fun UserInfoSection(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Textos del perfil
         Text(
-            text = userProfile?.nombre_usuario ?: "Usuario",
-            style = MaterialTheme.typography.titleLarge
+            text = userProfile?.nombre_usuario ?: "Cargando...",
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
         )
-        Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = userProfile?.correo ?: "correo@mail.com",
-            style = MaterialTheme.typography.bodyMedium
+            text = userProfile?.correo ?: "",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color.Gray
         )
     }
 }
@@ -290,11 +323,20 @@ private fun ProfileTabs(
     navController: NavController,
     userProfile: com.example.marketelectronico.data.remote.UserProfileDto?,
     userOrders: List<Order>,
-    myProducts: List<Product>
+    myProducts: List<Product>,
+    isOwnProfile: Boolean
 ) {
-    val pagerState = rememberPagerState { 4 }
+    val tabTitles = remember(isOwnProfile) {
+        if (isOwnProfile) {
+            // Si es mi perfil, veo todo
+            listOf("Mi Nota", "Ventas", "Compras", "Reviews")
+        } else {
+            // Si es perfil ajeno, ocultamos "Compras"
+            listOf("Mi Nota", "Ventas", "Reviews")
+        }
+    }
+    val pagerState = rememberPagerState { tabTitles.size }
     val coroutineScope = rememberCoroutineScope()
-    val tabTitles = listOf("Mi Nota", "Ventas", "Compras", "Reviews")
 
     Column(modifier = Modifier.fillMaxHeight()) {
         TabRow(
@@ -305,7 +347,7 @@ private fun ProfileTabs(
                 Tab(
                     selected = pagerState.currentPage == index,
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
-                    text = { Text(text = title) }
+                    text = { Text(text = title, fontSize = 12.sp) } // Ajusté un poco la fuente
                 )
             }
         }
@@ -318,48 +360,50 @@ private fun ProfileTabs(
                 modifier = Modifier.fillMaxSize().padding(16.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
-                when (pageIndex) {
-                    0 -> MyRatingPage(reputation = userProfile?.reputacion)
+                // 2. SWITCH BASADO EN EL NOMBRE DE LA PESTAÑA (NO EN EL ÍNDICE)
+                // Como el índice cambia si quitamos pestañas, usamos el título para saber qué mostrar.
+                when (tabTitles[pageIndex]) {
+                    "Mi Nota" -> MyRatingPage(reputation = userProfile?.reputacion)
 
-                    // NUEVA PESTAÑA: VENTAS
-                    1 -> MySalesPage(
+                    "Ventas" -> MySalesPage(
                         products = myProducts,
                         onProductClick = { productId ->
                             navController.navigate("product_detail/$productId")
                         }
                     )
 
-                    2 -> PurchasesHistoryPage(
+                    "Compras" -> PurchasesHistoryPage(
                         orders = userOrders,
                         onOrderClick = { orderId ->
                             navController.navigate("order_detail/$orderId")
                         }
                     )
 
-                    // Pestaña 3: Historial de Reviews
-                    3 -> ReviewsHistoryPage(
+                    "Reviews" -> ReviewsHistoryPage(
                         onReviewClick = { productId ->
-                            // Navegamos a la pantalla de detalle del producto
                             navController.navigate("product_detail/$productId")
                         }
-                    ) // Reviews ahora es índice 3
+                    )
                 }
             }
         }
 
-        Button(
-            onClick = { navController.navigate("login") { popUpTo(0) { inclusive = true } } },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer
-            )
-        ) {
-            Icon(Icons.Default.ExitToApp, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "Cerrar Sesión")
+        // El botón de cerrar sesión solo aparece si es tu perfil
+        if (isOwnProfile) {
+            Button(
+                onClick = { navController.navigate("login") { popUpTo(0) { inclusive = true } } },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
+            ) {
+                Icon(Icons.Default.ExitToApp, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = "Cerrar Sesión")
+            }
         }
     }
 }
