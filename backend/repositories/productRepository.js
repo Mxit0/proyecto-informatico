@@ -184,6 +184,8 @@ export async function getProductById(id) {
 }
 
 // --- (El resto de funciones: createProduct, uploadProductImages... se quedan igual) ---
+import { getComponentById } from "./componenteRepository.js";
+
 export async function createProduct(productData) {
   const {
     nombre,
@@ -193,7 +195,26 @@ export async function createProduct(productData) {
     stock,
     categoria,
     fecha_publicacion,
+    id_componente_maestro,
   } = productData;
+
+  // Validación mínima: si se requiere componente maestro, verificar que exista y pertenezca a la categoría
+  if (!id_componente_maestro) {
+    throw new Error("Se requiere id_componente_maestro al crear el producto");
+  }
+
+  // Obtener componente y validar
+  const componente = await getComponentById(id_componente_maestro);
+  if (!componente) {
+    throw new Error("Componente maestro no encontrado");
+  }
+
+  // Validar que la categoría del componente coincida con la categoría enviada
+  if (componente.categoria !== categoria) {
+    throw new Error(
+      "El componente maestro no pertenece a la categoría seleccionada"
+    );
+  }
 
   const { data, error } = await supabase
     .from(TABLE)
@@ -206,6 +227,7 @@ export async function createProduct(productData) {
         stock,
         categoria,
         fecha_publicacion,
+        id_componente_maestro,
       },
     ])
     .select()
@@ -349,5 +371,71 @@ export async function getProductsByCategory(categoryId) {
   } catch (error) {
     console.error("Error al obtener productos por categoría:", error);
     throw error;
+  }
+}
+
+export async function deleteProduct(id) {
+  try {
+    // 1. Borrar de Supabase
+    // Nota: Supabase borrará en cascada las imágenes si la FK está configurada así,
+    // de lo contrario podrían quedar huérfanas en la tabla 'producto_imagenes'.
+    const { error } = await supabase
+      .from(TABLE)
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+
+    // 2. Limpiar Caché (Redis) para que desaparezca de la app inmediatamente
+    console.log(`Eliminando caché para producto ${id}`);
+    
+    // A. Borrar la caché del detalle individual (coincide con getProductById)
+    const cacheKeyDetail = `producto_full:${id}`;
+    await redisClient.del(cacheKeyDetail);
+
+    // B. Borrar todas las listas cacheadas (paginación, filtros, etc.)
+    // Usamos un patrón amplio para asegurar que se limpie todo lo que empiece por "productos"
+    const listKeys = await redisClient.keys("productos*");
+    if (listKeys.length > 0) {
+      await redisClient.del(listKeys);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error en deleteProduct:", error);
+    return false;
+  }
+}
+
+export async function getProductsByUserId(userId) {
+  try {
+    // 1. Obtener productos
+    const { data: products, error } = await supabase
+      .from('producto')
+      .select('*')
+      .eq('id_usuario', userId)
+      .order('fecha_publicacion', { ascending: false }); // Los más recientes primero
+
+    if (error) throw error;
+    if (!products || products.length === 0) return [];
+
+    // 2. Obtener imágenes (para mostrar la foto principal)
+    const productIds = products.map(p => p.id);
+    const { data: images } = await supabase
+      .from('producto_imagenes')
+      .select('id_prod, url_imagen')
+      .in('id_prod', productIds);
+
+    // 3. Unir imagen principal
+    return products.map(p => {
+      const img = images.find(i => i.id_prod === p.id);
+      return {
+        ...p,
+        producto_imagenes: img ? [{ url_imagen: img.url_imagen }] : []
+      };
+    });
+
+  } catch (err) {
+    throw new Error(err.message);
   }
 }

@@ -38,6 +38,11 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import com.example.marketelectronico.data.repository.UserRepository
+import coil.compose.AsyncImage
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.runtime.mutableIntStateOf
 
 /**
  * Pantalla de confirmación de pago exitoso.
@@ -48,22 +53,57 @@ fun PayConfirmScreen(
     navController: NavController,
     orderId: String?
 ) {
-    // Obtenemos los items del carrito para mostrarlos en el resumen
-    val order = OrderRepository.findOrderById(orderId)
-    if (order == null) {
-        // ... (puedes mostrar un mensaje de error o simplemente volver)
-        LaunchedEffect(Unit) {
-            navController.popBackStack()
+    var order by remember { mutableStateOf<Order?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    LaunchedEffect(orderId) {
+        if (orderId != null) {
+            val loadedOrder = OrderRepository.getOrderById(orderId)
+            order = loadedOrder
+        }
+        isLoading = false
+    }
+
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
         }
         return
     }
-    val purchasedItems = order.items
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var refreshTrigger by remember { mutableIntStateOf(0) } // Un número que cambia para forzar recarga
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refreshTrigger++ // Incrementamos para avisar que la pantalla volvió a ser visible
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val currentOrder = order
+
+    if (currentOrder == null) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Procesando pago...", style = MaterialTheme.typography.titleLarge)
+            Button(onClick = { navController.navigate("main") }) {
+                Text("Ir al Inicio")
+            }
+        }
+        return
+    }
+
+    val purchasedItems = currentOrder.items
+    val currentUserId = com.example.marketelectronico.utils.TokenManager.getUserId()?.toString() ?: ""
     val totalItems = purchasedItems.size
     val currentUser by UserRepository.getInstance().currentUser.collectAsState()
     val userName = currentUser?.nombre_usuario ?: ""
-    val userReviews by remember {
-        derivedStateOf { ReviewRepository.getReviewsByUser("Asu") }
-    }
     // --- Lógica para la barra de navegación inferior ---
     // Copiada de ProductScreen.kt para consistencia
     var selectedItem by remember { mutableIntStateOf(-1) }
@@ -161,7 +201,7 @@ fun PayConfirmScreen(
                 PaymentDetailItem(
                     icon = Icons.Default.Tag,
                     label = "Order Number",
-                    value = "Order #${order.id.take(8)}" // Muestra parte del ID
+                    value = "Order #${currentOrder.id.take(8)}"
                 )
             }
             item {
@@ -192,15 +232,19 @@ fun PayConfirmScreen(
 
             // --- Lista de Items Comprados ---
             items(purchasedItems) { product ->
-                // --- VERIFICAR SI YA EXISTE RESEÑA ---
-                // Usamos un key para que se recomposicione si cambia algo
-                val hasReviewed = remember(product.id, userName, ReviewRepository.allReviews.size) {
-                    ReviewRepository.hasUserReviewedProduct(product.id, userName)
+                //Pasamos 'currentUserId' en lugar de 'userName'
+                val hasReviewed by produceState(initialValue = false, product.id, currentUserId, refreshTrigger) {
+                    // Si no hay usuario logueado, es false
+                    if (currentUserId.isNotEmpty()) {
+                        value = ReviewRepository.hasUserReviewedProduct(product.id, currentUserId)
+                    } else {
+                        value = false
+                    }
                 }
 
                 ProductSummaryItem(
                     product = product,
-                    showReviewButton = !hasReviewed, // <-- Ocultar si ya reseñó
+                    showReviewButton = !hasReviewed, // Ahora sí funcionará
                     onAddReviewClick = {
                         navController.navigate("add_review/${product.id}")
                     }
@@ -342,15 +386,19 @@ private fun ProductSummaryItem(
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun PayConfirmScreenPreview() {
-    val previewOrder = Order(
+    // Creamos una orden FALSA solo para el preview visual (sin llamar al repositorio)
+    val dummyOrder = Order(
         id = "preview123",
-        userId = "preview_user",
+        userId = "user_preview",
         items = com.example.marketelectronico.data.model.allSampleProducts.take(2),
+        date = java.util.Date(), // <--- FALTABA ESTO
         totalAmount = 250.0
     )
-    OrderRepository.addOrder(previewOrder)
+
 
     MarketElectronicoTheme {
+        // El preview fallará en mostrar datos reales porque el repo está vacío,
+        // pero la UI de carga se mostrará.
         PayConfirmScreen(
             navController = rememberNavController(),
             orderId = "preview123"
@@ -358,15 +406,11 @@ fun PayConfirmScreenPreview() {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
+@Preview(showBackground = true)
 @Composable
 fun PayConfirmScreenEmptyPreview() {
-    OrderRepository.orders.clear() // Limpiamos el repo de órdenes para el preview
+
     MarketElectronicoTheme {
-        // Ahora pasamos 'null' para probar el caso de "orden no encontrada"
-        PayConfirmScreen(
-            navController = rememberNavController(),
-            orderId = null
-        )
+        PayConfirmScreen(navController = rememberNavController(), orderId = null)
     }
 }

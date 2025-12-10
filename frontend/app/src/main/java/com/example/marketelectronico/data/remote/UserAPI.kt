@@ -1,5 +1,6 @@
 package com.example.marketelectronico.data.remote
 
+import retrofit2.http.*
 import okhttp3.MultipartBody
 import com.google.gson.annotations.SerializedName
 import retrofit2.Response
@@ -7,7 +8,6 @@ import retrofit2.http.*
 
 
 interface UserApi {
-
     @GET("usuarios/{id}")
     suspend fun getUserById(@Path("id") userId: Long): UserResponse
 
@@ -17,13 +17,15 @@ interface UserApi {
         @Body request: ReputationRequest
     ): UserResponse
 
-    // Endpoint antiguo
     @Multipart
     @PATCH("usuarios/{id}/foto")
     suspend fun updatePhoto(
         @Path("id") userId: Long,
         @Part image: MultipartBody.Part
     ): UserResponse
+
+    @POST("usuarios/fcm-token")
+    suspend fun saveFcmToken(@Body request: FcmTokenRequest): Response<Any>
 
     //subir foto de perfil vía /api/profile/photo ===
     @Multipart

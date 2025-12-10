@@ -10,6 +10,9 @@ import {
   getAllCategories,
   getProductsByCategory,
 } from "../repositories/productRepository.js";
+import { getComponentsByCategory } from "../repositories/componenteRepository.js";
+import { deleteProduct } from "../repositories/productRepository.js";
+import { getProductsByUserId } from "../repositories/productRepository.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -47,6 +50,17 @@ router.get("/categorias/todas", async (req, res) => {
   }
 });
 
+// Obtener componentes maestros por categoría
+router.get("/componentes/categoria/:categoryId", async (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.categoryId);
+    const componentes = await getComponentsByCategory(categoryId);
+    res.json(componentes);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 2. Obtener productos por categoría
 router.get("/categoria/:categoryId", async (req, res) => {
   try {
@@ -76,8 +90,15 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const newProductData = req.body;
-    const { nombre, precio, descripcion, id_usuario, stock, categoria } =
-      newProductData;
+    const {
+      nombre,
+      precio,
+      descripcion,
+      id_usuario,
+      stock,
+      categoria,
+      id_componente_maestro,
+    } = newProductData;
 
     if (
       !nombre ||
@@ -85,11 +106,12 @@ router.post("/", async (req, res) => {
       !descripcion ||
       !id_usuario ||
       !stock ||
-      !categoria
+      !categoria ||
+      !id_componente_maestro
     ) {
       return res.status(400).json({
         error:
-          "Datos incompletos. Se requieren: nombre, precio, descripcion, id_usuario, stock, categoria.",
+          "Datos incompletos. Se requieren: nombre, precio, descripcion, id_usuario, stock, categoria, id_componente_maestro.",
       });
     }
     newProductData.fecha_publicacion = new Date().toISOString();
@@ -170,6 +192,34 @@ router.patch("/:id", async (req, res) => {
     res
       .status(500)
       .json({ error: "Error al actualizar el producto: " + error.message });
+  }
+});
+
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Aquí deberías validar que el usuario que pide borrar sea el dueño (usando token/session),
+    // pero por ahora implementaremos la lógica base.
+    const deleted = await deleteProduct(id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Producto no encontrado o no se pudo eliminar" });
+    }
+
+    res.json({ message: "Producto eliminado correctamente" });
+  } catch (error) {
+    res.status(500).json({ error: "Error al eliminar producto: " + error.message });
+  }
+});
+
+router.get("/usuario/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const products = await getProductsByUserId(userId);
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: "Error obteniendo productos del usuario: " + error.message });
   }
 });
 

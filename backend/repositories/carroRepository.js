@@ -31,9 +31,23 @@ export async function addToCart(userId, productId, quantity) {
   try {
     const cartId = await getOrCreateCartId(userId);
 
-    // Verificamos si el item ya está en la lista
+    // --- 1. NUEVO: Verificar stock en la base de datos ---
+    const { data: productData, error: productError } = await supabase
+      .from('producto')
+      .select('stock, nombre')
+      .eq('id', productId)
+      .single();
+
+    if (productError) throw new Error("Error verificando producto");
+    
+    if (productData.stock < quantity) {
+        throw new Error(`No hay suficiente stock de ${productData.nombre}. Disponible: ${productData.stock}`);
+    }
+    // ----------------------------------------------------
+
+    // Verificamos si el item ya está en la lista (Lógica existente)
     const { data: existingItem, error: fetchError } = await supabase
-      .from('listacarrito') // <--- Tabla corregida
+      .from('listacarrito')
       .select('id, cantidad')
       .eq('id_carrito', cartId)
       .eq('id_producto', productId)
@@ -46,6 +60,11 @@ export async function addToCart(userId, productId, quantity) {
 
     if (existingItem) {
       // UPDATE: Sumamos cantidad
+      // Opcional: Validar también que (existingItem.cantidad + quantity) no supere el stock
+      if ((existingItem.cantidad + quantity) > productData.stock) {
+         throw new Error(`No puedes añadir más. Stock máximo alcanzado.`);
+      }
+
       const newQuantity = existingItem.cantidad + quantity;
       ({ data, error } = await supabase
         .from('listacarrito')
@@ -53,7 +72,7 @@ export async function addToCart(userId, productId, quantity) {
         .eq('id', existingItem.id)
         .select());
     } else {
-      
+      // INSERT
       ({ data, error } = await supabase
         .from('listacarrito')
         .insert({
@@ -68,7 +87,7 @@ export async function addToCart(userId, productId, quantity) {
     return data;
 
   } catch (err) {
-    throw new Error('Error en addToCart: ' + err.message);
+    throw new Error(err.message);
   }
 }
 

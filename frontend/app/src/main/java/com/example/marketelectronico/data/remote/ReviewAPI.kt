@@ -1,0 +1,32 @@
+package com.example.marketelectronico.data.remote
+
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.HTTP
+import retrofit2.http.PUT
+interface ReviewAPI {
+
+    // Obtener reseñas de un producto
+    @GET("api/reviews/product/{productId}")
+    suspend fun getReviewsByProduct(@Path("productId") productId: String): Response<List<ReviewDto>>
+
+    // Obtener historial de reseñas de un usuario
+    @GET("api/reviews/user/{userId}/history")
+    suspend fun getUserReviewHistory(@Path("userId") userId: String): Response<List<ReviewDto>>
+
+    // Crear una nueva reseña
+    @POST("api/reviews")
+    suspend fun addReview(@Body request: CreateReviewRequest): Response<ReviewDto>
+
+    @HTTP(method = "DELETE", path = "api/reviews/{reviewId}", hasBody = true)
+    suspend fun deleteReview(@Path("reviewId") reviewId: String, @Body userIdWrapper: Map<String, String>): Response<Any>
+
+    @POST("api/reviews/{reviewId}/like")
+    suspend fun toggleLike(@Path("reviewId") reviewId: String, @Body userIdWrapper: Map<String, String>): Response<Any>
+
+    @PUT("api/reviews/{reviewId}")
+    suspend fun updateReview(@Path("reviewId") reviewId: String, @Body body: UpdateReviewRequest): Response<Any>
+}

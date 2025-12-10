@@ -9,6 +9,8 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.Multipart
 import retrofit2.http.Part
+import retrofit2.http.PATCH
+import retrofit2.http.DELETE
 // --- 1. Interfaz ---
 interface ProductApi {
     // GET /productos
@@ -31,12 +33,29 @@ interface ProductApi {
     @POST("api/productos")
     suspend fun createProduct(@Body product: CreateProductRequest): ProductResponse
 
+    // GET /productos/componentes/categoria/:categoryId
+    @GET("api/productos/componentes/categoria/{categoryId}")
+    suspend fun getComponentsByCategory(@Path("categoryId") categoryId: Int): List<ComponentResponse>
+
     @Multipart
     @POST("api/productos/{id}/imagenes")
     suspend fun uploadProductImages(
         @Path("id") productId: String,
         @Part images: List<MultipartBody.Part>
     ): ImageUploadResponse
+
+    @PATCH("api/productos/{id}")
+    suspend fun updateProduct(
+        @Path("id") id: String,
+        @Body updates: UpdateProductRequest
+    ): ProductResponse
+
+    // DELETE para borrar
+    @DELETE("api/productos/{id}")
+    suspend fun deleteProduct(@Path("id") id: String): retrofit2.Response<Unit>
+
+    @GET("api/productos/usuario/{userId}")
+    suspend fun getProductsByUser(@Path("userId") userId: Long): List<ProductResponse>
 }
 
 // --- 2. DTOs ---
@@ -82,7 +101,26 @@ data class CreateProductRequest(
     @SerializedName("id_usuario")
     val idUsuario: Long,
     val stock: Int = 1, // Valor por defecto
-    val categoria: Int // ID de la categoría
+    val categoria: Int, // ID de la categoría
+    @SerializedName("id_componente_maestro")
+    val idComponenteMaestro: String?
+)
+
+data class ComponentResponse(
+    val id: String,
+    val nombre_componente: String,
+    val categoria: Int,
+    val especificaciones: Map<String, Any>? = null
+)
+
+data class UpdateProductRequest(
+    val nombre: String? = null,
+
+    @SerializedName("descripcion")
+    val description: String? = null,
+
+    val precio: Double? = null,
+    val stock: Int? = null
 )
 
 // --- 3. Servicio ---

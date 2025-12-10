@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import com.example.marketelectronico.data.remote.UpdateProductRequest
 
 // Estado para la pantalla de detalle
 sealed class ProductDetailUiState {
@@ -68,6 +69,38 @@ class ProductViewModel(
                 }
             } catch (e: Exception) {
                 Log.e("ProductVM", "Error al contactar vendedor", e)
+            }
+        }
+    }
+
+    fun deleteCurrentProduct(productId: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            // CORREGIDO: Usar 'productRepository' en vez de 'repository'
+            val success = productRepository.deleteProduct(productId)
+            if (success) {
+                onSuccess()
+            } else {
+                Log.e("ProductVM", "Error al eliminar")
+                // Aquí podrías poner un _uiState.value = Error...
+            }
+        }
+    }
+
+    fun updateCurrentProduct(productId: String, name: String, desc: String, price: Double, stock: Int) {
+        viewModelScope.launch {
+            val request = UpdateProductRequest(
+                nombre = name,
+                description = desc,
+                precio = price,
+                stock = stock
+            )
+            // CORREGIDO: Usar 'productRepository' en vez de 'repository'
+            val success = productRepository.updateProduct(productId, request)
+            if (success) {
+                // Recargar los datos para ver los cambios
+                fetchProduct(productId)
+            } else {
+                Log.e("ProductVM", "Error al actualizar")
             }
         }
     }

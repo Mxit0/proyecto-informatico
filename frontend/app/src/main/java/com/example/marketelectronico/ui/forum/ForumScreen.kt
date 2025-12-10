@@ -3,175 +3,285 @@ package com.example.marketelectronico.ui.forum
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.currentBackStackEntryAsState // <-- 1. IMPORTAR
-import androidx.navigation.compose.rememberNavController
-import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
-import com.example.marketelectronico.data.model.ForumThread
-import com.example.marketelectronico.data.model.sampleThreads
+import coil.compose.AsyncImage
+import com.example.marketelectronico.data.remote.Foro
+import androidx.compose.foundation.background
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ForumScreen(
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: ForumViewModel = viewModel()
 ) {
-    // --- LÓGICA DE LA BOTTOM BAR (DINÁMICA) ---
-    val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
-    val navIcons = listOf(
-        Icons.Default.Home,
-        Icons.AutoMirrored.Filled.List,
-        Icons.Default.AddCircle,
-        Icons.Default.Email,
-        Icons.Default.Person,
-        Icons.Default.Chat // Ícono para 'Foro'
-    )
-    val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
-    // --- FIN LÓGICA BOTTOM BAR ---
+    val uiState by viewModel.forumsState.collectAsState()
+    var showCreateDialog by remember { mutableStateOf(false) }
+
+    // Estado para controlar qué foro se está editando
+    var forumToEdit by remember { mutableStateOf<Foro?>(null) }
+
+    var forumToDelete by remember { mutableStateOf<Foro?>(null) }
+
+    // ID del usuario actual para comparar permisos
+    val myUserId = viewModel.currentUserId
 
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Foro") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary
-                ),
+                title = { Text("Foros") },
                 navigationIcon = {
-                    if (navController.previousBackStackEntry != null) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Volver"
-                            )
-                        }
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.fetchForums() }) {
+                        Icon(Icons.Default.Refresh, "Recargar")
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navController.navigate("create_post") },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Crear Hilo")
+            FloatingActionButton(onClick = { showCreateDialog = true }) {
+                Icon(Icons.Default.Add, "Crear")
             }
-        },
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                // --- 2. OBTENER RUTA ACTUAL ---
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-
-                navItems.forEachIndexed { index, label ->
-                    val route = navRoutes[index]
-                    // --- 3. 'selected' AHORA ES DINÁMICO ---
-                    val selected = currentRoute == route
-
-                    NavigationBarItem(
-                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
-                        label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
-                        selected = selected, // <-- Usa el valor dinámico
-
-                        // --- 4. LÓGICA DE NAVEGACIÓN CORREGIDA ---
-                        onClick = {
-                            navController.navigate(route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
+        }
+    ) { padding ->
+        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+            when (val state = uiState) {
+                is ForumsUiState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                is ForumsUiState.Error -> Text("Error: ${state.message}", modifier = Modifier.align(Alignment.Center), color = Color.Red)
+                is ForumsUiState.Success -> {
+                    if (state.foros.isEmpty()) {
+                        Text("No hay foros aún", modifier = Modifier.align(Alignment.Center))
+                    } else {
+                        LazyColumn(contentPadding = PaddingValues(16.dp)) {
+                            items(state.foros) { foro ->
+                                ForumItem(
+                                    foro = foro,
+                                    isMyForum = foro.idCreador == myUserId, // Verificar dueño
+                                    onDelete = { forumToDelete = foro },
+                                    onEdit = { forumToEdit = foro }, // Abrir diálogo de edición
+                                    onClick = { navController.navigate("forum_detail/${foro.id}") }
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
-                    )
+                    }
                 }
             }
         }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
-            items(sampleThreads) { thread ->
-                ForumThreadItem(
-                    thread = thread,
-                    onClick = {
-                        navController.navigate("post_detail/${thread.id}")
-                    }
-                )
+    }
+
+    // Diálogo de Crear
+    if (showCreateDialog) {
+        CreateForumDialog(
+            onDismiss = { showCreateDialog = false },
+            onConfirm = { t, d ->
+                viewModel.createForum(t, d)
+                showCreateDialog = false
             }
-        }
+        )
+    }
+
+    // Diálogo de Editar
+    forumToEdit?.let { foro ->
+        EditForumDialog(
+            foro = foro,
+            onDismiss = { forumToEdit = null },
+            onConfirm = { newTitle, newDesc ->
+                viewModel.updateForum(foro.id, newTitle, newDesc)
+                forumToEdit = null
+            }
+        )
+    }
+
+    forumToDelete?.let { foro ->
+        AlertDialog(
+            onDismissRequest = { forumToDelete = null },
+            title = { Text("Eliminar Foro") },
+            text = { Text("¿Estás seguro de que deseas eliminar el foro \"${foro.titulo}\"? Esta acción también borrará todos los comentarios.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteForum(foro.id)
+                        forumToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { forumToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 
-// --- Ítem de Hilo (Sin cambios) ---
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ForumThreadItem(
-    thread: ForumThread,
+fun ForumItem(
+    foro: Foro,
+    isMyForum: Boolean,
+    onDelete: () -> Unit,
+    onEdit: () -> Unit,
     onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // --- ENCABEZADO: AUTOR ---
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AsyncImage(
+                    model = foro.usuario?.foto,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color.Gray),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = foro.usuario?.nombre ?: "Anónimo",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                // Fecha o indicador opcional aquí
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // --- TÍTULO Y DESCRIPCIÓN ---
             Text(
-                text = thread.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                text = foro.titulo,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+
+            if (!foro.descripcion.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "por ${thread.author}",
-                    style = MaterialTheme.typography.bodySmall
+                    text = foro.descripcion,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = "${thread.replies} respuestas",
-                    style = MaterialTheme.typography.bodySmall
-                )
+            }
+
+            // --- ACCIONES (SOLO SI ES MI FORO) ---
+            if (isMyForum) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    // Botón Editar
+                    OutlinedButton(
+                        onClick = onEdit,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Editar", fontSize = 12.sp)
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Botón Borrar (Estilo Alerta/Error)
+                    OutlinedButton(
+                        onClick = onDelete,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        border = ButtonDefaults.outlinedButtonBorder.copy(
+                            brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Borrar", fontSize = 12.sp)
+                    }
+                }
             }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-private fun ForumScreenPreview() {
-    MarketElectronicoTheme {
-        ForumScreen(navController = rememberNavController())
-    }
+fun CreateForumDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
+    var title by remember { mutableStateOf("") }
+    var desc by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Nuevo Foro") },
+        text = {
+            Column {
+                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Título") })
+                OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Descripción") })
+            }
+        },
+        confirmButton = { Button(onClick = { if(title.isNotEmpty()) onConfirm(title, desc) }) { Text("Crear") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+@Composable
+fun EditForumDialog(foro: Foro, onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
+    var title by remember { mutableStateOf(foro.titulo) }
+    var desc by remember { mutableStateOf(foro.descripcion ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar Foro") },
+        text = {
+            Column {
+                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Título") })
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Descripción") })
+            }
+        },
+        confirmButton = { Button(onClick = { if(title.isNotEmpty()) onConfirm(title, desc) }) { Text("Guardar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
 }

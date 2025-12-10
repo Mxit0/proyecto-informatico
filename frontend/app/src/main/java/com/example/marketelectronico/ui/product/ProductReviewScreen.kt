@@ -2,6 +2,8 @@ package com.example.marketelectronico.ui.product
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,7 +11,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,31 +18,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import com.example.marketelectronico.R
-import com.example.marketelectronico.data.model.allSampleProducts
+import coil.compose.AsyncImage
 import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
-import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
-import java.util.Locale
-import coil.compose.AsyncImage
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.ThumbUp
 import com.example.marketelectronico.utils.TokenManager
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.launch
+import java.util.Locale
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
+import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+import androidx.compose.material3.HorizontalDivider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,46 +43,57 @@ fun ProductReviewScreen(
     productId: String?
 ) {
     val currentUserId = TokenManager.getUserId()?.toString() ?: ""
-    // Obtener reseñas crudas del repositorio
-    val rawReviews = ReviewRepository.allReviews // Lista viva
-        .filter { it.productId == productId }
+    val scope = rememberCoroutineScope() // <--- 1. Scope para llamadas async
 
-    // --- 1. ESTADO PARA EL ORDENAMIENTO ---
-    // Por defecto ordenamos por "Most recent"
-    var selectedSortOption by remember { mutableStateOf("Most recent") }
+    // Estado local de la lista
+    var reviewsList by remember { mutableStateOf<List<Review>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
 
-    // --- 2. LÓGICA DE ORDENAMIENTO ---
-    // Esta lista se recalcula automáticamente cuando cambia 'rawReviews' o 'selectedSortOption'
-    val reviews = remember(rawReviews, selectedSortOption) {
-        when (selectedSortOption) {
-            "Highest rating" -> rawReviews.sortedByDescending { it.rating }
-            "Lowest rating" -> rawReviews.sortedBy { it.rating }
-            else -> rawReviews.sortedByDescending { it.date } // "Most recent" (default)
+    // Función para recargar la lista (útil tras borrar/editar/dar like)
+    fun reloadReviews() {
+        if (productId != null) {
+            scope.launch {
+                reviewsList = ReviewRepository.getReviewsForProduct(productId)
+            }
         }
     }
 
-    val totalReviews = rawReviews.size
-    val averageRating = if (rawReviews.isNotEmpty()) rawReviews.sumOf { it.rating } / totalReviews else 0.0
+    // Carga inicial
+    LaunchedEffect(productId) {
+        if (productId != null) {
+            reviewsList = ReviewRepository.getReviewsForProduct(productId)
+        }
+        isLoading = false
+    }
+
+    // Ordenamiento local
+    var selectedSortOption by remember { mutableStateOf("Most recent") }
+    val reviews = remember(reviewsList, selectedSortOption) {
+        when (selectedSortOption) {
+            "Highest rating" -> reviewsList.sortedByDescending { it.rating }
+            "Lowest rating" -> reviewsList.sortedBy { it.rating }
+            else -> reviewsList.sortedByDescending { it.date }
+        }
+    }
+
+    // Resumen
+    val totalReviews = reviewsList.size
+    val averageRating = if (reviewsList.isNotEmpty()) reviewsList.sumOf { it.rating } / totalReviews else 0.0
     val ratingSummary = (1..5).associateWith { star ->
-        if (totalReviews == 0) 0f else rawReviews.count { it.rating.toInt() == star } / totalReviews.toFloat()
+        if (totalReviews == 0) 0f else reviewsList.count { it.rating.toInt() == star } / totalReviews.toFloat()
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Reviews", fontWeight = FontWeight.Bold) },
+                title = { Text("Reviews") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = MaterialTheme.colorScheme.onBackground)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
-                )
+                }
             )
-        },
-        containerColor = MaterialTheme.colorScheme.background
+        }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -100,28 +104,42 @@ fun ProductReviewScreen(
             item {
                 RatingSummary(averageRating, totalReviews, ratingSummary)
                 Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // --- 3. PASAR EL ESTADO A LOS CHIPS ---
-            item {
-                SortByChips(
-                    selectedOption = selectedSortOption,
-                    onOptionSelected = { newOption -> selectedSortOption = newOption }
-                )
+                SortByChips(selectedOption = selectedSortOption, onOptionSelected = { selectedSortOption = it })
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            items(reviews) { review -> // Asegúrate de usar la lista 'reviews' ya ordenada
+            items(reviews) { review ->
                 ReviewItem(
                     review = review,
                     currentUserId = currentUserId,
-                    onLikeClick = { ReviewRepository.toggleLike(review.id, currentUserId) },
-                    onDeleteClick = { ReviewRepository.deleteReview(review.id) },
+                    onLikeClick = {
+                        // 2. Llamada asíncrona a Toggle Like
+                        scope.launch {
+                            val success = ReviewRepository.toggleLike(review.id, currentUserId)
+                            if (success) reloadReviews() // Recargar para actualizar corazón/contador
+                        }
+                    },
+                    onDeleteClick = {
+                        // 2. Llamada asíncrona a Delete
+                        scope.launch {
+                            val success = ReviewRepository.deleteReview(review.id, currentUserId)
+                            if (success) reloadReviews() // Recargar para quitar la review
+                        }
+                    },
                     onEditClick = { newComment, newRating ->
-                        ReviewRepository.updateReview(review.id, newComment, newRating)
+                        scope.launch {
+                            // newRating ya es Double (viene del slider/estrellas)
+                            val success = ReviewRepository.updateReview(
+                                review.id,
+                                currentUserId,
+                                newComment,
+                                newRating
+                            )
+                            if (success) reloadReviews()
+                        }
                     }
                 )
-                Divider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 16.dp))
+                HorizontalDivider(thickness = 1.dp, modifier = Modifier.padding(vertical = 16.dp))
             }
         }
     }

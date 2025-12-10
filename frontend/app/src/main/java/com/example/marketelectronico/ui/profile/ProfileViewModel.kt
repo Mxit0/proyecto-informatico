@@ -15,10 +15,13 @@ import kotlinx.coroutines.launch
 import android.content.Context
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import com.example.marketelectronico.data.model.Product
+import com.example.marketelectronico.data.repository.ProductRepository
 
 
 class ProfileViewModel : ViewModel() {
     private val userRepository = UserRepository.getInstance()
+    private val productRepository = ProductRepository()
 
     private val _userProfile = MutableStateFlow<UserProfileDto?>(null)
     val userProfile: StateFlow<UserProfileDto?> = _userProfile
@@ -32,9 +35,47 @@ class ProfileViewModel : ViewModel() {
     private val _userOrders = MutableStateFlow<List<Order>>(emptyList())
     val userOrders: StateFlow<List<Order>> = _userOrders
 
-    init {
-        loadUserProfile()
-        loadUserOrders()
+    private val _myProducts = MutableStateFlow<List<Product>>(emptyList())
+    val myProducts: StateFlow<List<Product>> = _myProducts
+
+    //init {
+        //loadUserProfile()
+        //loadUserOrders()
+        //loadMyProducts()
+    //}
+
+    fun loadData(userIdToLoad: String?) {
+        val currentUserId = TokenManager.getUserId()?.toString()
+        val targetId = userIdToLoad ?: currentUserId // Si es null, carga el mío
+
+        if (targetId != null) {
+            viewModelScope.launch {
+                _isLoading.value = true
+                try {
+                    // 1. Cargar Perfil (Reutilizamos la lógica del repo)
+                    // Nota: Asegúrate de tener getUserById en tu UserRepository
+                    val profile = userRepository.getUserById(targetId.toLong())
+                    _userProfile.value = profile.user // Asumiendo que devuelve UserResponse
+
+                    // 2. Cargar Productos de ese usuario
+                    val products = productRepository.getProductsByUser(targetId.toLong())
+                    _myProducts.value = products
+
+                    // 3. Cargar Compras (Solo si soy yo mismo, por privacidad)
+                    if (targetId == currentUserId) {
+                        // ... lógica de cargar órdenes ...
+                        loadUserOrders()
+                    } else {
+                        _userOrders.value = emptyList() // No ver compras ajenas
+                    }
+
+                } catch (e: Exception) {
+                    _error.value = e.message
+                } finally {
+                    _isLoading.value = false
+                }
+            }
+        }
     }
 
     fun onNewProfileImageSelected(uri: Uri, context: Context) {
@@ -80,11 +121,31 @@ class ProfileViewModel : ViewModel() {
     fun loadUserOrders() {
         val currentUserId = TokenManager.getUserId()?.toString()
         if (currentUserId != null) {
-            // Filtramos la lista global buscando solo las que coincidan con el ID
-            val myOrders = OrderRepository.orders.filter { it.userId == currentUserId }
-            _userOrders.value = myOrders
+            viewModelScope.launch {
+                try {
+                    val ordersFromApi = OrderRepository.getUserOrders()
+                    // Ahora comparamos String con String
+                    _userOrders.value = ordersFromApi.filter { it.userId == currentUserId }
+                } catch (e: Exception) {
+                    _userOrders.value = emptyList()
+                }
+            }
         } else {
             _userOrders.value = emptyList()
+        }
+    }
+
+    fun loadMyProducts() {
+        val userId = TokenManager.getUserId()
+        if (userId != null) {
+            viewModelScope.launch {
+                try {
+                    val products = productRepository.getProductsByUser(userId)
+                    _myProducts.value = products
+                } catch (e: Exception) {
+                    Log.e("ProfileViewModel", "Error cargando mis productos", e)
+                }
+            }
         }
     }
 }

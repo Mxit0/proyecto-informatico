@@ -44,10 +44,10 @@ fun MainScreen(
     viewModel: MainViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
+    val navItems = listOf("Inicio", "Check", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
-        Icons.AutoMirrored.Filled.List,
+        Icons.Filled.Check,
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,

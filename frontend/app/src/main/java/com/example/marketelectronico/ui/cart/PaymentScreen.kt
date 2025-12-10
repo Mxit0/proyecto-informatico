@@ -33,6 +33,8 @@ import com.example.marketelectronico.data.repository.Order
 import com.example.marketelectronico.data.repository.OrderRepository
 import java.util.UUID
 import com.example.marketelectronico.utils.TokenManager
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 
 // --- 2. ELIMINAR EL MODELO Y LOS DATOS DE MUESTRA LOCALES ---
@@ -63,6 +65,7 @@ private fun formatCurrency(amount: Double): String {
 fun PaymentScreen(
     navController: NavController
 ) {
+    val scope = rememberCoroutineScope()
     // --- Lógica de Cálculo ---
     val subtotal = CartRepository.totalPrice.value
     val taxes = subtotal * TAX_RATE
@@ -107,26 +110,27 @@ fun PaymentScreen(
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                 Button(
                     onClick = {
-                        // 1. Obtener el ID del usuario actual
-                        val currentUserId = TokenManager.getUserId()?.toString() ?: "usuario_anonimo"
+                        // Usamos coroutine scope porque createOrder es suspend
+                        // Asegúrate de tener: val scope = rememberCoroutineScope() al inicio del composable
+                        scope.launch {
+                            val currentUserId = TokenManager.getUserId()?.toString()
+                            if (currentUserId != null) {
+                                // 1. LLAMADA REAL AL BACKEND
+                                val realOrderId = OrderRepository.createOrder(currentUserId)
 
-                        val itemsToPurchase = CartRepository.cartItems.toList()
-                        val orderTotal = total // Variable calculada más arriba en tu código
+                                if (realOrderId != null) {
+                                    // 2. Si hay éxito, el backend ya limpió el carrito,
+                                    // pero actualizamos la UI local limpiando la lista observable
+                                    CartRepository.clearCart() // (Opcional, loadCart() lo haría)
 
-                        // 2. Crear la orden PASANDO EL userId
-                        val newOrder = Order(
-                            id = UUID.randomUUID().toString(),
-                            userId = currentUserId,
-                            items = itemsToPurchase,
-                            totalAmount = orderTotal
-                        )
-
-                        OrderRepository.addOrder(newOrder)
-                        CartRepository.clearCart()
-
-                        // Navegar a la confirmación
-                        navController.navigate("pay_confirm/${newOrder.id}") {
-                            popUpTo("cart") { inclusive = true }
+                                    // 3. Navegamos con el ID REAL
+                                    navController.navigate("pay_confirm/$realOrderId") {
+                                        popUpTo("cart") { inclusive = true }
+                                    }
+                                } else {
+                                    // Manejar error (Toast o mensaje)
+                                }
+                            }
                         }
                     },
                     modifier = Modifier

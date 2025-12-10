@@ -37,6 +37,9 @@ import java.util.Currency
 fun CartScreen(
     navController: NavController
 ) {
+    LaunchedEffect(Unit) {
+        CartRepository.loadCart()
+    }
     val cartProducts = CartRepository.cartItems
     val totalPrice = CartRepository.totalPrice.value
     var productToDelete by remember { mutableStateOf<Product?>(null) }

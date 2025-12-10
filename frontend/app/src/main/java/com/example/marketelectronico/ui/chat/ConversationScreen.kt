@@ -86,7 +86,24 @@ fun ConversationScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {
+                        // Verificamos quién está "detrás" en el historial
+                        val previousRoute = navController.previousBackStackEntry?.destination?.route
+
+                        // Si venimos de navegar normal (ej. desde chat_list), simplemente volvemos
+                        // (Verificamos que no sea 'login' para evitar el problema actual)
+                        if (previousRoute != null && previousRoute != "login") {
+                            navController.popBackStack()
+                        } else {
+                            // Si venimos de una NOTIFICACIÓN (o no hay historial),
+                            // forzamos la navegación a la lista de chats
+                            navController.navigate("chat_list") {
+                                // Limpiamos la pila para que 'Atrás' desde la lista no vuelva aquí
+                                popUpTo("main") { saveState = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
                 },
@@ -114,7 +131,7 @@ fun ConversationScreen(
             // Al usar reversed(), el índice 0 es el mensaje MÁS NUEVO (el de más abajo).
             val reversedList = messages.reversed()
 
-            itemsIndexed(reversedList) { index, message ->
+            itemsIndexed(messages) { index, message ->
                 // Condición: Mostrar solo si es el último mensaje (index 0) Y es mío.
                 // Si el índice 0 es de la otra persona, isSentByMe será false y no se mostrará nada.
                 val showStatus = (index == 0 && message.isSentByMe)

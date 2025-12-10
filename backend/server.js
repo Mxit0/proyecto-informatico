@@ -3,10 +3,11 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
+import multer from "multer";
+import path from "path";
 import { Server as SocketIOServer } from "socket.io";
 import jwt from "jsonwebtoken";
-import multer from "multer";          
-import path from "path";  
+
 import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -14,7 +15,9 @@ import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import reviewRoutes from './routes/reviewRoutes.js';
+import foroRoutes from "./routes/foroRoutes.js";
 import { supabase } from "./lib/supabaseClient.js";
+import { admin } from "./lib/firebaseAdmin.js"; // <-- Importante: Esto viene de Cuello (Notificaciones)
 
 dotenv.config();
 
@@ -72,8 +75,10 @@ app.use("/api/productos", productRoutes);
 app.use("/usuarios", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/carro", carroRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/reviews', reviewRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/reviews", reviewRoutes);
+// AGREGADO: Habilitamos la ruta de foros en la API
+app.use("/api/foros", foroRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -88,7 +93,7 @@ app.post(
   async (req, res) => {
     try {
       const userFromToken = req.user;
-      const userId = userFromToken?.id_usuario; 
+      const userId = userFromToken?.id_usuario;
 
       if (!userId) {
         return res
@@ -139,9 +144,9 @@ app.post(
 
       // Actualizar la tabla public.usuario, columna foto, PK id_usuario
       const { error: updateError } = await supabase
-        .from("usuario")                
-        .update({ foto: publicUrl })    
-        .eq("id_usuario", userId);     
+        .from("usuario")
+        .update({ foto: publicUrl })
+        .eq("id_usuario", userId);
 
       if (updateError) {
         console.error("Error actualizando foto en BD:", updateError);
@@ -168,12 +173,16 @@ const io = new SocketIOServer(server, {
   },
 });
 
-// Normalizar pareja de usuarios (para que no hayan 2 chats duplicados)
+// AGREGADO: Vital para que el Foro emita eventos sin estar conectado al socket directo
+// Esto permite que cuando hagas un POST /api/foros/../publicaciones, el controlador use req.app.get('io')
+app.set("io", io);
+
+// Normalizar pareja de usuarios
 function normalizePair(a, b) {
   return a < b ? [a, b] : [b, a];
 }
 
-// Middleware de autenticación para sockets (mismo JWT que en HTTP)
+// Middleware de autenticación para sockets
 io.use((socket, next) => {
   try {
     const header = socket.handshake.auth?.token ||
@@ -233,7 +242,7 @@ async function saveMessage({ chatId, senderId, contenido }) {
 
 //  Lógica de tiempo real
 io.on("connection", (socket) => {
-  console.log(" Socket conectado:", socket.user?.id_usuario);
+  console.log("Socket conectado:", socket.user?.id_usuario);
 
   /**
    * Abrir chat entre el usuario logueado y otro usuario (vendedor/comprador)
@@ -261,9 +270,17 @@ io.on("connection", (socket) => {
    * Unirse explícitamente a un chat (para cargar historial y escuchar mensajes)
    * payload: { chatId: number }
    */
-  socket.on("join_chat", ({ chatId }) => {
-    const room = `chat_${chatId}`;
-    socket.join(room);
+  socket.on("join_chat", (data) => {
+    // Caso Foro (Joaquín)
+    if (data.room) {
+        socket.join(data.room);
+        console.log(`Socket unido a sala: ${data.room}`);
+    }
+    // Caso Chat Privado (Cuello)
+    else if (data.chatId) {
+        const room = `chat_${data.chatId}`;
+        socket.join(room);
+    }
   });
 
   /**
@@ -299,6 +316,53 @@ io.on("connection", (socket) => {
       const room = `chat_${chatId}`;
       io.to(room).emit("new_message", msg);
 
+      // Determinar receptor
+      const receptorId =
+        chat.id_usuario1 === userId ? chat.id_usuario2 : chat.id_usuario1;
+
+      // Buscar receptor y token FCM
+      const { data: receptor, error: receptorError } = await supabase
+        .from("usuario")
+        .select("id_usuario, nombre_usuario, fcm_token")
+        .eq("id_usuario", receptorId)
+        .maybeSingle();
+
+      if (receptorError) console.error("Error buscando receptor:", receptorError);
+
+      // Enviar Notificación Push (Lógica de Cuello)
+      if (receptor?.fcm_token) {
+        const notifBody = contenido.length > 50 ? contenido.slice(0, 47) + "..." : contenido;
+        const titulo = socket.user?.nombre_usuario
+            ? `${socket.user.nombre_usuario} te escribió`
+            : "Nuevo mensaje";
+
+        try {
+          await admin.messaging().send({
+            token: receptor.fcm_token,
+            notification: {
+              title: titulo,
+              body: notifBody,
+            },
+            data: {
+              chatId: String(chatId),
+              remitenteId: String(userId),
+            },
+            android: {
+              priority: "high",
+              notification: {
+                channelId: "chat_channel",
+                priority: "high",
+                defaultSound: true,
+                visibility: "public"
+              }
+            }
+          });
+          console.log("FCM enviada a", receptorId);
+        } catch (errFCM) {
+          console.error("Error enviando FCM:", errFCM);
+        }
+      }
+
       callback?.({ ok: true, message: msg });
     } catch (err) {
       console.error("Error en send_message:", err);
@@ -314,21 +378,20 @@ io.on("connection", (socket) => {
         .from("mensaje")
         .update({ leido: true })
         .eq("id_chat", chatId)
-        .neq("id_remitente", userId) // Solo leo los mensajes del OTRO
-        .eq("leido", false); // Solo los que no estaban leídos
+        .neq("id_remitente", userId)
+        .eq("leido", false);
 
-      if (error) throw error;
-
-      const room = `chat_${chatId}`;
-      io.to(room).emit("messages_read_update", { chatId });
-
+      if (!error) {
+        const room = `chat_${chatId}`;
+        io.to(room).emit("messages_read_update", { chatId });
+      }
     } catch (err) {
       console.error("Error en mark_messages_read:", err);
     }
   });
 
   socket.on("disconnect", () => {
-    console.log("🔌 Socket desconectado:", socket.user?.id_usuario);
+    console.log("Socket desconectado:", socket.user?.id_usuario);
   });
 });
 

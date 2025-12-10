@@ -3,7 +3,10 @@ import {
   addReview, 
   getReviewsByProduct, 
   getReviewsWrittenByUser, 
-  getReviewsReceivedBySeller 
+  getReviewsReceivedBySeller,
+  deleteReview,        
+  toggleReviewLike,    
+  updateReview 
 } from '../repositories/reviewRepository.js';
 
 const router = express.Router();
@@ -71,6 +74,48 @@ router.post('/', async (req, res) => {
     }
     res.status(500).json({ error: error.message });
   }
+});
+
+router.delete('/:reviewId', async (req, res) => {
+    try {
+        const { reviewId } = req.params;
+        const { userId } = req.body; // Enviado desde el frontend
+
+        if (!userId) return res.status(400).json({ error: 'Falta userId' });
+
+        await deleteReview(reviewId, userId);
+        res.json({ message: 'Reseña eliminada' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/:reviewId/like', async (req, res) => {
+    try {
+        const { reviewId } = req.params;
+        const { userId } = req.body;
+
+        if (!userId) return res.status(400).json({ error: 'Falta userId' });
+
+        const result = await toggleReviewLike(reviewId, userId);
+        res.json(result); // { action: 'added' } o { action: 'removed' }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.put('/:reviewId', async (req, res) => {
+    try {
+        const { reviewId } = req.params;
+        const { userId, rating, comment } = req.body;
+
+        if (!userId) return res.status(400).json({ error: 'Falta userId' });
+
+        await updateReview(reviewId, userId, rating, comment);
+        res.json({ message: 'Reseña actualizada' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 export default router;
