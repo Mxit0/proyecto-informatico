@@ -1,5 +1,8 @@
 package com.example.marketelectronico.ui.product
 
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border // Agregado para el borde de la foto
@@ -185,25 +188,85 @@ private fun ProductDetailsContent(
     var showEditDialog by remember { mutableStateOf(false) }
     var showNoStockDialog by remember { mutableStateOf(false) }
 
+    // --- GALERÍA DE IMÁGENES ---
+    // Lista final de imágenes: si no hay imageUrls, usamos solo imageUrl
+    val imageList = remember(product) {
+        val baseList = if (product.imageUrls.isNotEmpty()) {
+            product.imageUrls
+        } else {
+            listOf(product.imageUrl)
+        }
+        baseList.filter { it.isNotBlank() }
+    }
+
+    var selectedIndex by rememberSaveable { mutableStateOf(0) }
+    val mainImageUrl = imageList.getOrNull(selectedIndex) ?: product.imageUrl
+    // --- FIN GALERÍA DE IMÁGENES ---
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
             .verticalScroll(rememberScrollState())
     ) {
-        // --- 6. USAR COIL PARA CARGAR IMAGEN REAL ---
-        AsyncImage(
-            model = product.imageUrl,
-            contentDescription = product.name,
-            contentScale = ContentScale.Crop,
-            placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
-            error = painterResource(id = android.R.drawable.ic_menu_gallery),
+        // --- GALERÍA: MINIATURAS + IMAGEN PRINCIPAL ---
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(250.dp)
                 .background(Color.DarkGray)
-        )
-        // -------------------------------------------
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Columna de miniaturas (solo si hay más de una imagen)
+            if (imageList.size > 1) {
+                LazyColumn(
+                    modifier = Modifier
+                        .width(72.dp)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(imageList) { index, url ->
+                        AsyncImage(
+                            model = url,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                            error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(
+                                    width = if (index == selectedIndex) 2.dp else 0.dp,
+                                    brush = SolidColor(
+                                        if (index == selectedIndex)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            Color.Transparent
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable { selectedIndex = index }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+            }
+
+            // Imagen principal
+            AsyncImage(
+                model = mainImageUrl,
+                contentDescription = product.name,
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(12.dp))
+            )
+        }
+        // --- FIN GALERÍA ---
 
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -225,7 +288,7 @@ private fun ProductDetailsContent(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- Sección del Vendedor (MODIFICADA) ---
+            // --- Sección del Vendedor ---
             Text(
                 text = "Vendedor",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -236,11 +299,8 @@ private fun ProductDetailsContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // CONDICIÓN: ¿Soy el dueño del producto?
                 if (product.sellerId == currentUserId) {
                     // === VISTA DE DUEÑO ===
-
-                    // Botón Editar
                     Button(
                         onClick = { showEditDialog = true },
                         modifier = Modifier.weight(1f),
@@ -251,7 +311,6 @@ private fun ProductDetailsContent(
                         Text("Editar")
                     }
 
-                    // Botón Borrar
                     OutlinedButton(
                         onClick = { showDeleteConfirm = true },
                         modifier = Modifier.weight(1f),
@@ -262,32 +321,25 @@ private fun ProductDetailsContent(
                         Text("Borrar")
                     }
                 } else {
-                    // === VISTA DE COMPRADOR (Lo que ya tenías) ===
+                    // === VISTA DE COMPRADOR ===
                     Button(
                         onClick = {
-                            // 2. MODIFICACIÓN: Verificar stock antes de llamar al repositorio
-
-                            // Extraemos el stock del mapa de especificaciones (así lo guardaste en el Mapper)
                             val currentStock = product.specifications["Stock"]?.toIntOrNull() ?: 0
-
                             if (currentStock > 0) {
                                 CartRepository.addToCart(product)
                                 showDialog = true
                             } else {
-                                // Si no hay stock, mostramos el mensaje de error
                                 showNoStockDialog = true
                             }
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            // Opcional: Cambiar color a gris si no hay stock visualmente
                             containerColor = if ((product.specifications["Stock"]?.toIntOrNull() ?: 0) > 0)
                                 MaterialTheme.colorScheme.primary
                             else Color.Gray
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        // Opcional: Cambiar texto si está agotado
                         val stock = product.specifications["Stock"]?.toIntOrNull() ?: 0
                         Text(if (stock > 0) "Añadir al Carrito" else "Agotado")
                     }
@@ -303,43 +355,45 @@ private fun ProductDetailsContent(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 👇 NUEVA ESTRUCTURA VISUAL
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp)) // Recortar para el efecto ripple
+                    .clip(RoundedCornerShape(12.dp))
                     .background(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                     )
-                    .clickable { onSellerClick(product.sellerId) } // 👈 AQUÍ LA MAGIA
+                    .clickable { onSellerClick(product.sellerId) }
                     .padding(12.dp)
             ) {
-                // 👇 FOTO CON COIL
                 AsyncImage(
-                    model = product.sellerImageUrl ?: "https://i.pravatar.cc/150?u=${product.sellerId}", // Fallback
+                    model = product.sellerImageUrl ?: "https://i.pravatar.cc/150?u=${product.sellerId}",
                     contentDescription = "Avatar del vendedor",
                     modifier = Modifier
                         .size(50.dp)
                         .clip(CircleShape)
-                        .border(1.dp, MaterialTheme.colorScheme.primary, CircleShape) // Borde
+                        .border(1.dp, MaterialTheme.colorScheme.primary, CircleShape)
                         .background(Color.Gray),
                     contentScale = ContentScale.Crop,
                     placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
                     error = painterResource(id = android.R.drawable.ic_menu_gallery)
                 )
-                // ----------------
 
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = product.sellerName,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold, // Más negrita
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = "Rating",
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "${product.sellerRating} (${product.sellerReviews} reviews)",
@@ -356,10 +410,8 @@ private fun ProductDetailsContent(
                     Text("Reportar")
                 }
             }
-            // ----------------------------------------
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Sección de Descripción
             Text(
                 text = "Descripción",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -373,7 +425,6 @@ private fun ProductDetailsContent(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Sección de Especificaciones
             Text(
                 text = "Especificaciones",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -397,7 +448,6 @@ private fun ProductDetailsContent(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Botones de reviews
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -422,7 +472,7 @@ private fun ProductDetailsContent(
                     Text("Ver reviews del vendedor")
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp)) // Espacio extra al final
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
@@ -473,7 +523,6 @@ private fun ProductDetailsContent(
         )
     }
 
-    // --- DIÁLOGO DE "AÑADIDO AL CARRITO" ---
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
