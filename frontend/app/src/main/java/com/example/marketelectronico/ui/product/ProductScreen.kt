@@ -41,6 +41,12 @@ import com.example.marketelectronico.utils.TokenManager
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.clickable
+import com.example.marketelectronico.data.repository.Review
+import com.example.marketelectronico.data.repository.ReviewRepository
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 /**
  * Pantalla de Detalles del Producto.
@@ -77,6 +83,52 @@ fun ProductScreen(
     val navIcons = listOf(Icons.Default.Home, Icons.AutoMirrored.Filled.List, Icons.Default.AddCircle, Icons.Default.Email, Icons.Default.Person, Icons.Default.Info)
     val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
     // --- FIN LÓGICA BOTTOM BAR ---
+
+    val myExistingReview by viewModel.myExistingReview.collectAsState()
+
+    LaunchedEffect(uiState) {
+        if (uiState is ProductDetailUiState.Success) {
+            val product = (uiState as ProductDetailUiState.Success).product
+            viewModel.checkIfReviewed(product.sellerId)
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // CAMBIO CLAVE:
+                // No usamos la variable 'uiState' de arriba (que puede ser vieja),
+                // sino que pedimos el valor ACTUAL al ViewModel en este instante exacto.
+                val currentState = viewModel.uiState.value
+
+                if (currentState is ProductDetailUiState.Success) {
+                    // Ahora sí tenemos el producto cargado y podemos chequear
+                    viewModel.checkIfReviewed(currentState.product.sellerId)
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val currentBackStackEntry = navController.currentBackStackEntry
+    val refreshReviews = currentBackStackEntry?.savedStateHandle
+        ?.getStateFlow("refresh_reviews", false)
+        ?.collectAsState()
+
+    LaunchedEffect(refreshReviews?.value) {
+        if (refreshReviews?.value == true) {
+            if (uiState is ProductDetailUiState.Success) {
+                val sellerId = (uiState as ProductDetailUiState.Success).product.sellerId
+                viewModel.checkIfReviewed(sellerId)
+
+                // Reseteamos el valor a false para no recargar infinitamente
+                currentBackStackEntry?.savedStateHandle?.set("refresh_reviews", false)
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -162,6 +214,12 @@ fun ProductScreen(
                     onSellerClick = { sellerId ->
                         // Navegamos a una nueva ruta pasando el ID
                         navController.navigate("profile_public/$sellerId")
+                    },
+                    myExistingReview = myExistingReview,
+                    onUpdateReview = { id, rating, comment -> // <--- Callback para editar
+                        viewModel.updateUserReview(id, rating, comment) {
+                            viewModel.checkIfReviewed(state.product.sellerId) // Recargar
+                        }
                     }
                 )
             }
@@ -178,12 +236,16 @@ private fun ProductDetailsContent(
     onContactSeller: (Int) -> Unit,
     onDelete: (String) -> Unit,
     onUpdate: (String, String, String, Double, Int) -> Unit,
-    onSellerClick: (Int) -> Unit
+    onSellerClick: (Int) -> Unit,
+    myExistingReview: Review?,
+    onUpdateReview: (String, Double, String) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showNoStockDialog by remember { mutableStateOf(false) }
+
+    var showEditReviewDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -191,7 +253,7 @@ private fun ProductDetailsContent(
             .padding(paddingValues)
             .verticalScroll(rememberScrollState())
     ) {
-        // --- 6. USAR COIL PARA CARGAR IMAGEN REAL ---
+        // Imagen del producto
         AsyncImage(
             model = product.imageUrl,
             contentDescription = product.name,
@@ -203,7 +265,6 @@ private fun ProductDetailsContent(
                 .height(250.dp)
                 .background(Color.DarkGray)
         )
-        // -------------------------------------------
 
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -225,22 +286,20 @@ private fun ProductDetailsContent(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- Sección del Vendedor (MODIFICADA) ---
+            // --- Sección del Vendedor ---
             Text(
                 text = "Vendedor",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Botones Superiores (Editar/Borrar si es dueño, Comprar/Contactar si no)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // CONDICIÓN: ¿Soy el dueño del producto?
                 if (product.sellerId == currentUserId) {
-                    // === VISTA DE DUEÑO ===
-
-                    // Botón Editar
                     Button(
                         onClick = { showEditDialog = true },
                         modifier = Modifier.weight(1f),
@@ -250,8 +309,6 @@ private fun ProductDetailsContent(
                         Spacer(Modifier.width(8.dp))
                         Text("Editar")
                     }
-
-                    // Botón Borrar
                     OutlinedButton(
                         onClick = { showDeleteConfirm = true },
                         modifier = Modifier.weight(1f),
@@ -262,36 +319,25 @@ private fun ProductDetailsContent(
                         Text("Borrar")
                     }
                 } else {
-                    // === VISTA DE COMPRADOR (Lo que ya tenías) ===
                     Button(
                         onClick = {
-                            // 2. MODIFICACIÓN: Verificar stock antes de llamar al repositorio
-
-                            // Extraemos el stock del mapa de especificaciones (así lo guardaste en el Mapper)
                             val currentStock = product.specifications["Stock"]?.toIntOrNull() ?: 0
-
                             if (currentStock > 0) {
                                 CartRepository.addToCart(product)
                                 showDialog = true
                             } else {
-                                // Si no hay stock, mostramos el mensaje de error
                                 showNoStockDialog = true
                             }
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            // Opcional: Cambiar color a gris si no hay stock visualmente
-                            containerColor = if ((product.specifications["Stock"]?.toIntOrNull() ?: 0) > 0)
-                                MaterialTheme.colorScheme.primary
-                            else Color.Gray
+                            containerColor = if ((product.specifications["Stock"]?.toIntOrNull() ?: 0) > 0) MaterialTheme.colorScheme.primary else Color.Gray
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        // Opcional: Cambiar texto si está agotado
                         val stock = product.specifications["Stock"]?.toIntOrNull() ?: 0
                         Text(if (stock > 0) "Añadir al Carrito" else "Agotado")
                     }
-
                     OutlinedButton(
                         onClick = { onContactSeller(product.sellerId) },
                         modifier = Modifier.weight(1f),
@@ -303,39 +349,34 @@ private fun ProductDetailsContent(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 👇 NUEVA ESTRUCTURA VISUAL
+            // Tarjeta del Vendedor (Clickable)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp)) // Recortar para el efecto ripple
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                    .clickable { onSellerClick(product.sellerId) } // 👈 AQUÍ LA MAGIA
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    .clickable { onSellerClick(product.sellerId) }
                     .padding(12.dp)
             ) {
-                // 👇 FOTO CON COIL
                 AsyncImage(
-                    model = product.sellerImageUrl ?: "https://i.pravatar.cc/150?u=${product.sellerId}", // Fallback
+                    model = product.sellerImageUrl ?: "https://i.pravatar.cc/150?u=${product.sellerId}",
                     contentDescription = "Avatar del vendedor",
                     modifier = Modifier
                         .size(50.dp)
                         .clip(CircleShape)
-                        .border(1.dp, MaterialTheme.colorScheme.primary, CircleShape) // Borde
+                        .border(1.dp, MaterialTheme.colorScheme.primary, CircleShape)
                         .background(Color.Gray),
                     contentScale = ContentScale.Crop,
                     placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
                     error = painterResource(id = android.R.drawable.ic_menu_gallery)
                 )
-                // ----------------
-
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = product.sellerName,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold, // Más negrita
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -348,18 +389,10 @@ private fun ProductDetailsContent(
                         )
                     }
                 }
-                OutlinedButton(
-                    onClick = { /* TODO: Reportar vendedor */ },
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.error))
-                ) {
-                    Text("Reportar")
-                }
             }
-            // ----------------------------------------
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Sección de Descripción
+            // Descripción
             Text(
                 text = "Descripción",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -373,7 +406,7 @@ private fun ProductDetailsContent(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Sección de Especificaciones
+            // Especificaciones
             Text(
                 text = "Especificaciones",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -397,45 +430,82 @@ private fun ProductDetailsContent(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Botones de reviews
+            // --- BOTONES INFERIORES (Reviews y Calificar) ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Botón Reviews del Producto
                 OutlinedButton(
                     onClick = { navController.navigate("product_reviews/${product.id}") },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
-                    shape = RoundedCornerShape(8.dp)
+                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary))
                 ) {
-                    Text("Ver reviews del producto")
+                    Text(
+                        text = "Reviews Producto",
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 14.sp
+                    )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                OutlinedButton(
-                    onClick = { navController.navigate("add_seller_review/${product.sellerId}/${product.sellerName}") },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Calificar Vendedor")
+
+                // Botón Calificar / Editar Vendedor
+                // (Solo mostrar si NO soy el dueño)
+                if (product.sellerId != currentUserId) {
+                    if (myExistingReview != null) {
+                        // MODO EDITAR
+                        Button(
+                            onClick = { showEditReviewDialog = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Text(
+                                text = "Editar tu Review",
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        // MODO CALIFICAR (CREAR)
+                        OutlinedButton(
+                            onClick = { navController.navigate("add_seller_review/${product.sellerId}/${product.sellerName}") },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                            border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.primary))
+                        ) {
+                            Text(
+                                text = "Calificar Vendedor",
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    // Relleno si soy el dueño para que el botón de la izquierda no se estire solo
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp)) // Espacio extra al final
         }
     }
+
+    // --- DIÁLOGOS ---
 
     if (showNoStockDialog) {
         AlertDialog(
             onDismissRequest = { showNoStockDialog = false },
             title = { Text("Producto Agotado") },
             text = { Text("Lo sentimos, este producto no tiene stock disponible por el momento.") },
-            confirmButton = {
-                TextButton(onClick = { showNoStockDialog = false }) {
-                    Text("Entendido")
-                }
-            },
+            confirmButton = { TextButton(onClick = { showNoStockDialog = false }) { Text("Entendido") } },
             icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Yellow) }
         )
     }
@@ -452,13 +522,9 @@ private fun ProductDetailsContent(
                         onDelete(product.id)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Eliminar")
-                }
+                ) { Text("Eliminar") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancelar") }
-            }
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancelar") } }
         )
     }
 
@@ -473,29 +539,46 @@ private fun ProductDetailsContent(
         )
     }
 
-    // --- DIÁLOGO DE "AÑADIDO AL CARRITO" ---
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text(text = "¡Producto Añadido!") },
             text = { Text(text = "El producto ha sido añadido a tu carrito.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDialog = false
-                        navController.navigate("cart")
-                    }
-                ) {
-                    Text("Ir al Carrito")
+            confirmButton = { TextButton(onClick = { showDialog = false; navController.navigate("cart") }) { Text("Ir al Carrito") } },
+            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Seguir Comprando") } }
+        )
+    }
+
+    // DIÁLOGO DE EDICIÓN DE REVIEW DE VENDEDOR
+    if (showEditReviewDialog && myExistingReview != null) {
+        var newRating by remember { mutableDoubleStateOf(myExistingReview!!.rating) }
+        var newComment by remember { mutableStateOf(myExistingReview!!.comment) }
+
+        AlertDialog(
+            onDismissRequest = { showEditReviewDialog = false },
+            title = { Text("Editar tu opinión sobre el vendedor") },
+            text = {
+                Column {
+                    com.example.marketelectronico.ui.review.RatingInput(
+                        currentRating = newRating,
+                        onRatingChanged = { newRating = it }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newComment,
+                        onValueChange = { newComment = it },
+                        label = { Text("Comentario") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDialog = false }
-                ) {
-                    Text("Seguir Comprando")
-                }
-            }
+            confirmButton = {
+                Button(onClick = {
+                    showEditReviewDialog = false
+                    onUpdateReview(myExistingReview!!.id, newRating, newComment)
+                }) { Text("Actualizar") }
+            },
+            dismissButton = { TextButton(onClick = { showEditReviewDialog = false }) { Text("Cancelar") } }
         )
     }
 }
@@ -578,7 +661,9 @@ fun ProductScreenPreview() {
             onContactSeller = {},
             onDelete = {},
             onUpdate = { _, _, _, _, _ -> },
-            onSellerClick = {}
+            onSellerClick = {},
+            myExistingReview = null,
+            onUpdateReview = { _, _, _ -> }
         )
     }
 }

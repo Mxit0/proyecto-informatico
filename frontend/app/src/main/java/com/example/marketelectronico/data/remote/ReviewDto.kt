@@ -52,3 +52,8 @@ data class CreateUserReviewRequest(
 data class UserRatingResponse(
     val average: Double
 )
+
+data class ReviewCheckResponse(
+    val exists: Boolean,
+    val review: UserReviewDto?
+)

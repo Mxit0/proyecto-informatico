@@ -346,3 +346,29 @@ export async function updateUserReview(reviewId, authorId, rating, comment) {
     throw new Error('Error actualizando reseña de usuario: ' + err.message);
   }
 }
+
+export async function getReviewBetweenUsers(authorId, targetUserId) {
+  try {
+    // Obtener el dato crudo
+    const { data, error } = await supabase
+      .from('resenas_usuarios')
+      .select('*')
+      .eq('id_autor', authorId)
+      .eq('id_destinatario', targetUserId)
+      .maybeSingle(); 
+
+    if (error) throw error;
+    if (!data) return null; // Si no existe, devuelve null
+
+    // Usar la función enrichUserReviews para formatearlo
+    // Como enrichUserReviews espera un array, metemos 'data' en corchetes [data]
+    const enrichedList = await enrichUserReviews([data]);
+
+    // Devolvemos el primer elemento ya formateado
+    return enrichedList.length > 0 ? enrichedList[0] : null;
+
+  } catch (err) {
+    console.error('Error buscando reseña existente:', err);
+    return null;
+  }
+}

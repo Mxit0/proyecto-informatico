@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import com.example.marketelectronico.data.remote.UpdateProductRequest
+import com.example.marketelectronico.utils.TokenManager
+import com.example.marketelectronico.data.repository.Review
+import com.example.marketelectronico.data.repository.ReviewRepository
 
 // Estado para la pantalla de detalle
 sealed class ProductDetailUiState {
@@ -38,6 +41,9 @@ class ProductViewModel(
 
     // Repositorio de chat para el botón "Contactar"
     private val chatRepository: ChatRepository = ChatRepository(ApiClient.chatApi)
+
+    private val _myExistingReview = MutableStateFlow<Review?>(null)
+    val myExistingReview: StateFlow<Review?> = _myExistingReview
 
     fun fetchProduct(productId: String) {
         viewModelScope.launch {
@@ -101,6 +107,33 @@ class ProductViewModel(
                 fetchProduct(productId)
             } else {
                 Log.e("ProductVM", "Error al actualizar")
+            }
+        }
+    }
+
+    fun checkIfReviewed(sellerId: Int) {
+        val currentUserId = TokenManager.getUserId()?.toString() ?: return
+
+        // No te puedes reseñar a ti mismo
+        if (currentUserId == sellerId.toString()) return
+
+        viewModelScope.launch {
+            val review = ReviewRepository.checkUserReview(currentUserId, sellerId.toString())
+            _myExistingReview.value = review
+        }
+    }
+
+    fun updateUserReview(reviewId: String, rating: Double, comment: String, onSuccess: () -> Unit) {
+        val currentUserId = TokenManager.getUserId()?.toString() ?: return
+        viewModelScope.launch {
+            val success = ReviewRepository.updateUserReview(reviewId, currentUserId, rating, comment)
+            if (success) {
+                // Obtener el ID del vendedor desde el estado actual del producto
+                val currentState = _uiState.value
+                if (currentState is ProductDetailUiState.Success) {
+                    checkIfReviewed(currentState.product.sellerId) // Usamos el ID del vendedor, no el mío
+                }
+                onSuccess()
             }
         }
     }

@@ -226,4 +226,33 @@ object ReviewRepository {
             false
         }
     }
+
+    suspend fun checkUserReview(authorId: String, targetId: String): Review? {
+        return try {
+            val response = api.checkUserReview(authorId, targetId)
+            if (response.isSuccessful && response.body()?.exists == true) {
+                val dto = response.body()!!.review
+                // Mapeo rápido manual (o usa tu mapDtoToReview si es compatible)
+                if (dto != null) {
+                    Review(
+                        id = dto.id,
+                        productId = "",
+                        productName = "Vendedor",
+                        productImageUrl = "",
+                        author = dto.authorName,
+                        authorId = dto.authorId,
+                        authorImageUrl = dto.authorPhoto,
+                        date = try { SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(dto.date) ?: Date() } catch (e: Exception) { Date() },
+                        rating = dto.rating,
+                        comment = dto.comment,
+                        likedByUserIds = emptyList()
+                    )
+                } else null
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

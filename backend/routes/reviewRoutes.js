@@ -11,7 +11,8 @@ import {
   deleteUserReview,
   updateUserReview,
   getReviewsForUser,
-  getUserRatingAverage
+  getUserRatingAverage,
+  getReviewBetweenUsers
 } from '../repositories/reviewRepository.js';
 
 const router = express.Router();
@@ -47,6 +48,19 @@ router.get('/seller/:sellerId', async (req, res) => {
     const { sellerId } = req.params;
     const reviews = await getReviewsReceivedBySeller(sellerId);
     res.json(reviews);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/reviews/user/check
+router.get('/user/check', async (req, res) => {
+  try {
+    const { authorId, targetId } = req.query;
+    if (!authorId || !targetId) return res.status(400).json({ error: 'Faltan IDs' });
+
+    const review = await getReviewBetweenUsers(authorId, targetId);
+    res.json({ exists: !!review, review: review });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -197,5 +211,7 @@ router.put('/user/:reviewId', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+
 
 export default router;

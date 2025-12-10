@@ -54,4 +54,10 @@ interface ReviewAPI {
     // NUEVO: Editar reseña de usuario
     @PUT("api/reviews/user/{reviewId}")
     suspend fun updateUserReview(@Path("reviewId") reviewId: String, @Body body: UpdateReviewRequest): Response<Any>
+
+    @GET("api/reviews/user/check")
+    suspend fun checkUserReview(
+        @Query("authorId") authorId: String,
+        @Query("targetId") targetId: String
+    ): Response<ReviewCheckResponse>
 }

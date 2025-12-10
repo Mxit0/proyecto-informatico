@@ -73,9 +73,15 @@ fun UserReviewScreen(
                                 comment = comment
                             )
                             if (success) {
+                                // AVISAR A LA PANTALLA ANTERIOR (PRODUCTO) QUE RECARGUE
+                                navController.previousBackStackEntry
+                                    ?.savedStateHandle
+                                    ?.set("refresh_reviews", true)
+
+                                // VOLVER
                                 navController.popBackStack()
                             } else {
-                                // Error handling
+                                // Error
                             }
                         }
                     }
