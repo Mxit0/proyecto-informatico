@@ -188,7 +188,12 @@ suspend fun uploadProductImages(
         resolvedSellerPhoto: String? = null,
         resolvedSellerRating: Double = 0.0
     ): Product {
-        val mainImage = this.imagenes.firstOrNull()?.urlImagen
+        // 👇 TODAS LAS IMÁGENES DEL PRODUCTO
+        val allImages: List<String> =
+            this.imagenes?.mapNotNull { it.urlImagen } ?: emptyList()
+
+        // 👇 IMAGEN PRINCIPAL = PRIMERA O PLACEHOLDER
+        val mainImage = allImages.firstOrNull()
             ?: "https://placehold.co/300x300/CCCCCC/FFFFFF?text=No+Imagen"
 
         return Product(
@@ -202,15 +207,18 @@ suspend fun uploadProductImages(
             sellerName = resolvedSellerName ?: "Vendedor #${this.idUsuario}",
             sellerImageUrl = resolvedSellerPhoto,
             sellerRating = resolvedSellerRating,
-            sellerReviews = 10, // Dato hardcodeado por ahora (API User no lo devuelve aún).
+            sellerReviews = 10,
             // --------------------------
             description = this.descripcion,
             specifications = mapOf(
                 "Stock" to this.stock.toString(),
                 "Categoría" to this.categoria
-            )
+            ),
+            // 👇 NUEVO CAMPO: GALERÍA COMPLETA
+            imageUrls = allImages
         )
     }
+
 
     suspend fun deleteProduct(productId: String): Boolean {
         return try {
@@ -250,7 +258,10 @@ suspend fun uploadProductImages(
  * Función "Mapper" simple que convierte el DTO al modelo de UI (Product).
  */
 private fun ProductResponse.toProduct(): Product {
-    val imageUrl = this.imagenes?.firstOrNull()?.urlImagen
+    val allImages: List<String> =
+        this.imagenes?.mapNotNull { it.urlImagen } ?: emptyList()
+
+    val imageUrl = allImages.firstOrNull()
         ?: "https://placehold.co/300x300/CCCCCC/FFFFFF?text=No+Imagen"
 
     val productStatus = this.categoria ?: "Sin categoría"
@@ -262,7 +273,6 @@ private fun ProductResponse.toProduct(): Product {
         price = this.precio,
         imageUrl = imageUrl,
         status = productStatus,
-        // En este mapper simple, los datos del vendedor son genéricos.
         sellerId = this.idUsuario,
         sellerName = "Vendedor #${this.idUsuario}",
         sellerImageUrl = null,
@@ -272,6 +282,9 @@ private fun ProductResponse.toProduct(): Product {
         specifications = mapOf(
             "Stock" to this.stock.toString(),
             "Categoría" to productStatus
-        )
+        ),
+        // 👇 aquí también
+        imageUrls = allImages
     )
 }
+
