@@ -50,6 +50,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 
 /**
  * Pantalla de Detalles del Producto.
@@ -263,6 +266,14 @@ private fun ProductDetailsContent(
 
     var selectedIndex by rememberSaveable { mutableStateOf(0) }
     val mainImageUrl = imageList.getOrNull(selectedIndex) ?: product.imageUrl
+
+    val finalImages = remember(product) {
+        if (product.imageUrls.isNotEmpty()) {
+            product.imageUrls.filter { it.isNotBlank() }
+        } else {
+            listOf(product.imageUrl).filter { it.isNotBlank() }
+        }
+    }
     // --- FIN GALERÍA DE IMÁGENES ---
 
     Column(
@@ -272,62 +283,10 @@ private fun ProductDetailsContent(
             .verticalScroll(rememberScrollState())
     ) {
         // --- GALERÍA: MINIATURAS + IMAGEN PRINCIPAL ---
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-                .background(Color.DarkGray)
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Columna de miniaturas (solo si hay más de una imagen)
-            if (imageList.size > 1) {
-                LazyColumn(
-                    modifier = Modifier
-                        .width(72.dp)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    itemsIndexed(imageList) { index, url ->
-                        AsyncImage(
-                            model = url,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
-                            error = painterResource(id = android.R.drawable.ic_menu_gallery),
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .border(
-                                    width = if (index == selectedIndex) 2.dp else 0.dp,
-                                    brush = SolidColor(
-                                        if (index == selectedIndex)
-                                            MaterialTheme.colorScheme.primary
-                                        else
-                                            Color.Transparent
-                                    ),
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .clickable { selectedIndex = index }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-            }
-
-            // Imagen principal
-            AsyncImage(
-                model = mainImageUrl,
-                contentDescription = product.name,
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
-                error = painterResource(id = android.R.drawable.ic_menu_gallery),
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(12.dp))
-            )
-        }
+        ProductImageCarousel(
+            images = finalImages,
+            productName = product.name
+        )
         // --- FIN GALERÍA ---
 
         Column(modifier = Modifier.padding(16.dp)) {
@@ -714,6 +673,93 @@ fun EditProductDialog(
             TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
     )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun ProductImageCarousel(
+    images: List<String>,
+    productName: String
+) {
+    // Si no hay imágenes, mostramos un placeholder
+    if (images.isEmpty()) return
+
+    val pagerState = rememberPagerState(pageCount = { images.size })
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(350.dp) // Altura más generosa para ver bien el producto
+            .background(MaterialTheme.colorScheme.surface) // Fondo limpio
+    ) {
+        // --- CARRUSEL DESLIZABLE ---
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            AsyncImage(
+                model = images[page],
+                contentDescription = "$productName imagen ${page + 1}",
+                //contentScale = ContentScale.Fit, // Fit para ver el producto entero, Crop para llenar
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                modifier = Modifier
+                    .fillMaxSize()
+                    //.padding(16.dp) // Un poco de aire para que no toque los bordes
+            )
+        }
+
+        // --- INDICADOR DE PUNTOS (DOTS) ---
+        // Solo mostramos los puntos si hay más de una imagen
+        if (images.size > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.background.copy(alpha = 0.5f),
+                        shape = CircleShape
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                repeat(images.size) { iteration ->
+                    val color = if (pagerState.currentPage == iteration)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+
+                    Box(
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .size(8.dp) // Tamaño del punto
+                    )
+                }
+            }
+        }
+
+        // --- CONTADOR NUMÉRICO (Opcional, estilo MercadoLibre) ---
+        // Descomenta esto si prefieres "1/5" en vez de puntitos
+
+        if (images.size > 1) {
+            Text(
+                text = "${pagerState.currentPage + 1} / ${images.size}",
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                        RoundedCornerShape(4.dp)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+
+    }
 }
 
 
