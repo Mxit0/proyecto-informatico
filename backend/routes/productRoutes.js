@@ -1,151 +1,225 @@
-import express from 'express';
-import multer from 'multer';
-import { supabase } from "../lib/supabaseClient.js";
-/*import { 
-  getAllProducts, 
+import express from "express";
+import multer from "multer";
+import {
+  getAllProducts,
   getProductById,
-  createProduct, 
+  createProduct,
   uploadProductImages,
   getProductImages,
-  updateProduct
-} from '../repositories/productRepository.js';*/
-import productRepository from '../repositories/productRepository.js';
-
+  updateProduct,
+  getAllCategories,
+  getProductsByCategory,
+} from "../repositories/productRepository.js";
+import { getComponentsByCategory } from "../repositories/componenteRepository.js";
+import { deleteProduct } from "../repositories/productRepository.js";
+import { getProductsByUserId } from "../repositories/productRepository.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-
-console.log("CARGANDO productRoutes.js CORRECTO");
-router.get('/debug', (req, res) => {
-  res.json({ message: "Ruta debug funcionando" });
-});
-
-// ======================
-//  GET - Todos los productos
-// ======================
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 100;
-
-    const products = await productRepository.getAllProducts(page, limit);
+    const products = await getAllProducts(page, limit);
     res.json(products);
-
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener productos: ' + error.message });
+    res
+      .status(500)
+      .json({ error: "Error al obtener productos: " + error.message });
   }
 });
 
-
-// ======================
-//  GET - Tipos de componente
-// ======================
-router.get('/tipos', async (req, res) => {
+// Ruta alternativa más simple para obtener categorías
+router.get("/categorias", async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('componente_maestro')
-      .select('categoria');
-
-    if (error) throw error;
-
-    const tipos = [...new Set(data.map(d => d.categoria))];
-
-    res.json(tipos);
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const categories = await getAllCategories();
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// ======================
-//  GET - Componentes por tipo
-// ======================
-router.get('/tipos/:tipo', async (req, res) => {
-  const { tipo } = req.params;
-
+// 1. Obtener todas las categorías
+router.get("/categorias/todas", async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('componente_maestro')
-      .select('id, nombre_componente, categoria')
-      .eq('categoria', tipo);
-
-    if (error) throw error;
-
-    res.json(data);
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const categories = await getAllCategories();
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
+// Obtener componentes maestros por categoría
+router.get("/componentes/categoria/:categoryId", async (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.categoryId);
+    const componentes = await getComponentsByCategory(categoryId);
+    res.json(componentes);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-// ======================
-//  GET - Producto por ID
-// ======================
-router.get('/id/:id', async (req, res) => {
+// 2. Obtener productos por categoría
+router.get("/categoria/:categoryId", async (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.categoryId);
+    const products = await getProductsByCategory(categoryId);
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const product = await productRepository.getProductById(id);
-
+    const product = await getProductById(id);
     if (!product) {
-      return res.status(404).json({ error: 'Producto no encontrado' });
+      return res.status(404).json({ error: "Producto no encontrado" });
     }
-
     res.json(product);
-
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener el producto: ' + error.message });
+    res
+      .status(500)
+      .json({ error: "Error al obtener el producto: " + error.message });
   }
 });
 
-
-// ======================
-//  POST - Crear nuevo producto (con componente maestro)
-// ======================
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
+    const newProductData = req.body;
     const {
-      id_componente_maestro,
+      nombre,
       precio,
       descripcion,
       id_usuario,
-      stock
-    } = req.body;
+      stock,
+      categoria,
+      id_componente_maestro,
+    } = newProductData;
 
-    if (!id_componente_maestro || !precio || !id_usuario) {
+    if (
+      !nombre ||
+      !precio ||
+      !descripcion ||
+      !id_usuario ||
+      !stock ||
+      !categoria ||
+      !id_componente_maestro
+    ) {
       return res.status(400).json({
-        error: "Faltan datos requeridos: id_componente_maestro, precio, id_usuario"
+        error:
+          "Datos incompletos. Se requieren: nombre, precio, descripcion, id_usuario, stock, categoria, id_componente_maestro.",
+      });
+    }
+    newProductData.fecha_publicacion = new Date().toISOString();
+
+    const createdProduct = await createProduct(newProductData);
+    res.status(201).json(createdProduct);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Error al crear el producto: " + error.message });
+  }
+});
+
+router.post("/:id/imagenes", upload.array("imagenes", 10), async (req, res) => {
+  try {
+    const id_producto = req.params.id;
+    const files = req.files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: "No se enviaron archivos." });
+    }
+
+    if (files.length < 3) {
+      return res.status(400).json({
+        error: "Se requieren al menos 3 imágenes para publicar el producto.",
       });
     }
 
-    // Obtener maestro
-    const { data: maestro, error: maestroErr } = await supabase
-      .from('componente_maestro')
-      .select('nombre_componente, categoria')
-      .eq('id', id_componente_maestro)
-      .single();
+    const urls = await uploadProductImages(id_producto, files);
 
-    if (maestroErr || !maestro) {
-      return res.status(400).json({ error: "Componente maestro inválido" });
+    res.status(201).json({
+      message: "Imágenes subidas exitosamente",
+      urls: urls,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Error al subir imágenes: " + error.message });
+  }
+});
+
+router.get("/:id/imagenes", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const images = await getProductImages(id);
+
+    res.json(images || []);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Error al obtener las imágenes: " + error.message });
+  }
+});
+
+router.patch("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Validación simple: ¿Enviaron algo para cambiar?
+    if (Object.keys(updates).length === 0) {
+      return res
+        .status(400)
+        .json({ error: "No se enviaron datos para actualizar." });
     }
 
-    // Crear producto final
-    const newProduct = {
-      nombre: maestro.nombre_componente,
-      categoria: maestro.categoria,
-      descripcion: descripcion || '',
-      precio,
-      id_usuario,
-      stock: stock ?? 1,
-      id_componente_maestro
-    };
+    // Llamamos a la función del repositorio
+    const updatedProduct = await updateProduct(id, updates);
 
-    const created = await productRepository.createProduct(newProduct);
-    res.json(created);
+    if (!updatedProduct) {
+      return res
+        .status(404)
+        .json({ error: "Producto no encontrado o no se pudo actualizar" });
+    }
 
+    res.json(updatedProduct);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res
+      .status(500)
+      .json({ error: "Error al actualizar el producto: " + error.message });
+  }
+});
+
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Aquí deberías validar que el usuario que pide borrar sea el dueño (usando token/session),
+    // pero por ahora implementaremos la lógica base.
+    const deleted = await deleteProduct(id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Producto no encontrado o no se pudo eliminar" });
+    }
+
+    res.json({ message: "Producto eliminado correctamente" });
+  } catch (error) {
+    res.status(500).json({ error: "Error al eliminar producto: " + error.message });
+  }
+});
+
+router.get("/usuario/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const products = await getProductsByUserId(userId);
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: "Error obteniendo productos del usuario: " + error.message });
   }
 });
 

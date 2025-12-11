@@ -1,5 +1,9 @@
 package com.example.marketelectronico.ui.profile
 
+import android.net.Uri
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -16,13 +20,17 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,18 +52,51 @@ import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.foundation.clickable
+import com.example.marketelectronico.utils.TokenManager
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import com.example.marketelectronico.data.model.Product
+import androidx.compose.runtime.mutableDoubleStateOf
+import android.widget.Toast
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     navController: NavController,
+    userIdArgument: String? = null,
     modifier: Modifier = Modifier,
-    // Usamos el ViewModel que creó tu compañero
     viewModel: ProfileViewModel = viewModel()
 ) {
-    // Observamos el estado del perfil del usuario real
+    val currentUserId = TokenManager.getUserId()?.toString()
+    val isOwnProfile = userIdArgument == null || userIdArgument == currentUserId
+    LaunchedEffect(userIdArgument) {
+        viewModel.loadData(userIdArgument)
+    }
+    // Estado del perfil
     val userProfile by viewModel.userProfile.collectAsState()
+    val userOrders by viewModel.userOrders.collectAsState()
+    val myProducts by viewModel.myProducts.collectAsState()
+    val receivedReviews by viewModel.receivedReviews.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val context = LocalContext.current
+
+    // Imagen local elegida desde la galería
+    var localImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Launcher para abrir la galería
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            localImageUri = uri          // para mostrarla en la UI
+            viewModel.onNewProfileImageSelected(uri, context)
+        }
+    }
+
 
     // --- LÓGICA DE LA BOTTOM BAR ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
@@ -65,7 +106,7 @@ fun ProfileScreen(
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
-        Icons.Default.Info // O Icons.Default.Chat si lo prefieres
+        Icons.Default.Info
     )
     val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
 
@@ -100,8 +141,20 @@ fun ProfileScreen(
                     val selected = currentRoute == route
 
                     NavigationBarItem(
-                        icon = { Icon(navIcons[index], contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray) },
-                        label = { Text(label, color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray, fontSize = 9.sp) },
+                        icon = {
+                            Icon(
+                                navIcons[index],
+                                contentDescription = label,
+                                tint = if (selected) MaterialTheme.colorScheme.primary else Color.Gray
+                            )
+                        },
+                        label = {
+                            Text(
+                                label,
+                                color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray,
+                                fontSize = 9.sp
+                            )
+                        },
                         selected = selected,
                         onClick = {
                             navController.navigate(route) {
@@ -115,15 +168,25 @@ fun ProfileScreen(
             }
         }
     ) { padding ->
-        // Manejo de estados (Carga, Error, Éxito) del perfil
         when {
             isLoading -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator()
                 }
             }
+
             error != null -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Error: $error", color = MaterialTheme.colorScheme.error)
                         Button(onClick = { viewModel.loadUserProfile() }) {
@@ -132,77 +195,160 @@ fun ProfileScreen(
                     }
                 }
             }
+
             else -> {
-                // Si carga bien, mostramos la info del usuario y las pestañas
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    UserInfoSection(userProfile = userProfile)
-                    ProfileTabs(navController = navController, userProfile = userProfile)
+                    UserInfoSection(
+                        userProfile = userProfile,
+                        localImageUri = localImageUri,
+                        isEditable = isOwnProfile,
+                        onChangePhotoClick = { imagePickerLauncher.launch("image/*") }
+                    )
+                    ProfileTabs(
+                        navController = navController,
+                        userProfile = userProfile,
+                        userOrders = userOrders,
+                        myProducts = myProducts,
+                        receivedReviews = receivedReviews,
+                        isOwnProfile = isOwnProfile,
+                        viewModel = viewModel,
+                        userIdToReload = userIdArgument
+                    )
                 }
             }
         }
     }
 }
 
+
 // --- SECCIÓN DE INFORMACIÓN DEL USUARIO (De tu compañero) ---
 @Composable
-private fun UserInfoSection(userProfile: com.example.marketelectronico.data.remote.UserProfileDto?) {
+private fun UserInfoSection(
+    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?,
+    localImageUri: Uri?,
+    isEditable: Boolean,
+    onChangePhotoClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 24.dp, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Foto de perfil (con fallback si es nula)
-        if (userProfile?.foto != null) {
-            AsyncImage(
-                model = userProfile.foto,
-                contentDescription = "Foto de Perfil",
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = android.R.drawable.ic_menu_camera),
-                error = painterResource(id = android.R.drawable.ic_menu_camera)
-            )
-        } else {
-            Image(
-                painter = painterResource(id = android.R.drawable.ic_menu_camera),
-                contentDescription = "Foto de Perfil",
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-            )
+        // Usamos Box para superponer el icono de lápiz sobre la foto
+        Box(contentAlignment = Alignment.BottomEnd) {
+
+            // DEFINIR EL MODIFICADOR COMÚN PARA LA IMAGEN
+            val imageModifier = Modifier
+                .size(100.dp) // Tamaño fijo y más grande
+                .clip(CircleShape)
+                .background(Color.LightGray) // Fondo por si la imagen es transparente o carga
+                .then(
+                    // Solo agregamos el efecto de click si es editable
+                    if (isEditable) Modifier.clickable { onChangePhotoClick() } else Modifier
+                )
+
+            // MOSTRAR LA IMAGEN SEGÚN EL ESTADO
+            when {
+                // Caso A: Imagen seleccionada de la galería (local)
+                localImageUri != null -> {
+                    AsyncImage(
+                        model = localImageUri,
+                        contentDescription = "Foto de Perfil",
+                        modifier = imageModifier,
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                // Caso B: Foto guardada en el backend
+                userProfile?.foto != null -> {
+                    AsyncImage(
+                        model = userProfile.foto,
+                        contentDescription = "Foto de Perfil",
+                        modifier = imageModifier,
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                // Caso C: Sin foto (Placeholder)
+                else -> {
+                    Image(
+                        painter = painterResource(id = android.R.drawable.ic_menu_camera),
+                        contentDescription = "Foto de Perfil",
+                        modifier = imageModifier.padding(24.dp), // Padding interno para que el icono no se estire
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+
+            // EL ICONO DE EDITAR (LÁPIZ) - Superpuesto
+            if (isEditable) {
+                // Creamos un pequeño círculo azul para el lápiz
+                Box(
+                    modifier = Modifier
+                        .padding(4.dp) // Un pequeño margen respecto al borde de la foto
+                        .size(24.dp)   // Tamaño del círculo del botón
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable { onChangePhotoClick() }, // Click también aquí
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Editar foto",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp) // Tamaño del icono de lápiz dentro del círculo
+                    )
+                }
+            }
         }
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Nombre y correo
+        // Textos del perfil
         Text(
-            text = userProfile?.nombre_usuario ?: "Usuario",
-            style = MaterialTheme.typography.titleLarge
+            text = userProfile?.nombre_usuario ?: "Cargando...",
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
         )
-        Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = userProfile?.correo ?: "correo@mail.com",
-            style = MaterialTheme.typography.bodyMedium
+            text = userProfile?.correo ?: "",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color.Gray
         )
     }
 }
+
 
 // --- PESTAÑAS DEL PERFIL ---
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ProfileTabs(
     navController: NavController,
-    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?
+    userProfile: com.example.marketelectronico.data.remote.UserProfileDto?,
+    userOrders: List<Order>,
+    myProducts: List<Product>,
+    receivedReviews: List<Review>,
+    isOwnProfile: Boolean,
+    viewModel: ProfileViewModel,
+    userIdToReload: String?
 ) {
-    val pagerState = rememberPagerState { 3 }
+    val tabTitles = remember(isOwnProfile) {
+        if (isOwnProfile) {
+            // Si es mi perfil, veo todo
+            listOf("Mi Nota", "Ventas", "Compras", "Reviews")
+        } else {
+            // Si es perfil ajeno, ocultamos "Compras"
+            listOf("Mi Nota", "Ventas", "Reviews")
+        }
+    }
+    val pagerState = rememberPagerState { tabTitles.size }
     val coroutineScope = rememberCoroutineScope()
-    val tabTitles = listOf("Mi Nota", "Compras", "Reviews")
+
+    val currentUserId = TokenManager.getUserId()?.toString() ?: ""
+    val targetProfileId = userIdToReload ?: currentUserId
 
     Column(modifier = Modifier.fillMaxHeight()) {
         TabRow(
@@ -213,7 +359,7 @@ private fun ProfileTabs(
                 Tab(
                     selected = pagerState.currentPage == index,
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
-                    text = { Text(text = title) }
+                    text = { Text(text = title, fontSize = 12.sp) } // Ajusté un poco la fuente
                 )
             }
         }
@@ -223,64 +369,255 @@ private fun ProfileTabs(
             modifier = Modifier.weight(1f)
         ) { pageIndex ->
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxSize().padding(16.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
-                when (pageIndex) {
-                    0 -> MyRatingPage(reputation = userProfile?.reputacion) // Pasamos la reputación real
-                    1 -> PurchasesHistoryPage()
-                    2 -> ReviewsHistoryPage()
+                // 2. SWITCH BASADO EN EL NOMBRE DE LA PESTAÑA (NO EN EL ÍNDICE)
+                // Como el índice cambia si quitamos pestañas, usamos el título para saber qué mostrar.
+                when (tabTitles[pageIndex]) {
+                    "Mi Nota" -> MyRatingPage(
+                        reviews = receivedReviews,
+                        viewModel = viewModel,
+                        profileId = userIdToReload
+                    )
+
+                    "Ventas" -> MySalesPage(
+                        products = myProducts,
+                        onProductClick = { productId ->
+                            navController.navigate("product_detail/$productId")
+                        }
+                    )
+
+                    "Compras" -> PurchasesHistoryPage(
+                        orders = userOrders,
+                        onOrderClick = { orderId ->
+                            navController.navigate("order_detail/$orderId")
+                        }
+                    )
+
+                    "Reviews" -> ReviewsHistoryPage(
+                        targetUserId = targetProfileId,
+                        onReviewClick = { productId ->
+                            navController.navigate("product_detail/$productId")
+                        }
+                    )
                 }
             }
         }
 
-        Button(
-            onClick = { navController.navigate("login") { popUpTo(0) { inclusive = true } } },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer
-            )
-        ) {
-            Icon(Icons.Default.ExitToApp, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "Cerrar Sesión")
+        // El botón de cerrar sesión solo aparece si es tu perfil
+        if (isOwnProfile) {
+            Button(
+                onClick = { navController.navigate("login") { popUpTo(0) { inclusive = true } } },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
+            ) {
+                Icon(Icons.Default.ExitToApp, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = "Cerrar Sesión")
+            }
         }
     }
 }
 
 @Composable
-private fun MyRatingPage(reputation: Double?) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Tu Reputación como Vendedor", style = MaterialTheme.typography.titleMedium)
+private fun MyRatingPage(
+    reviews: List<Review>,
+    viewModel: ProfileViewModel,
+    profileId: String?
+) {
+    // Calcular promedio real
+    val averageRating = remember(reviews) {
+        if (reviews.isEmpty()) 0.0 else reviews.map { it.rating }.average()
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
+        Text("Reputación del Vendedor", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Gran Estrella y Nota
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(40.dp))
+            Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(48.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = String.format("%.1f", reputation ?: 0.0), // Mostramos la reputación real
-                style = MaterialTheme.typography.headlineLarge
+                text = String.format("%.1f", averageRating),
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Bold
             )
         }
-        Text("(Basado en tus ventas)", style = MaterialTheme.typography.bodySmall)
+        Text("(${reviews.size} reseñas recibidas)", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Lista de Reseñas Recibidas
+        if (reviews.isEmpty()) {
+            Text("Aún no hay reseñas recibidas.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(reviews) { review ->
+                    ReceivedReviewItem(
+                        review = review,
+                        viewModel = viewModel,
+                        onUpdateSuccess = {
+                            // Ahora 'viewModel' y 'profileId' SÍ existen en este ámbito
+                            viewModel.loadData(profileId)
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun PurchasesHistoryPage() {
-    // --- OBTENER USUARIO ACTUAL ---
-    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
-    val currentUserId = currentUser?.id_usuario?.toString() ?: "invitado"
+private fun ReceivedReviewItem(
+    review: Review,
+    viewModel: ProfileViewModel,
+    onUpdateSuccess: () -> Unit
+) {
+    val context = LocalContext.current
+    val currentUserId = TokenManager.getUserId()?.toString()
+    val isMyReview = currentUserId == review.authorId
 
-    // --- FILTRAR ÓRDENES POR USUARIO ---
-    // Ahora usamos la nueva función del repositorio
-    val orders = OrderRepository.getOrdersByUser(currentUserId)
-    // -----------------------------------
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
 
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row {
+                // Foto autor
+                AsyncImage(
+                    model = review.authorImageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.Gray),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    // Nombre y Fecha
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = review.author, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = ReviewRepository.formatDate(review.date), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    }
+                    // Estrellas (Copiado de tu versión anterior corregida)
+                    Row {
+                        val rating = review.rating
+                        val fullStars = rating.toInt()
+                        val hasHalfStar = (rating - fullStars) >= 0.5
+                        repeat(fullStars) { Icon(Icons.Default.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp)) }
+                        if (hasHalfStar) Icon(Icons.Default.StarHalf, null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
+                        repeat(5 - fullStars - (if (hasHalfStar) 1 else 0)) { Icon(Icons.Default.StarOutline, null, tint = Color.Gray, modifier = Modifier.size(14.dp)) }
+                    }
+                }
+
+                // ICONOS DE ACCIÓN (SOLO SI ES MI RESEÑA)
+                if (isMyReview) {
+                    Row {
+                        IconButton(onClick = { showEditDialog = true }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            if (review.comment.isNotEmpty()) {
+                Text(text = review.comment, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+
+    // --- DIÁLOGOS ---
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("¿Borrar reseña?") },
+            text = { Text("Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteUserReview(review.id) { success ->
+                            if (success) {
+                                onUpdateSuccess()
+                            } else {
+                                Toast.makeText(context, "Error al eliminar reseña", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Borrar") }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") } }
+        )
+    }
+
+    if (showEditDialog) {
+        // Reutilizamos la lógica simple de variables de estado para el dialogo
+        var newRating by remember { mutableDoubleStateOf(review.rating) }
+        var newComment by remember { mutableStateOf(review.comment) }
+
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Editar Reseña") },
+            text = {
+                Column {
+                    // Importante: Asegúrate de importar RatingInput de tu paquete review
+                    com.example.marketelectronico.ui.review.RatingInput(
+                        currentRating = newRating,
+                        onRatingChanged = { newRating = it }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newComment,
+                        onValueChange = { newComment = it },
+                        label = { Text("Comentario") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showEditDialog = false
+                    viewModel.updateUserReview(review.id, newRating, newComment) { success ->
+                        if (success) {
+                            onUpdateSuccess()
+                        } else {
+                            Toast.makeText(context, "Error al editar reseña", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }) { Text("Guardar") }
+            },
+            dismissButton = { TextButton(onClick = { showEditDialog = false }) { Text("Cancelar") } }
+        )
+    }
+}
+
+@Composable
+private fun PurchasesHistoryPage(
+    orders: List<Order>,
+    onOrderClick: (String) -> Unit
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Historial de Compras", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
@@ -292,44 +629,68 @@ private fun PurchasesHistoryPage() {
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(orders) { order -> OrderHistoryItem(order = order) }
+                items(orders) { order ->
+                    OrderHistoryItem(
+                        order = order,
+                        onClick = { onOrderClick(order.id) } // Pasamos el evento click
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ReviewsHistoryPage() {
-    // Obtenemos el usuario actual para filtrar sus reseñas
-    val currentUser by UserRepository.getInstance().currentUser.collectAsState()
-    // Si hay usuario logueado usamos su nombre, si no "Asu" como fallback
-    val userName = currentUser?.nombre_usuario ?: "Asu"
+private fun ReviewsHistoryPage(targetUserId: String, onReviewClick: (String) -> Unit) {
+    // Estado para las reseñas
+    var myReviews by remember { mutableStateOf<List<Review>>(emptyList()) }
 
-    val myReviews = ReviewRepository.getReviewsByUser(userName)
+    val currentUserId = TokenManager.getUserId()?.toString()
+    val isMyProfile = targetUserId == currentUserId
+
+    // Llamada asíncrona correcta
+    LaunchedEffect(targetUserId) {
+        if (targetUserId.isNotEmpty()) {
+            // Aquí cargamos las reviews escritas por el usuario del perfil (targetUserId)
+            myReviews = ReviewRepository.getReviewsByUser(targetUserId)
+        }
+    }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Reviews que has Escrito", style = MaterialTheme.typography.titleMedium)
+        // Título dinámico
+        val title = if (isMyProfile) "Reviews que has escrito" else "Reviews escritas por el usuario"
+        Text(title, style = MaterialTheme.typography.titleMedium)
+
         Spacer(modifier = Modifier.height(16.dp))
 
         if (myReviews.isEmpty()) {
-            Text("Aún no has escrito reviews.", style = MaterialTheme.typography.bodyMedium)
+            Text("Este usuario no ha escrito reviews.", style = MaterialTheme.typography.bodyMedium)
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(myReviews) { review -> MyReviewItem(review = review) }
+                items(myReviews) { review ->
+                    MyReviewItem(
+                        review = review,
+                        onClick = {
+                            onReviewClick(review.productId)
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MyReviewItem(review: Review) {
+private fun MyReviewItem(review: Review, onClick: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
     ) {
         Row(modifier = Modifier.padding(16.dp)) {
             // Imagen del producto (usando Coil)
@@ -384,15 +745,22 @@ private fun MyReviewItem(review: Review) {
 }
 
 @Composable
-private fun OrderHistoryItem(order: Order) {
+private fun OrderHistoryItem(
+    order: Order,
+    onClick: () -> Unit // Nuevo parámetro
+) {
     val dateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
 
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shadowElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // ... (El contenido de texto sigue igual) ...
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -416,13 +784,97 @@ private fun OrderHistoryItem(order: Order) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Mostrar los productos en esta orden
-            order.items.forEach { product ->
-                Row(modifier = Modifier.padding(bottom = 4.dp)) {
-                    Text("• ")
+            // Texto indicativo
+            Text(
+                text = "Ver detalles de la compra >",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun MySalesPage(
+    products: List<Product>,
+    onProductClick: (String) -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Mis Productos en Venta", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (products.isEmpty()) {
+            Text("No tienes productos publicados.", style = MaterialTheme.typography.bodyMedium)
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(products) { product ->
+                    MyProductItem(product = product, onClick = { onProductClick(product.id) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MyProductItem(product: Product, onClick: () -> Unit) {
+    // Calculamos si hay stock para cambiar el color del texto
+    val stock = product.specifications["Stock"]?.toIntOrNull() ?: 0
+    val hasStock = stock > 0
+
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 2.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(modifier = Modifier.padding(12.dp)) {
+            // Imagen
+            AsyncImage(
+                model = product.imageUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(70.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(Color.Gray),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(verticalArrangement = Arrangement.Center) {
+                Text(
+                    text = product.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "$${product.price}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Indicador de Stock
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if(hasStock) Icons.Default.CheckCircle else Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = if(hasStock) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = product.name,
-                        style = MaterialTheme.typography.bodyMedium
+                        text = if(hasStock) "Stock: $stock" else "Agotado",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if(hasStock) Color.Gray else MaterialTheme.colorScheme.error
                     )
                 }
             }

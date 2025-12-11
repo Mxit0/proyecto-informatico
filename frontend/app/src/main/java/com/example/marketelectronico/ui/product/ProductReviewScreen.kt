@@ -2,6 +2,8 @@ package com.example.marketelectronico.ui.product
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,7 +11,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,22 +18,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import com.example.marketelectronico.R
-import com.example.marketelectronico.data.model.allSampleProducts
+import coil.compose.AsyncImage
 import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
-import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+import com.example.marketelectronico.utils.TokenManager
+import kotlinx.coroutines.launch
 import java.util.Locale
-import coil.compose.AsyncImage
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
+import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+import androidx.compose.material3.HorizontalDivider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,45 +42,58 @@ fun ProductReviewScreen(
     navController: NavController,
     productId: String?
 ) {
-    // Obtener reseñas crudas del repositorio
-    val rawReviews = ReviewRepository.getReviewsForProduct(productId)
+    val currentUserId = TokenManager.getUserId()?.toString() ?: ""
+    val scope = rememberCoroutineScope() // <--- 1. Scope para llamadas async
 
-    // --- 1. ESTADO PARA EL ORDENAMIENTO ---
-    // Por defecto ordenamos por "Most recent"
-    var selectedSortOption by remember { mutableStateOf("Most recent") }
+    // Estado local de la lista
+    var reviewsList by remember { mutableStateOf<List<Review>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
 
-    // --- 2. LÓGICA DE ORDENAMIENTO ---
-    // Esta lista se recalcula automáticamente cuando cambia 'rawReviews' o 'selectedSortOption'
-    val reviews = remember(rawReviews, selectedSortOption) {
-        when (selectedSortOption) {
-            "Highest rating" -> rawReviews.sortedByDescending { it.rating }
-            "Lowest rating" -> rawReviews.sortedBy { it.rating }
-            else -> rawReviews.sortedByDescending { it.date } // "Most recent" (default)
+    // Función para recargar la lista (útil tras borrar/editar/dar like)
+    fun reloadReviews() {
+        if (productId != null) {
+            scope.launch {
+                reviewsList = ReviewRepository.getReviewsForProduct(productId)
+            }
         }
     }
 
-    val totalReviews = rawReviews.size
-    val averageRating = if (rawReviews.isNotEmpty()) rawReviews.sumOf { it.rating } / totalReviews else 0.0
+    // Carga inicial
+    LaunchedEffect(productId) {
+        if (productId != null) {
+            reviewsList = ReviewRepository.getReviewsForProduct(productId)
+        }
+        isLoading = false
+    }
+
+    // Ordenamiento local
+    var selectedSortOption by remember { mutableStateOf("Most recent") }
+    val reviews = remember(reviewsList, selectedSortOption) {
+        when (selectedSortOption) {
+            "Highest rating" -> reviewsList.sortedByDescending { it.rating }
+            "Lowest rating" -> reviewsList.sortedBy { it.rating }
+            else -> reviewsList.sortedByDescending { it.date }
+        }
+    }
+
+    // Resumen
+    val totalReviews = reviewsList.size
+    val averageRating = if (reviewsList.isNotEmpty()) reviewsList.sumOf { it.rating } / totalReviews else 0.0
     val ratingSummary = (1..5).associateWith { star ->
-        if (totalReviews == 0) 0f else rawReviews.count { it.rating.toInt() == star } / totalReviews.toFloat()
+        if (totalReviews == 0) 0f else reviewsList.count { it.rating.toInt() == star } / totalReviews.toFloat()
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Reviews", fontWeight = FontWeight.Bold) },
+                title = { Text("Reviews") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = MaterialTheme.colorScheme.onBackground)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
-                )
+                }
             )
-        },
-        containerColor = MaterialTheme.colorScheme.background
+        }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -89,20 +104,42 @@ fun ProductReviewScreen(
             item {
                 RatingSummary(averageRating, totalReviews, ratingSummary)
                 Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // --- 3. PASAR EL ESTADO A LOS CHIPS ---
-            item {
-                SortByChips(
-                    selectedOption = selectedSortOption,
-                    onOptionSelected = { newOption -> selectedSortOption = newOption }
-                )
+                SortByChips(selectedOption = selectedSortOption, onOptionSelected = { selectedSortOption = it })
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
             items(reviews) { review ->
-                ReviewItem(review)
-                Divider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 16.dp))
+                ReviewItem(
+                    review = review,
+                    currentUserId = currentUserId,
+                    onLikeClick = {
+                        // 2. Llamada asíncrona a Toggle Like
+                        scope.launch {
+                            val success = ReviewRepository.toggleLike(review.id, currentUserId)
+                            if (success) reloadReviews() // Recargar para actualizar corazón/contador
+                        }
+                    },
+                    onDeleteClick = {
+                        // 2. Llamada asíncrona a Delete
+                        scope.launch {
+                            val success = ReviewRepository.deleteReview(review.id, currentUserId)
+                            if (success) reloadReviews() // Recargar para quitar la review
+                        }
+                    },
+                    onEditClick = { newComment, newRating ->
+                        scope.launch {
+                            // newRating ya es Double (viene del slider/estrellas)
+                            val success = ReviewRepository.updateReview(
+                                review.id,
+                                currentUserId,
+                                newComment,
+                                newRating
+                            )
+                            if (success) reloadReviews()
+                        }
+                    }
+                )
+                HorizontalDivider(thickness = 1.dp, modifier = Modifier.padding(vertical = 16.dp))
             }
         }
     }
@@ -185,33 +222,38 @@ fun SortByChips(
 }
 
 @Composable
-fun ReviewItem(review: Review) {
+fun ReviewItem(
+    review: Review,
+    currentUserId: String,
+    onLikeClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onEditClick: (String, Double) -> Unit
+) {
+    // Estado para el diálogo de edición
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.Top) {
+            // --- FOTO Y NOMBRE (Tu código existente) ---
             if (review.authorImageUrl != null) {
                 AsyncImage(
                     model = review.authorImageUrl,
                     contentDescription = review.author,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop,
-                    placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
-                    error = painterResource(id = android.R.drawable.ic_menu_gallery)
+                    modifier = Modifier.size(40.dp).clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
             } else {
-                // Fallback si no tiene foto (Avatar genérico o iniciales)
                 Image(
                     painter = painterResource(id = android.R.drawable.ic_menu_gallery),
                     contentDescription = review.author,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.Gray),
+                    modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.Gray),
                     contentScale = ContentScale.Crop
                 )
             }
+
             Spacer(modifier = Modifier.width(8.dp))
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = review.author,
@@ -224,14 +266,90 @@ fun ReviewItem(review: Review) {
                     color = Color.Gray
                 )
             }
+
+            // --- ACCIONES DE DUEÑO (Editar / Borrar) ---
+            if (review.authorId == currentUserId && currentUserId.isNotEmpty()) {
+                IconButton(onClick = { showEditDialog = true }) {
+                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.Gray, modifier = Modifier.size(20.dp))
+                }
+                // --- MODIFICADO: Ahora abre el diálogo en lugar de borrar directo
+                IconButton(onClick = { showDeleteDialog = true }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                }
+            }
         }
+
         Spacer(modifier = Modifier.height(8.dp))
         RatingBar(rating = review.rating, starSize = 16.dp)
         Spacer(modifier = Modifier.height(8.dp))
+
         Text(
             text = review.comment,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // --- BOTÓN DE LIKE ---
+        val isLiked = review.likedByUserIds.contains(currentUserId)
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .clickable { if(currentUserId.isNotEmpty()) onLikeClick() } // Solo si está logueado
+                .background(if (isLiked) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Icon(
+                imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = "Like",
+                tint = if (isLiked) MaterialTheme.colorScheme.primary else Color.Gray,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "${review.likesCount} Helpful",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isLiked) MaterialTheme.colorScheme.primary else Color.Gray
+            )
+        }
+    }
+
+    // --- DIÁLOGO DE EDICIÓN ---
+    if (showEditDialog) {
+        EditReviewDialog(
+            initialComment = review.comment,
+            initialRating = review.rating,
+            onDismiss = { showEditDialog = false },
+            onConfirm = { comment, rating ->
+                onEditClick(comment, rating)
+                showEditDialog = false
+            }
+        )
+    }
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar Reseña") },
+            text = { Text("¿Estás seguro de que quieres eliminar esta reseña? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteClick() // Aquí sí ejecutamos el borrado real
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 }
@@ -264,4 +382,68 @@ fun ProductReviewScreenPreview() {
             productId = "1"
         )
     }
+}
+@Composable
+fun RatingInput(currentRating: Double, onRatingChanged: (Double) -> Unit) {
+    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+        (1..5).forEach { starIndex ->
+            val icon = when {
+                currentRating >= starIndex -> Icons.Default.Star
+                currentRating >= starIndex - 0.5 -> Icons.Default.StarHalf
+                else -> Icons.Default.StarOutline
+            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(48.dp)
+                    .padding(4.dp)
+                    .pointerInput(starIndex) {
+                        detectTapGestures { offset ->
+                            if (offset.x < this.size.width / 2) onRatingChanged(starIndex - 0.5)
+                            else onRatingChanged(starIndex.toDouble())
+                        }
+                    }
+            )
+        }
+    }
+}
+
+@Composable
+fun EditReviewDialog(
+    initialComment: String,
+    initialRating: Double,
+    onDismiss: () -> Unit,
+    onConfirm: (String, Double) -> Unit
+) {
+    var comment by remember { mutableStateOf(initialComment) }
+    var rating by remember { mutableDoubleStateOf(initialRating) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar Reseña") },
+        text = {
+            Column {
+                RatingInput(currentRating = rating, onRatingChanged = { rating = it }) // Reusando tu componente existente
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = comment,
+                    onValueChange = { comment = it },
+                    label = { Text("Comentario") },
+                    modifier = Modifier.fillMaxWidth().height(120.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(comment, rating) }) {
+                Text("Guardar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }

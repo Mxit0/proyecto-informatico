@@ -1,16 +1,32 @@
-// Archivo: lib/redisClient.js
+// backend/lib/redisClient.js
 import { createClient } from "redis";
 
-const redisUrl = process.env.REDIS_URL || "redis://redis:6379";
+let redisClient = {
+  // implementación "dummy" para desarrollo si no hay Redis
+  get: async () => null,
+  setEx: async () => {},
+  del: async () => {},
+  keys: async () => [],
+};
 
-const redisClient = createClient({
-  url: redisUrl,
-});
+const redisUrl = process.env.REDIS_URL || ""; // si está vacío, no intentamos conectar
 
-redisClient.on("error", (err) => console.log("Redis Client Error", err));
+if (redisUrl) {
+  const client = createClient({ url: redisUrl });
 
-(async () => {
-  await redisClient.connect();
-})();
+  client.on("error", (err) => {
+    console.log("Redis Client Error (ignorado en dev):", err.message);
+  });
+
+  client
+    .connect()
+    .then(() => {
+      console.log("Conectado a Redis:", redisUrl);
+      redisClient = client;
+    })
+    .catch((err) => {
+      console.log("No se pudo conectar a Redis, usando cliente dummy:", err.message);
+    });
+}
 
 export default redisClient;

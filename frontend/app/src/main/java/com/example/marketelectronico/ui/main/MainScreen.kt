@@ -27,12 +27,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.marketelectronico.data.model.Product
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import androidx.compose.ui.text.style.TextAlign
 import com.example.marketelectronico.data.model.sampleProduct1
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
-
+import com.example.marketelectronico.data.model.Category
+import android.net.Uri
 // ... (Tu Composable MainScreen, TechTradeTopBar no cambian)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,10 +44,10 @@ fun MainScreen(
     viewModel: MainViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
+    val navItems = listOf("Inicio", "Check", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
-        Icons.AutoMirrored.Filled.List,
+        Icons.Filled.Check,
         Icons.Default.AddCircle,
         Icons.Default.Email,
         Icons.Default.Person,
@@ -104,10 +106,13 @@ fun MainScreen(
                 }
             }
             is ProductListUiState.Success -> {
+                val categories by viewModel.categories.collectAsState()
                 MainScreenContent(
                     products = state.products,
+                    categories = categories,
                     modifier = Modifier.padding(innerPadding),
-                    navController = navController
+                    navController = navController,
+                    onCategorySelected = { categoryId -> viewModel.selectCategory(categoryId) }
                 )
             }
         }
@@ -138,8 +143,10 @@ private fun TechTradeTopBar(onCartClick: () -> Unit, onNotificationsClick: () ->
 @Composable
 private fun MainScreenContent(
     products: List<Product>,
+    categories: List<Category>,
     modifier: Modifier = Modifier,
-    navController: NavController
+    navController: NavController,
+    onCategorySelected: (Int?) -> Unit = {}
 ) {
     // ... (Tu lógica de 'recommendations', 'news', 'offers' no cambia)
     val recommendations = products.take(5)
@@ -152,6 +159,17 @@ private fun MainScreenContent(
             .padding(horizontal = 16.dp)
     ) {
         item { SearchBar(modifier = Modifier.padding(vertical = 8.dp)) }
+        item {
+            if (categories.isNotEmpty()) {
+                CategoriesSection(
+                    categories = categories,
+                    onCategoryClick = { id, nombre ->
+                        val encodedName = Uri.encode(nombre)
+                        navController.navigate("category_products/$id/$encodedName")
+                    }
+                )
+            }
+        }
         item { SectionTitle("Recomendaciones para ti") }
         item {
             ProductRow(
@@ -293,8 +311,49 @@ fun MainScreenPreview() {
     MarketElectronicoTheme {
         MainScreenContent(
             products = listOf(sampleProduct1),
+            categories = listOf(
+                Category(id = 1, nombre = "Laptops"),
+                Category(id = 2, nombre = "Celulares"),
+                Category(id = 3, nombre = "Accesorios")
+            ),
             navController = rememberNavController(),
             modifier = Modifier
         )
+    }
+}
+
+@Composable
+fun CategoriesSection(
+    categories: List<Category>,
+    onCategoryClick: (Int, String) -> Unit // Pasamos ID y Nombre
+) {
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        SectionTitle(title = "Categorías")
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(categories) { category ->
+                CategoryCard(category, onCategoryClick)
+            }
+        }
+    }
+}
+
+@Composable
+fun CategoryCard(category: Category, onClick: (Int, String) -> Unit) {
+    Card(
+        onClick = { onClick(category.id, category.nombre) },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        modifier = Modifier.size(width = 110.dp, height = 60.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = category.nombre,
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
+        }
     }
 }

@@ -30,6 +30,10 @@ import com.example.marketelectronico.data.repository.ReviewRepository
 import com.example.marketelectronico.data.repository.UserRepository // <-- Tu repo existente
 import com.example.marketelectronico.ui.product.ProductDetailUiState
 import com.example.marketelectronico.ui.product.ProductViewModel
+import com.example.marketelectronico.utils.TokenManager
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.material3.HorizontalDivider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +42,7 @@ fun ReviewScreen(
     productId: String?,
     viewModel: ProductViewModel = viewModel()
 ) {
+    val scope = rememberCoroutineScope()
     var rating by remember { mutableDoubleStateOf(0.0) }
     var comment by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
@@ -125,7 +130,7 @@ fun ReviewScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     // ------------------------------------------
 
                     Text("Your Rating", style = MaterialTheme.typography.titleMedium)
@@ -143,21 +148,24 @@ fun ReviewScreen(
 
                     Button(
                         onClick = {
-                            // --- 3. GUARDAR LA RESEÑA CON EL USUARIO REAL ---
-                            val authorName = currentUser?.nombre_usuario ?: "Usuario Anónimo"
-                            val authorPhoto = currentUser?.foto
+                            val currentUserId = TokenManager.getUserId()?.toString()
+                            if (currentUserId != null && productId != null) {
+                                scope.launch {
+                                    // Llamada al backend
+                                    val success = ReviewRepository.addReview(
+                                        productId = productId,
+                                        userId = currentUserId,
+                                        rating = rating,
+                                        comment = comment
+                                    )
 
-                            val newReview = Review(
-                                productId = product.id,
-                                productName = product.name,
-                                productImageUrl = product.imageUrl,
-                                author = authorName, // <-- ¡Nombre correcto!
-                                authorImageUrl = authorPhoto,
-                                rating = rating,
-                                comment = comment
-                            )
-                            ReviewRepository.addReview(newReview)
-                            navController.popBackStack()
+                                    if (success) {
+                                        navController.popBackStack() // Volver si salió bien
+                                    } else {
+                                        // Mostrar error (Toast o Snackbar)
+                                    }
+                                }
+                            }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         enabled = rating > 0

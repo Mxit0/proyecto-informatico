@@ -37,14 +37,43 @@ export async function getAllUsers() {
 }
 
 export async function getUserById(id_usuario) {
-  const { data, error } = await supabase
-    .from(TABLE)
+  // Obtener datos básicos del usuario
+  const { data: user, error } = await supabase
+    .from('usuario')
     .select('id_usuario, nombre_usuario, correo, foto, reputacion, fecha_registro')
     .eq('id_usuario', id_usuario)
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  if (!user) return null;
+
+  // Obtener TODAS las calificaciones de la tabla de reseñas de usuarios
+  const { data: reviews, error: reviewsError } = await supabase
+    .from('resenas_usuarios')
+    .select('calificacion')
+    .eq('id_destinatario', id_usuario);
+
+  if (reviewsError) console.error("Error obteniendo calificaciones:", reviewsError);
+
+  // Calcular Promedio y Conteo en el momento
+  let realReputation = 0.0;
+  let totalReviews = 0;
+
+  if (reviews && reviews.length > 0) {
+    totalReviews = reviews.length;
+    // Sumar todas las calificaciones
+    const sum = reviews.reduce((acc, curr) => acc + Number(curr.calificacion), 0);
+    // Calcular promedio
+    realReputation = sum / totalReviews;
+  }
+
+  // Devolver usuario con los datos calculados
+  return {
+    ...user,
+    // Sobreescribimos 'reputacion' con el cálculo real (redondeado a 1 decimal si quieres, o numérico puro)
+    reputacion: Number(realReputation.toFixed(1)), 
+    total_resenas: totalReviews
+  };
 }
 
 export async function updateUserReputation(id_usuario, reputacion) {

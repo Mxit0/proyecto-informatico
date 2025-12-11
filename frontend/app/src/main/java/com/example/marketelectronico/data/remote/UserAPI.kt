@@ -3,6 +3,9 @@ package com.example.marketelectronico.data.remote
 import retrofit2.http.*
 import okhttp3.MultipartBody
 import com.google.gson.annotations.SerializedName
+import retrofit2.Response
+import retrofit2.http.*
+
 
 interface UserApi {
     @GET("usuarios/{id}")
@@ -20,6 +23,16 @@ interface UserApi {
         @Path("id") userId: Long,
         @Part image: MultipartBody.Part
     ): UserResponse
+
+    @POST("usuarios/fcm-token")
+    suspend fun saveFcmToken(@Body request: FcmTokenRequest): Response<Any>
+
+    //subir foto de perfil vía /api/profile/photo ===
+    @Multipart
+    @POST("api/profile/photo")
+    suspend fun uploadProfilePhoto(
+        @Part photo: MultipartBody.Part
+    ): Response<PhotoResponse>
 }
 
 data class UserResponse(
@@ -37,11 +50,18 @@ data class UserProfileDto(
     val foto: String?,
     val reputacion: Double?,
     @SerializedName("fecha_registro")
-    val fecha_registro: String?
+    val fecha_registro: String?,
+    @SerializedName("total_resenas")
+    val totalResenas: Int? = 0
 )
 
 data class ReputationRequest(
     val calificacion: Double
+)
+
+// Respuesta del endpoint de foto
+data class PhotoResponse(
+    val foto: String
 )
 
 object UserService {
