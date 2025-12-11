@@ -16,8 +16,14 @@ data class Product(
     val description: String = "No hay descripción disponible.",
     val specifications: Map<String, String> = emptyMap(),
     val imageUrls: List<String> = emptyList(),
+    val images: List<ProductImage> = emptyList(),
     val active: Boolean = true
 
+)
+
+data class ProductImage(
+    val id: Int, // id_im de la base de datos
+    val url: String
 )
 
 data class ChatPreview(

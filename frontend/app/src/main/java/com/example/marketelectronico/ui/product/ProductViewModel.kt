@@ -1,5 +1,7 @@
 package com.example.marketelectronico.ui.product
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -45,20 +47,25 @@ class ProductViewModel(
     private val _myExistingReview = MutableStateFlow<Review?>(null)
     val myExistingReview: StateFlow<Review?> = _myExistingReview
 
-    fun fetchProduct(productId: String) {
-        viewModelScope.launch {
-            _uiState.value = ProductDetailUiState.Loading
-            try {
-                // Esto ahora llama a la función mejorada del repositorio
-                val product = productRepository.getProductById(productId)
+    private val _toastMessage = Channel<String>()
+    val toastMessage = _toastMessage.receiveAsFlow()
 
+    fun fetchProduct(productId: String, isRefresh: Boolean = false) {
+        viewModelScope.launch {
+            // SOLO mostramos Loading si NO es una recarga silenciosa (isRefresh = false)
+            if (!isRefresh) {
+                _uiState.value = ProductDetailUiState.Loading
+            }
+
+            try {
+                val product = productRepository.getProductById(productId)
                 if (product != null) {
                     _uiState.value = ProductDetailUiState.Success(product)
                 } else {
-                    _uiState.value = ProductDetailUiState.Error("Producto no encontrado")
+                    if (!isRefresh) _uiState.value = ProductDetailUiState.Error("Producto no encontrado")
                 }
             } catch (e: Exception) {
-                _uiState.value = ProductDetailUiState.Error(e.message ?: "Error desconocido")
+                if (!isRefresh) _uiState.value = ProductDetailUiState.Error(e.message ?: "Error desconocido")
             }
         }
     }
@@ -134,6 +141,38 @@ class ProductViewModel(
                     checkIfReviewed(currentState.product.sellerId) // Usamos el ID del vendedor, no el mío
                 }
                 onSuccess()
+            }
+        }
+    }
+
+    fun uploadImages(productId: String, uris: List<Uri>, context: Context) {
+        viewModelScope.launch {
+            // NO ponemos Loading manualmente aquí
+            val success = productRepository.uploadProductImages(productId, uris, context)
+            if (success) {
+                // Llamamos a fetchProduct con isRefresh = true
+                fetchProduct(productId, isRefresh = true)
+                _toastMessage.send("Imagen añadida correctamente")
+            } else {
+                _toastMessage.send("Error al subir imagen. Verifica el límite de 10.")
+            }
+        }
+    }
+
+    fun deleteImage(imageId: Int, productId: String) {
+        viewModelScope.launch {
+            try {
+                val success = productRepository.deleteImage(imageId)
+                if (success) {
+                    // Llamamos a fetchProduct con isRefresh = true
+                    fetchProduct(productId, isRefresh = true)
+                    _toastMessage.send("Imagen eliminada")
+                }
+            } catch (e: Exception) {
+                val msg = if (e.message?.contains("mínimo 3") == true)
+                    "No puedes borrar: Mínimo 3 imágenes requeridas"
+                else "Error al borrar imagen"
+                _toastMessage.send(msg)
             }
         }
     }

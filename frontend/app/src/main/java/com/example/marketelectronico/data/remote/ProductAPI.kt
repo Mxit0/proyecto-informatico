@@ -56,6 +56,9 @@ interface ProductApi {
 
     @GET("api/productos/usuario/{userId}")
     suspend fun getProductsByUser(@Path("userId") userId: Long): List<ProductResponse>
+
+    @DELETE("api/productos/imagenes/{id}")
+    suspend fun deleteProductImage(@Path("id") imageId: Int): retrofit2.Response<Unit>
 }
 
 // --- 2. DTOs ---

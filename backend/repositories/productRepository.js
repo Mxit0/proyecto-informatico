@@ -250,6 +250,18 @@ export async function createProduct(productData) {
 }
 
 export async function uploadProductImages(id_producto, files) {
+  const { count, error: countError } = await supabase
+      .from("producto_imagenes")
+      .select("*", { count: "exact", head: true })
+      .eq("id_prod", id_producto);
+  
+  if (countError) throw countError;
+
+  // VALIDACIÓN: Máximo 10 imágenes
+  if ((count + files.length) > 10) {
+      throw new Error(`Límite excedido. Tienes ${count} imágenes, solo puedes agregar ${10 - count} más.`);
+  }
+
   const urls = [];
 
   for (const file of files) {
@@ -274,6 +286,12 @@ export async function uploadProductImages(id_producto, files) {
       id_prod: id_producto,
       url_imagen: publicUrl,
     });
+
+    const cacheKey = `producto_full:${id_producto}`;
+    await redisClient.del(cacheKey);
+  
+    const listKeys = await redisClient.keys("productos*");
+    if (listKeys.length > 0) await redisClient.del(listKeys);
 
     if (dbError) throw dbError;
   }
@@ -433,5 +451,65 @@ export async function getProductsByUserId(userId) {
 
   } catch (err) {
     throw new Error(err.message);
+  }
+}
+
+export async function deleteProductImage(id_im) {
+  try {
+    // 1. Obtener datos de la imagen y del producto
+    const { data: imgData, error: fetchError } = await supabase
+      .from("producto_imagenes")
+      .select("id_prod, url_imagen")
+      .eq("id_im", id_im)
+      .single();
+
+    if (fetchError || !imgData) throw new Error("Imagen no encontrada");
+
+    const productId = imgData.id_prod;
+
+    // 2. [REGLA DE ORO] Contar cuántas imágenes tiene el producto
+    const { count, error: countError } = await supabase
+      .from("producto_imagenes")
+      .select("*", { count: "exact", head: true })
+      .eq("id_prod", productId);
+
+    if (countError) throw countError;
+
+    // VALIDACIÓN: Mínimo 3 imágenes
+    if (count <= 3) {
+      throw new Error("No se puede eliminar. El producto debe tener al menos 3 imágenes.");
+    }
+
+    // 3. Borrar de Storage (Bucket)
+    const fullUrl = imgData.url_imagen;
+    // Extraer path relativo: "public/4/123.jpg"
+    const path = fullUrl.split(`${BUCKET_NAME}/`)[1]; 
+
+    if (path) {
+      const { error: storageError } = await supabase.storage
+        .from(BUCKET_NAME)
+        .remove([path]);
+      if (storageError) console.error("Error borrando de Storage:", storageError);
+    }
+
+    // 4. Borrar registro de BD
+    const { error: dbError } = await supabase
+      .from("producto_imagenes")
+      .delete()
+      .eq("id_im", id_im);
+
+    if (dbError) throw dbError;
+
+    // 5. Invalidar Caché Redis (Vital para que la app se actualice)
+    const cacheKey = `producto_full:${productId}`;
+    await redisClient.del(cacheKey);
+    
+    // Limpiar listas también
+    const listKeys = await redisClient.keys("productos*");
+    if (listKeys.length > 0) await redisClient.del(listKeys);
+
+    return true;
+  } catch (error) {
+    throw error; // Lanzar el error para que llegue al Route
   }
 }

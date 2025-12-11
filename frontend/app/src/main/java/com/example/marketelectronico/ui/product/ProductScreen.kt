@@ -1,15 +1,22 @@
 package com.example.marketelectronico.ui.product
 
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.foundation.Image
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border // Agregado para el borde de la foto
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -17,42 +24,38 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import com.example.marketelectronico.data.model.Product
-// import com.example.marketelectronico.data.model.allSampleProducts // Ya no se usa
 import com.example.marketelectronico.data.model.sampleProduct1
-import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.repository.CartRepository
-import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage // <-- IMPORTANTE: COIL
-import kotlinx.coroutines.flow.collectLatest
-import com.example.marketelectronico.utils.TokenManager
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.clickable
 import com.example.marketelectronico.data.repository.Review
-import com.example.marketelectronico.data.repository.ReviewRepository
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
+import com.example.marketelectronico.utils.TokenManager
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Pantalla de Detalles del Producto.
@@ -65,6 +68,13 @@ fun ProductScreen(
     modifier: Modifier = Modifier,
     viewModel: ProductViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+
+    LaunchedEffect(true) {
+        viewModel.toastMessage.collectLatest { message ->
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
     // --- 4. OBSERVAR ESTADO Y CARGAR DATOS ---
     val uiState by viewModel.uiState.collectAsState()
 
@@ -226,7 +236,14 @@ fun ProductScreen(
                         viewModel.updateUserReview(id, rating, comment) {
                             viewModel.checkIfReviewed(state.product.sellerId) // Recargar
                         }
+                    },
+                    onDeleteImage = { imgId ->
+                        viewModel.deleteImage(imgId, state.product.id)
+                    },
+                    onAddImages = { uris ->
+                        viewModel.uploadImages(state.product.id, uris, context)
                     }
+
                 )
             }
         }
@@ -244,13 +261,15 @@ private fun ProductDetailsContent(
     onUpdate: (String, String, String, Double, Int) -> Unit,
     onSellerClick: (Int) -> Unit,
     myExistingReview: Review?,
-    onUpdateReview: (String, Double, String) -> Unit
+    onUpdateReview: (String, Double, String) -> Unit,
+    onDeleteImage: (Int) -> Unit,
+    onAddImages: (List<Uri>) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf(false) }
+    // Usamos rememberSaveable para que el diálogo no se cierre al refrescar el producto
+    var showEditDialog by rememberSaveable { mutableStateOf(false) }
     var showNoStockDialog by remember { mutableStateOf(false) }
-
     var showEditReviewDialog by remember { mutableStateOf(false) }
 
     // --- GALERÍA DE IMÁGENES ---
@@ -595,7 +614,9 @@ private fun ProductDetailsContent(
             onConfirm = { name, desc, price, stock ->
                 showEditDialog = false
                 onUpdate(product.id, name, desc, price, stock)
-            }
+            },
+            onDeleteImage = onDeleteImage,
+            onAddImages = onAddImages
         )
     }
 
@@ -665,12 +686,26 @@ fun SpecificationItem(label: String, value: String, modifier: Modifier = Modifie
 fun EditProductDialog(
     product: Product,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, Double, Int) -> Unit
+    onConfirm: (String, String, Double, Int) -> Unit,
+    onDeleteImage: (Int) -> Unit,
+    onAddImages: (List<Uri>) -> Unit
 ) {
     var name by remember { mutableStateOf(product.name) }
     var desc by remember { mutableStateOf(product.description) }
     var priceStr by remember { mutableStateOf(product.price.toString()) }
     var stockStr by remember { mutableStateOf(product.specifications["Stock"] ?: "1") }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            // Validación Cliente Rápida (Opcional, el backend es la autoridad final)
+            if (product.images.size + uris.size > 10) {
+                // Toast manual o dejar que falle el backend
+            }
+            onAddImages(uris)
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -691,6 +726,72 @@ fun EditProductDialog(
                     label = { Text("Stock") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
+                HorizontalDivider()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Imágenes (${product.images.size}/10)", style = MaterialTheme.typography.titleSmall)
+                }
+
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 1. Mostrar imágenes existentes
+                    items(
+                        items = product.images,
+                        key = { it.id } // Clave para evitar glitches visuales
+                    ) { img ->
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            AsyncImage(
+                                model = img.url,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                            if (product.images.size > 3) {
+                                IconButton(
+                                    onClick = { onDeleteImage(img.id) },
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(Color.White, CircleShape)
+                                        .border(1.dp, Color.Red, CircleShape)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Borrar",
+                                        tint = Color.Red,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+
+                        }
+                    }
+
+                    // 2. Botón para agregar (Solo si hay menos de 10)
+                    if (product.images.size < 10) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .clickable { galleryLauncher.launch("image/*") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Add, "Agregar", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+
+                if (product.images.size == 10) {
+                    Text("Máximo de imágenes alcanzado", style = MaterialTheme.typography.bodySmall, color = Color.Red)
+                }
             }
         },
         confirmButton = {
@@ -811,7 +912,9 @@ fun ProductScreenPreview() {
             onUpdate = { _, _, _, _, _ -> },
             onSellerClick = {},
             myExistingReview = null,
-            onUpdateReview = { _, _, _ -> }
+            onUpdateReview = { _, _, _ -> },
+            onDeleteImage = {},
+            onAddImages = {}
         )
     }
 }

@@ -16,6 +16,7 @@ import {
 } from "../repositories/componenteRepository.js";
 import { deleteProduct } from "../repositories/productRepository.js";
 import { getProductsByUserId } from "../repositories/productRepository.js";
+import { deleteProductImage } from "../repositories/productRepository.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -166,11 +167,11 @@ router.post("/:id/imagenes", upload.array("imagenes", 10), async (req, res) => {
       return res.status(400).json({ error: "No se enviaron archivos." });
     }
 
-    if (files.length < 3) {
-      return res.status(400).json({
-        error: "Se requieren al menos 3 imágenes para publicar el producto.",
-      });
-    }
+    //if (files.length < 3) {
+      //return res.status(400).json({
+        //error: "Se requieren al menos 3 imágenes para publicar el producto.",
+      //});
+    //}
 
     const urls = await uploadProductImages(id_producto, files);
 
@@ -182,6 +183,17 @@ router.post("/:id/imagenes", upload.array("imagenes", 10), async (req, res) => {
     res
       .status(500)
       .json({ error: "Error al subir imágenes: " + error.message });
+  }
+});
+
+router.delete("/imagenes/:id", async (req, res) => {
+  try {
+    const { id } = req.params; // ID de la imagen (id_im)
+    await deleteProductImage(id);
+    res.json({ message: "Imagen eliminada" });
+  } catch (error) {
+    // Si el error es por la regla de mínimo 3, devolvemos 400 Bad Request
+    res.status(400).json({ error: error.message });
   }
 });
 
