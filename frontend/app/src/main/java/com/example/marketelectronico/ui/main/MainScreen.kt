@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.model.Category
 import android.net.Uri
+
 // ... (Tu Composable MainScreen, TechTradeTopBar no cambian)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +55,7 @@ fun MainScreen(
         Icons.Default.Person,
         Icons.Default.Info
     )
-    val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
+    val navRoutes = listOf("main", "check", "publish", "chat_list", "profile", "forum")
 
     Scaffold(
         modifier = modifier,
@@ -148,7 +150,6 @@ private fun MainScreenContent(
     navController: NavController,
     onCategorySelected: (Int?) -> Unit = {}
 ) {
-    // ... (Tu lógica de 'recommendations', 'news', 'offers' no cambia)
     val recommendations = products.take(5)
     val news = products.drop(5).take(5)
     val offers = products.drop(10)
@@ -202,7 +203,6 @@ private fun MainScreenContent(
     }
 }
 
-// ... (Tu Composable SearchBar y SectionTitle no cambian)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchBar(modifier: Modifier = Modifier) {
@@ -225,6 +225,7 @@ private fun SearchBar(modifier: Modifier = Modifier) {
         )
     )
 }
+
 @Composable
 private fun SectionTitle(title: String) {
     Text(
@@ -234,11 +235,8 @@ private fun SectionTitle(title: String) {
     )
 }
 
-// --- ¡AQUÍ ESTÁ LA MEJORA! ---
 @Composable
 private fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit) {
-
-    // Comprueba si la lista está vacía
     if (products.isEmpty()) {
         Text(
             text = "No hay productos en esta categoría.",
@@ -247,7 +245,6 @@ private fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit
             modifier = Modifier.padding(bottom = 16.dp)
         )
     } else {
-        // Si no está vacía, muestra la fila
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -260,12 +257,10 @@ private fun ProductRow(products: List<Product>, onProductClick: (String) -> Unit
         }
     }
 }
-// ------------------------------
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProductCard(product: Product, onClick: () -> Unit) {
-    // ... (Tu Composable ProductCard con AsyncImage no cambia)
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
@@ -285,7 +280,6 @@ private fun ProductCard(product: Product, onClick: () -> Unit) {
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                     .align(Alignment.CenterHorizontally)
             )
-
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
                     text = product.name,
@@ -305,27 +299,10 @@ private fun ProductCard(product: Product, onClick: () -> Unit) {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
-@Composable
-fun MainScreenPreview() {
-    MarketElectronicoTheme {
-        MainScreenContent(
-            products = listOf(sampleProduct1),
-            categories = listOf(
-                Category(id = 1, nombre = "Laptops"),
-                Category(id = 2, nombre = "Celulares"),
-                Category(id = 3, nombre = "Accesorios")
-            ),
-            navController = rememberNavController(),
-            modifier = Modifier
-        )
-    }
-}
-
 @Composable
 fun CategoriesSection(
     categories: List<Category>,
-    onCategoryClick: (Int, String) -> Unit // Pasamos ID y Nombre
+    onCategoryClick: (Int, String) -> Unit
 ) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         SectionTitle(title = "Categorías")
@@ -341,19 +318,64 @@ fun CategoriesSection(
 }
 
 @Composable
+fun getIconForCategory(categoryName: String): ImageVector {
+    return when (categoryName.lowercase()) {
+        "laptops" -> Icons.Default.Laptop
+        "celulares" -> Icons.Default.PhoneAndroid
+        "accesorios" -> Icons.Default.Headset
+        "monitores" -> Icons.Default.DesktopWindows
+        "teclados" -> Icons.Default.Keyboard
+        else -> Icons.Default.Category
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun CategoryCard(category: Category, onClick: (Int, String) -> Unit) {
     Card(
         onClick = { onClick(category.id, category.nombre) },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        modifier = Modifier.size(width = 110.dp, height = 60.dp)
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.width(90.dp)
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = getIconForCategory(category.nombre),
+                contentDescription = category.nombre,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = category.nombre,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 textAlign = TextAlign.Center,
                 maxLines = 1
             )
         }
+    }
+}
+
+
+@Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
+@Composable
+fun MainScreenPreview() {
+    MarketElectronicoTheme {
+        MainScreenContent(
+            products = listOf(sampleProduct1),
+            categories = listOf(
+                Category(id = 1, nombre = "Laptops"),
+                Category(id = 2, nombre = "Celulares"),
+                Category(id = 3, nombre = "Accesorios")
+            ),
+            navController = rememberNavController(),
+            modifier = Modifier
+        )
     }
 }

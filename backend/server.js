@@ -14,8 +14,9 @@ import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import carroRoutes from "./routes/carroRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
-import reviewRoutes from './routes/reviewRoutes.js';
+import reviewRoutes from "./routes/reviewRoutes.js";
 import foroRoutes from "./routes/foroRoutes.js";
+import compatibilityRoutes from "./routes/compatibilityRoutes.js";
 import { supabase } from "./lib/supabaseClient.js";
 import { admin } from "./lib/firebaseAdmin.js"; // <-- Importante: Esto viene de Cuello (Notificaciones)
 
@@ -49,9 +50,7 @@ const upload = multer({
 function authMiddleware(req, res, next) {
   try {
     const header = req.headers.authorization || "";
-    const token = header.startsWith("Bearer ")
-      ? header.slice(7)
-      : null;
+    const token = header.startsWith("Bearer ") ? header.slice(7) : null;
 
     if (!token) {
       return res.status(401).json({ message: "Token no proporcionado" });
@@ -67,8 +66,6 @@ function authMiddleware(req, res, next) {
   }
 }
 
-
-
 // Rutas HTTP normales
 app.use("/api/auth", authRoutes);
 app.use("/api/productos", productRoutes);
@@ -79,10 +76,10 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/reviews", reviewRoutes);
 // AGREGADO: Habilitamos la ruta de foros en la API
 app.use("/api/foros", foroRoutes);
+app.use("/api/compatibility", compatibilityRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
-
 
 // === NUEVO: endpoint para subir foto de perfil ===
 // POST /api/profile/photo  (body: multipart/form-data con campo "photo")
@@ -161,8 +158,6 @@ app.post(
   }
 );
 
-
-
 // 🔌 Servidor HTTP + Socket.IO
 const server = http.createServer(app);
 
@@ -185,12 +180,12 @@ function normalizePair(a, b) {
 // Middleware de autenticación para sockets
 io.use((socket, next) => {
   try {
-    const header = socket.handshake.auth?.token ||
-      (socket.handshake.headers?.authorization || "");
+    const header =
+      socket.handshake.auth?.token ||
+      socket.handshake.headers?.authorization ||
+      "";
 
-    const token = header.startsWith("Bearer ")
-      ? header.slice(7)
-      : header;
+    const token = header.startsWith("Bearer ") ? header.slice(7) : header;
 
     if (!token) return next(new Error("No token"));
 
@@ -273,13 +268,13 @@ io.on("connection", (socket) => {
   socket.on("join_chat", (data) => {
     // Caso Foro (Joaquín)
     if (data.room) {
-        socket.join(data.room);
-        console.log(`Socket unido a sala: ${data.room}`);
+      socket.join(data.room);
+      console.log(`Socket unido a sala: ${data.room}`);
     }
     // Caso Chat Privado (Cuello)
     else if (data.chatId) {
-        const room = `chat_${data.chatId}`;
-        socket.join(room);
+      const room = `chat_${data.chatId}`;
+      socket.join(room);
     }
   });
 
@@ -327,14 +322,16 @@ io.on("connection", (socket) => {
         .eq("id_usuario", receptorId)
         .maybeSingle();
 
-      if (receptorError) console.error("Error buscando receptor:", receptorError);
+      if (receptorError)
+        console.error("Error buscando receptor:", receptorError);
 
       // Enviar Notificación Push (Lógica de Cuello)
       if (receptor?.fcm_token) {
-        const notifBody = contenido.length > 50 ? contenido.slice(0, 47) + "..." : contenido;
+        const notifBody =
+          contenido.length > 50 ? contenido.slice(0, 47) + "..." : contenido;
         const titulo = socket.user?.nombre_usuario
-            ? `${socket.user.nombre_usuario} te escribió`
-            : "Nuevo mensaje";
+          ? `${socket.user.nombre_usuario} te escribió`
+          : "Nuevo mensaje";
 
         try {
           await admin.messaging().send({
@@ -353,9 +350,9 @@ io.on("connection", (socket) => {
                 channelId: "chat_channel",
                 priority: "high",
                 defaultSound: true,
-                visibility: "public"
-              }
-            }
+                visibility: "public",
+              },
+            },
           });
           console.log("FCM enviada a", receptorId);
         } catch (errFCM) {

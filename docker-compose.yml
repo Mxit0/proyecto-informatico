@@ -13,7 +13,7 @@ services:
     # Monta el código local para desarrollo
     volumes:
       - ./backend:/usr/src/app
-      - /usr/src/app/node_modules # Evita que sobrescriba node_modules
+     # - /usr/src/app/node_modules # Evita que sobrescriba node_modules
     # Asegura que Redis inicie antes que la API
     depends_on:
       - cache

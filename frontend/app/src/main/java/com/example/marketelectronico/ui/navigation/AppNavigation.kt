@@ -32,6 +32,9 @@ import com.example.marketelectronico.ui.category.CategoryProductsScreen
 import com.example.marketelectronico.ui.category.CategoryProductsViewModel
 import android.net.Uri
 import androidx.navigation.NavHostController
+import com.example.marketelectronico.ui.check.CheckBySearchScreen
+import com.example.marketelectronico.ui.check.CheckFromCartScreen
+import com.example.marketelectronico.ui.check.CheckScreen
 
 /**
  * Gestiona TODA la navegación de la aplicación.
@@ -204,6 +207,17 @@ fun AppNavigation(navController: NavHostController) {
         }
         composable("create_post") {
             CreatePostScreen(navController = navController)
+        }
+
+        // --- CHECK SCREENS ---
+        composable("check") {
+            CheckScreen(navController = navController)
+        }
+        composable("check_by_search") {
+            CheckBySearchScreen(navController = navController)
+        }
+        composable("check_from_cart") {
+            CheckFromCartScreen(navController = navController)
         }
 
         // --- OTRAS PANTALLAS ---
