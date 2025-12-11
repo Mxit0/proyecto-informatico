@@ -10,7 +10,10 @@ import {
   getAllCategories,
   getProductsByCategory,
 } from "../repositories/productRepository.js";
-import { getComponentsByCategory } from "../repositories/componenteRepository.js";
+import {
+  getComponentsByCategory,
+  getComponentById,
+} from "../repositories/componenteRepository.js";
 import { deleteProduct } from "../repositories/productRepository.js";
 import { getProductsByUserId } from "../repositories/productRepository.js";
 
@@ -84,6 +87,35 @@ router.get("/:id", async (req, res) => {
     res
       .status(500)
       .json({ error: "Error al obtener el producto: " + error.message });
+  }
+});
+
+// Obtener componente maestro asociado a un producto
+router.get("/:productId/componente", async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const product = await getProductById(productId);
+    if (!product)
+      return res.status(404).json({ error: "Producto no encontrado" });
+
+    // aceptar ambos nombres de campo por compatibilidad
+    const compId =
+      product.id_componente_maestro ?? product.id_componente ?? null;
+    if (!compId) {
+      return res
+        .status(404)
+        .json({ error: "Producto no tiene componente maestro asignado" });
+    }
+
+    const componente = await getComponentById(compId);
+    if (!componente)
+      return res
+        .status(404)
+        .json({ error: "Componente maestro no encontrado" });
+
+    res.json(componente);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -198,18 +230,22 @@ router.patch("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Aquí deberías validar que el usuario que pide borrar sea el dueño (usando token/session),
     // pero por ahora implementaremos la lógica base.
     const deleted = await deleteProduct(id);
 
     if (!deleted) {
-      return res.status(404).json({ error: "Producto no encontrado o no se pudo eliminar" });
+      return res
+        .status(404)
+        .json({ error: "Producto no encontrado o no se pudo eliminar" });
     }
 
     res.json({ message: "Producto eliminado correctamente" });
   } catch (error) {
-    res.status(500).json({ error: "Error al eliminar producto: " + error.message });
+    res
+      .status(500)
+      .json({ error: "Error al eliminar producto: " + error.message });
   }
 });
 
@@ -219,7 +255,11 @@ router.get("/usuario/:userId", async (req, res) => {
     const products = await getProductsByUserId(userId);
     res.json(products);
   } catch (error) {
-    res.status(500).json({ error: "Error obteniendo productos del usuario: " + error.message });
+    res
+      .status(500)
+      .json({
+        error: "Error obteniendo productos del usuario: " + error.message,
+      });
   }
 });
 

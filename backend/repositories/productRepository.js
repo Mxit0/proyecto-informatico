@@ -379,16 +379,13 @@ export async function deleteProduct(id) {
     // 1. Borrar de Supabase
     // Nota: Supabase borrará en cascada las imágenes si la FK está configurada así,
     // de lo contrario podrían quedar huérfanas en la tabla 'producto_imagenes'.
-    const { error } = await supabase
-      .from(TABLE)
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from(TABLE).delete().eq("id", id);
 
     if (error) throw error;
 
     // 2. Limpiar Caché (Redis) para que desaparezca de la app inmediatamente
     console.log(`Eliminando caché para producto ${id}`);
-    
+
     // A. Borrar la caché del detalle individual (coincide con getProductById)
     const cacheKeyDetail = `producto_full:${id}`;
     await redisClient.del(cacheKeyDetail);
@@ -411,30 +408,29 @@ export async function getProductsByUserId(userId) {
   try {
     // 1. Obtener productos
     const { data: products, error } = await supabase
-      .from('producto')
-      .select('*')
-      .eq('id_usuario', userId)
-      .order('fecha_publicacion', { ascending: false }); // Los más recientes primero
+      .from("producto")
+      .select("*")
+      .eq("id_usuario", userId)
+      .order("fecha_publicacion", { ascending: false }); // Los más recientes primero
 
     if (error) throw error;
     if (!products || products.length === 0) return [];
 
     // 2. Obtener imágenes (para mostrar la foto principal)
-    const productIds = products.map(p => p.id);
+    const productIds = products.map((p) => p.id);
     const { data: images } = await supabase
-      .from('producto_imagenes')
-      .select('id_prod, url_imagen')
-      .in('id_prod', productIds);
+      .from("producto_imagenes")
+      .select("id_prod, url_imagen")
+      .in("id_prod", productIds);
 
     // 3. Unir imagen principal
-    return products.map(p => {
-      const img = images.find(i => i.id_prod === p.id);
+    return products.map((p) => {
+      const img = images.find((i) => i.id_prod === p.id);
       return {
         ...p,
-        producto_imagenes: img ? [{ url_imagen: img.url_imagen }] : []
+        producto_imagenes: img ? [{ url_imagen: img.url_imagen }] : [],
       };
     });
-
   } catch (err) {
     throw new Error(err.message);
   }
