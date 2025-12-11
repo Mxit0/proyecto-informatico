@@ -287,7 +287,7 @@ private fun ProductResponse.toProduct(): Product {
             "Stock" to this.stock.toString(),
             "Categoría" to productStatus
         ),
-        // 👇 aquí también
-        imageUrls = allImages
+        imageUrls = allImages,
+        active = this.activo ?: true
     )
 }

@@ -15,7 +15,8 @@ data class Product(
     val sellerReviews: Int = 0,
     val description: String = "No hay descripción disponible.",
     val specifications: Map<String, String> = emptyMap(),
-    val imageUrls: List<String> = emptyList()
+    val imageUrls: List<String> = emptyList(),
+    val active: Boolean = true
 
 )
 

@@ -290,6 +290,26 @@ private fun ProductDetailsContent(
         // --- FIN GALERÍA ---
 
         Column(modifier = Modifier.padding(16.dp)) {
+            if (!product.active) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Este producto ya no está disponible.",
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
             Text(
                 text = product.name,
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
@@ -344,13 +364,21 @@ private fun ProductDetailsContent(
                         Text("Borrar")
                     }
                 } else {
-                    // === VISTA DE COMPRADOR (Lo que ya tenías) ===
+                    val currentStock = product.specifications["Stock"]?.toIntOrNull() ?: 0
+                    val canBuy = currentStock > 0 && product.active
                     Button(
                         onClick = {
-                            val currentStock = product.specifications["Stock"]?.toIntOrNull() ?: 0
                             if (currentStock > 0) {
                                 CartRepository.addToCart(product)
                                 showDialog = true
+                            } else {
+                                showNoStockDialog = true
+                            }
+                            if (canBuy) {
+                                CartRepository.addToCart(product)
+                                showDialog = true
+                            } else if (!product.active) {
+                                // Opcional: Mostrar mensaje "Producto descontinuado"
                             } else {
                                 showNoStockDialog = true
                             }
@@ -359,11 +387,16 @@ private fun ProductDetailsContent(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if ((product.specifications["Stock"]?.toIntOrNull() ?: 0) > 0) MaterialTheme.colorScheme.primary else Color.Gray
                         ),
+                        enabled = product.active,
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         // Opcional: Cambiar texto si está agotado
                         val stock = product.specifications["Stock"]?.toIntOrNull() ?: 0
-                        Text(if (stock > 0) "Añadir al Carrito" else "Agotado")
+                        when {
+                            !product.active -> "No Disponible"
+                            currentStock > 0 -> "Añadir al Carrito"
+                            else -> "Agotado"
+                        }
                     }
 
                     OutlinedButton(

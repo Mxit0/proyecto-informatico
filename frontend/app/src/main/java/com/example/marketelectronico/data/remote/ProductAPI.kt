@@ -82,7 +82,10 @@ data class ProductResponse(
     // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
     // Le decimos a GSON que el backend enviará "producto_imagenes"
     @SerializedName("producto_imagenes")
-    val imagenes: List<ImageResponse> = emptyList() // Cambio: usar emptyList() como default
+    val imagenes: List<ImageResponse> = emptyList(), // Cambio: usar emptyList() como defaul
+
+    @SerializedName("activo") // Coincide con la columna de Supabase
+    val activo: Boolean? = true
 )
 
 // Coincide con la función 'getProductImages' y el join manual

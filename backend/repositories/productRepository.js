@@ -31,6 +31,7 @@ export async function getAllProducts(page, limit) {
     const { data: productsData, error: productsError } = await supabase
       .from(TABLE)
       .select("*")
+      .eq('activo', true)
       .range(from, to);
 
     if (productsError) throw productsError;
@@ -341,7 +342,8 @@ export async function getProductsByCategory(categoryId) {
     const { data: productsData, error: productsError } = await supabase
       .from("producto") // Asegúrate que tu tabla se llama 'producto'
       .select("*")
-      .eq("categoria", categoryId);
+      .eq("categoria", categoryId)
+      .eq('activo', true);
 
     if (productsError) throw productsError;
     if (!productsData || productsData.length === 0) return [];
@@ -376,25 +378,18 @@ export async function getProductsByCategory(categoryId) {
 
 export async function deleteProduct(id) {
   try {
-    // 1. Borrar de Supabase
-    // Nota: Supabase borrará en cascada las imágenes si la FK está configurada así,
-    // de lo contrario podrían quedar huérfanas en la tabla 'producto_imagenes'.
+    // En lugar de .delete(), usamos .update()
     const { error } = await supabase
       .from(TABLE)
-      .delete()
+      .update({ activo: false }) 
       .eq("id", id);
 
     if (error) throw error;
 
-    // 2. Limpiar Caché (Redis) para que desaparezca de la app inmediatamente
     console.log(`Eliminando caché para producto ${id}`);
-    
-    // A. Borrar la caché del detalle individual (coincide con getProductById)
     const cacheKeyDetail = `producto_full:${id}`;
     await redisClient.del(cacheKeyDetail);
-
-    // B. Borrar todas las listas cacheadas (paginación, filtros, etc.)
-    // Usamos un patrón amplio para asegurar que se limpie todo lo que empiece por "productos"
+    
     const listKeys = await redisClient.keys("productos*");
     if (listKeys.length > 0) {
       await redisClient.del(listKeys);
@@ -414,6 +409,7 @@ export async function getProductsByUserId(userId) {
       .from('producto')
       .select('*')
       .eq('id_usuario', userId)
+      .eq('activo', true)
       .order('fecha_publicacion', { ascending: false }); // Los más recientes primero
 
     if (error) throw error;
