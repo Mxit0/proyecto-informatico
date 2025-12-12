@@ -387,18 +387,16 @@ private fun ProductDetailsContent(
                     val canBuy = currentStock > 0 && product.active
                     Button(
                         onClick = {
-                            if (currentStock > 0) {
-                                CartRepository.addToCart(product)
-                                showDialog = true
-                            } else {
-                                showNoStockDialog = true
-                            }
+                            // SOLUCIÓN: Usar una sola estructura lógica
                             if (canBuy) {
+                                // 1. Si se puede comprar (Stock > 0 y Activo) -> Añadir
                                 CartRepository.addToCart(product)
                                 showDialog = true
                             } else if (!product.active) {
-                                // Opcional: Mostrar mensaje "Producto descontinuado"
+                                // 2. Si no está activo -> No hacer nada o mostrar mensaje
+                                // (Opcional: Toast "No disponible")
                             } else {
+                                // 3. Si está activo pero sin Stock -> Mostrar alerta
                                 showNoStockDialog = true
                             }
                         },
