@@ -36,6 +36,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
 import com.example.marketelectronico.data.model.Category
 import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 
 // ... (Tu Composable MainScreen, TechTradeTopBar no cambian)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -150,6 +153,19 @@ private fun MainScreenContent(
     navController: NavController,
     onCategorySelected: (Int?) -> Unit = {}
 ) {
+    // 1. Estado de la búsqueda
+    var searchQuery by remember { mutableStateOf("") }
+
+    // 2. Filtramos los productos si hay texto
+    val filteredProducts = remember(products, searchQuery) {
+        if (searchQuery.isEmpty()) {
+            emptyList()
+        } else {
+            products.filter { it.name.contains(searchQuery, ignoreCase = true) }
+        }
+    }
+
+    // Datos para la vista normal
     val recommendations = products.take(5)
     val news = products.drop(5).take(5)
     val offers = products.drop(10)
@@ -157,62 +173,112 @@ private fun MainScreenContent(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 16.dp),
+        // Si estamos buscando, añadimos espacio extra entre items
+        verticalArrangement = if (searchQuery.isNotEmpty()) Arrangement.spacedBy(16.dp) else Arrangement.Top
     ) {
-        item { SearchBar(modifier = Modifier.padding(vertical = 8.dp)) }
+        // --- BARRA DE BÚSQUEDA ---
         item {
-            if (categories.isNotEmpty()) {
-                CategoriesSection(
-                    categories = categories,
-                    onCategoryClick = { id, nombre ->
-                        val encodedName = Uri.encode(nombre)
-                        navController.navigate("category_products/$id/$encodedName")
+            SearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
+        // --- LÓGICA DE VISUALIZACIÓN ---
+        if (searchQuery.isNotEmpty()) {
+            // === MODO BÚSQUEDA ===
+            if (filteredProducts.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
+                        Text("No se encontraron productos.", color = Color.Gray)
+                    }
+                }
+            } else {
+                item {
+                    Text(
+                        "Resultados para \"$searchQuery\"",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+                items(filteredProducts) { product ->
+                    // Usamos una tarjeta horizontal para los resultados (definida más abajo)
+                    SearchProductItem(
+                        product = product,
+                        onClick = { navController.navigate("product_detail/${product.id}") }
+                    )
+                }
+            }
+        } else {
+            // === MODO NORMAL (TU DISEÑO ORIGINAL) ===
+            item {
+                if (categories.isNotEmpty()) {
+                    CategoriesSection(
+                        categories = categories,
+                        onCategoryClick = { id, nombre ->
+                            val encodedName = Uri.encode(nombre)
+                            navController.navigate("category_products/$id/$encodedName")
+                        }
+                    )
+                }
+            }
+            item { SectionTitle("Recomendaciones para ti") }
+            item {
+                ProductRow(
+                    products = recommendations,
+                    onProductClick = { productId ->
+                        navController.navigate("product_detail/$productId")
                     }
                 )
             }
-        }
-        item { SectionTitle("Recomendaciones para ti") }
-        item {
-            ProductRow(
-                products = recommendations,
-                onProductClick = { productId ->
-                    navController.navigate("product_detail/$productId")
-                }
-            )
-        }
-        item { SectionTitle("Novedades") }
-        item {
-            ProductRow(
-                products = news,
-                onProductClick = { productId ->
-                    navController.navigate("product_detail/$productId")
-                }
-            )
-        }
-        item { SectionTitle("Ofertas destacadas") }
-        item {
-            ProductRow(
-                products = offers,
-                onProductClick = { productId ->
-                    navController.navigate("product_detail/$productId")
-                })
-        }
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
+            item { SectionTitle("Novedades") }
+            item {
+                ProductRow(
+                    products = news,
+                    onProductClick = { productId ->
+                        navController.navigate("product_detail/$productId")
+                    }
+                )
+            }
+            item { SectionTitle("Ofertas destacadas") }
+            item {
+                ProductRow(
+                    products = offers,
+                    onProductClick = { productId ->
+                        navController.navigate("product_detail/$productId")
+                    })
+            }
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SearchBar(modifier: Modifier = Modifier) {
-    var text by remember { mutableStateOf("") }
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     TextField(
-        value = text,
-        onValueChange = { text = it },
+        value = query,
+        onValueChange = onQueryChange,
         placeholder = { Text("Buscar productos", color = Color.Gray) },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color.Gray) },
-        modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(50)),
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(Icons.Default.Close, contentDescription = "Borrar", tint = Color.Gray)
+                }
+            }
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(50)),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surface,
             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -222,7 +288,8 @@ private fun SearchBar(modifier: Modifier = Modifier) {
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
             disabledIndicatorColor = Color.Transparent
-        )
+        ),
+        singleLine = true
     )
 }
 
@@ -357,6 +424,56 @@ fun CategoryCard(category: Category, onClick: (Int, String) -> Unit) {
                 style = MaterialTheme.typography.labelMedium,
                 textAlign = TextAlign.Center,
                 maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+fun SearchProductItem(product: Product, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth().height(80.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AsyncImage(
+                model = product.imageUrl,
+                contentDescription = product.name,
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                modifier = Modifier
+                    .width(80.dp)
+                    .fillMaxHeight()
+                    .background(Color.LightGray) // <--- Ahora funcionará gracias al import
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = product.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "$${product.price}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            // CAMBIO VISUAL: Usamos flecha a la derecha para indicar "ir al detalle"
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 16.dp),
+                tint = Color.Gray
             )
         }
     }
