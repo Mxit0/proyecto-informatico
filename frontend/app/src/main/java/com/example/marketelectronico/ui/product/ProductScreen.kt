@@ -411,11 +411,12 @@ private fun ProductDetailsContent(
                     ) {
                         // Opcional: Cambiar texto si está agotado
                         val stock = product.specifications["Stock"]?.toIntOrNull() ?: 0
-                        when {
+                        val textoBoton = when {
                             !product.active -> "No Disponible"
-                            currentStock > 0 -> "Añadir al Carrito"
+                            stock > 0 -> "Añadir al Carrito"
                             else -> "Agotado"
                         }
+                        Text(text = textoBoton)
                     }
 
                     OutlinedButton(
