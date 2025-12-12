@@ -74,6 +74,7 @@ class PublishViewModel(
     fun publishProduct(
         nombre: String,
         precio: String,
+        stock: Int,
         descripcion: String,
         categoriaId: Int?,
         masterComponentId: String?, // <-- NUEVO PARÁMETRO
@@ -124,10 +125,10 @@ class PublishViewModel(
                 val product = productRepository.createProduct(
                     nombre = nombre.trim(),
                     precio = precioValue,
+                    stock = stock,
                     descripcion = descripcion.trim(),
                     idUsuario = userId,
                     categoria = categoriaId,
-                    stock = 1,
                     idComponenteMaestro = masterComponentId // <-- PASAR EL NUEVO DATO
                 )
 

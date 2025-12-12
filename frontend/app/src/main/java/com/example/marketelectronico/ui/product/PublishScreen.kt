@@ -44,6 +44,7 @@ fun PublishScreen(
 
     var nombre by remember { mutableStateOf("") }
     var precio by remember { mutableStateOf("") }
+    var stock by remember { mutableStateOf("1") }
     var descripcion by remember { mutableStateOf("") }
 
     // Estado para el dropdown de Categorías
@@ -72,6 +73,7 @@ fun PublishScreen(
             // Limpiar todo el formulario
             nombre = ""
             precio = ""
+            stock = "1"
             descripcion = ""
             selectedCategoriaId = null
             selectedCategoriaNombre = null
@@ -125,6 +127,26 @@ fun PublishScreen(
                 leadingIcon = {
                     Text("$", modifier = Modifier.padding(start = 16.dp))
                 },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = stock,
+                onValueChange = {
+                    // Validar que solo sean números enteros
+                    if (it.isEmpty() || it.matches(Regex("^\\d*$"))) {
+                        stock = it
+                    }
+                },
+                label = { Text("Stock disponible *") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface
@@ -320,6 +342,7 @@ fun PublishScreen(
                     viewModel.publishProduct(
                         nombre = nombre,
                         precio = precio,
+                        stock = stock.toIntOrNull() ?: 1,
                         descripcion = descripcion,
                         categoriaId = selectedCategoriaId,
                         masterComponentId = selectedComponenteId, // <-- PASAR EL NUEVO ID
