@@ -10,22 +10,18 @@ import {
 
 const BUCKET = "usuarios";  // nombre del bucket de Storage
 
-// 📜 Listar todos los usuarios
 export async function listUsersService() {
   return await getAllUsers();
 }
 
-// 🔍 Obtener usuario por ID
 export async function getUserByIdService(id) {
   return await getUserById(id);
 }
 
-// ⭐ Actualizar reputación
 export async function updateReputationService(id, reputacion) {
   return await updateUserReputation(id, reputacion);
 }
 
-// 🖼️ Subir foto a Storage y actualizar en BD
 export async function updatePhotoService(id, file) {
   if (!file) {
     throw new Error("No se recibió archivo");
