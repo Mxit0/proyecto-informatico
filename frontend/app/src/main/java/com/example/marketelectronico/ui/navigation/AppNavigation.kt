@@ -1,7 +1,7 @@
 package com.example.marketelectronico.ui.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.viewmodel.compose.viewModel // <-- 1. IMPORTAR
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,10 +18,10 @@ import com.example.marketelectronico.ui.forum.CreatePostScreen
 import com.example.marketelectronico.ui.forum.ForumScreen
 import com.example.marketelectronico.ui.forum.PostDetailScreen
 import com.example.marketelectronico.ui.main.MainScreen
-import com.example.marketelectronico.ui.main.MainViewModel // <-- 2. IMPORTAR
+import com.example.marketelectronico.ui.main.MainViewModel
 import com.example.marketelectronico.ui.product.ProductReviewScreen
 import com.example.marketelectronico.ui.product.ProductScreen
-import com.example.marketelectronico.ui.product.ProductViewModel // <-- 3. IMPORTAR
+import com.example.marketelectronico.ui.product.ProductViewModel
 import com.example.marketelectronico.ui.profile.ProfileScreen
 import com.example.marketelectronico.ui.review.ReviewScreen
 import com.example.marketelectronico.ui.product.PublishScreen
@@ -41,19 +41,16 @@ import com.example.marketelectronico.ui.check.CheckScreen
  */
 @Composable
 fun AppNavigation(navController: NavHostController) {
-    //val navController = rememberNavController()
 
     NavHost(
         navController = navController,
         startDestination = "login"
     ) {
 
-        // --- PANTALLAS BASE ---
         composable("login") {
             LoginScreen(navController = navController)
         }
         composable("main") {
-            // --- 4. INYECTAR MAINVIEWMODEL ---
             MainScreen(
                 navController = navController,
                 viewModel = viewModel<MainViewModel>()
@@ -63,12 +60,10 @@ fun AppNavigation(navController: NavHostController) {
             CartScreen(navController = navController)
         }
 
-        // --- PANTALLAS DE PRODUCTO (Fusionadas) ---
         composable(
-            route = "product_detail/{productId}",
+            route = "product_detail/{productId}", 
             arguments = listOf(navArgument("productId") { type = NavType.StringType })
         ) { backStackEntry ->
-            // --- 5. INYECTAR PRODUCTVIEWMODEL ---
             ProductScreen(
                 navController = navController,
                 productId = backStackEntry.arguments?.getString("productId"),
@@ -76,7 +71,6 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
 
-        // --- RUTA DESCOMENTADA ---
         composable("product_reviews/{productId}") { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")
             ProductReviewScreen(navController = navController, productId = productId)
@@ -112,7 +106,6 @@ fun AppNavigation(navController: NavHostController) {
         }
 
         composable("categories") {
-            // CategoriesScreen(navController = navController)
         }
         composable("publish") {
             PublishScreen(
@@ -121,7 +114,6 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
 
-        // --- PANTALLAS DE PAGO (De 'master' - DESCOMENTADAS) ---
         composable("payment") {
             PaymentScreen(navController = navController)
         }
@@ -145,7 +137,7 @@ fun AppNavigation(navController: NavHostController) {
             arguments = listOf(androidx.navigation.navArgument("orderId") { type = androidx.navigation.NavType.StringType })
         ) { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId")
-            // Importa tu nueva pantalla OrderDetailScreen
+
             com.example.marketelectronico.ui.cart.OrderDetailScreen(
                 navController = navController,
                 orderId = orderId
@@ -162,13 +154,10 @@ fun AppNavigation(navController: NavHostController) {
             val sellerId = backStackEntry.arguments?.getString("sellerId") ?: ""
             val sellerName = backStackEntry.arguments?.getString("sellerName") ?: "Vendedor"
 
-            // Importa tu nueva pantalla
             UserReviewScreen(navController, sellerId, sellerName)
         }
 
-        // --- TUS PANTALLAS (De 'max') ---
         composable("profile") {
-            // Al no pasar ID, ProfileScreen asume que es el usuario logueado
             ProfileScreen(navController = navController, userIdArgument = null)
         }
 
@@ -186,7 +175,7 @@ fun AppNavigation(navController: NavHostController) {
             route = "conversation/{chatId}/{otherUserId}",
             arguments = listOf(
                 navArgument("chatId") { type = NavType.StringType },
-                navArgument("otherUserId") { type = NavType.IntType } // Nuevo parámetro
+                navArgument("otherUserId") { type = NavType.IntType }
             )
         ) {
             ConversationScreen(navController = navController)
@@ -209,7 +198,6 @@ fun AppNavigation(navController: NavHostController) {
             CreatePostScreen(navController = navController)
         }
 
-        // --- CHECK SCREENS ---
         composable("check") {
             CheckScreen(navController = navController)
         }
@@ -220,9 +208,7 @@ fun AppNavigation(navController: NavHostController) {
             CheckFromCartScreen(navController = navController)
         }
 
-        // --- OTRAS PANTALLAS ---
         composable("notifications") {
-            // NotificationsScreen(navController = navController)
         }
     }
 }

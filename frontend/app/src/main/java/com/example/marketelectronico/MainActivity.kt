@@ -50,12 +50,10 @@ class MainActivity : ComponentActivity() {
 
         TokenManager.init(this)
 
-        // Pedir permiso de notificaciones (Solo para Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 99)
         }
 
-        //Obtener Token FCM de Firebase
         try {
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                 if (!task.isSuccessful) {
@@ -73,21 +71,18 @@ class MainActivity : ComponentActivity() {
             Log.e("FCM", "Error obteniendo instancia de Messaging", e)
         }
 
-        // Inicializar Socket con el token (si ya hay uno guardado)
         val token = TokenManager.getToken() ?: ""
-        SocketManager.init(token) // <-- Pasa el token si tu init lo requiere
+        SocketManager.init(token)
 
         setContent {
             MarketElectronicoTheme {
                 val navController = rememberNavController()
 
-                //Manejar click en notificación (Si la app se abrió desde una)
                 val chatId = intent.getStringExtra("chatId")
                 val otherUserId = intent.getStringExtra("otherUserId") // El backend manda "remitenteId"
 
                 LaunchedEffect(chatId) {
                     if (chatId != null && otherUserId != null) {
-                        // Navegar directo al chat
                         navController.navigate("conversation/$chatId/$otherUserId")
                     }
                 }

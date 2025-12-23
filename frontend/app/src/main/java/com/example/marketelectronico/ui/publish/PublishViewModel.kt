@@ -31,7 +31,6 @@ class PublishViewModel(
     private val _categories = MutableStateFlow<List<Category>>(emptyList())
     val categories: StateFlow<List<Category>> = _categories.asStateFlow()
 
-    // --- 1. STATEFLOW PARA COMPONENTES MAESTROS ---
     private val _masterComponents = MutableStateFlow<List<ComponenteMaestro>>(emptyList())
     val masterComponents: StateFlow<List<ComponenteMaestro>> = _masterComponents.asStateFlow()
 
@@ -42,49 +41,42 @@ class PublishViewModel(
     private fun loadCategories() {
         viewModelScope.launch {
             try {
-                // En una app real, esto vendría del repositorio
                 _categories.value = productRepository.getAllCategories()
             } catch (e: Exception) {
-                _categories.value = emptyList() // Manejo de error
+                _categories.value = emptyList()
             }
         }
     }
 
-    // --- 2. FUNCIÓN PARA CARGAR COMPONENTES POR CATEGORÍA ---
     fun loadMasterComponents(categoryId: Int) {
         viewModelScope.launch {
-            _masterComponents.value = emptyList() // Limpiar antes de cargar
+            _masterComponents.value = emptyList()
             try {
-                // Llamar al repositorio para obtener componentes reales
                 val componentes = productRepository.getComponentsByCategory(categoryId)
                 _masterComponents.value = componentes
             } catch (e: Exception) {
-                // Fallback: mantener vacía o usar datos de muestra si lo deseas
                 _masterComponents.value = emptyList()
             }
         }
     }
 
-    // --- 3. FUNCIÓN PARA LIMPIAR LA LISTA ---
     fun clearMasterComponents() {
         _masterComponents.value = emptyList()
     }
 
-    // --- 4. ACTUALIZAR `publishProduct` ---
     fun publishProduct(
         nombre: String,
         precio: String,
         stock: Int,
         descripcion: String,
         categoriaId: Int?,
-        masterComponentId: String?, // <-- NUEVO PARÁMETRO
+        masterComponentId: String?,
         imageUris: List<android.net.Uri>,
         context: Context
     ) {
         viewModelScope.launch {
             _uiState.value = PublishUiState.Loading
 
-            // Validaciones (existentes)
             if (nombre.isBlank()) {
                 _uiState.value = PublishUiState.Error("El nombre del producto es requerido")
                 return@launch
@@ -103,7 +95,6 @@ class PublishViewModel(
                 return@launch
             }
 
-            // --- NUEVA VALIDACIÓN ---
             if (masterComponentId == null) {
                 _uiState.value = PublishUiState.Error("Debes seleccionar un componente maestro")
                 return@launch
@@ -120,8 +111,6 @@ class PublishViewModel(
             }
 
             try {
-                // La llamada al repositorio ahora debería incluir el ID del componente maestro.
-                // Esto fallará hasta que actualicemos ProductRepository.
                 val product = productRepository.createProduct(
                     nombre = nombre.trim(),
                     precio = precioValue,
@@ -129,7 +118,7 @@ class PublishViewModel(
                     descripcion = descripcion.trim(),
                     idUsuario = userId,
                     categoria = categoriaId,
-                    idComponenteMaestro = masterComponentId // <-- PASAR EL NUEVO DATO
+                    idComponenteMaestro = masterComponentId
                 )
 
                 if (product == null) {

@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel // <-- Importante para inyectar el ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.marketelectronico.ui.base.BaseScreen
@@ -126,14 +126,9 @@ fun ConversationScreen(
             contentPadding = PaddingValues(vertical = 12.dp),
             reverseLayout = true
         ) {
-            // LÓGICA DE VISUALIZACIÓN
-            // Usamos itemsIndexed para saber la posición.
-            // Al usar reversed(), el índice 0 es el mensaje MÁS NUEVO (el de más abajo).
             val reversedList = messages.reversed()
 
             itemsIndexed(messages) { index, message ->
-                // Condición: Mostrar solo si es el último mensaje (index 0) Y es mío.
-                // Si el índice 0 es de la otra persona, isSentByMe será false y no se mostrará nada.
                 val showStatus = (index == 0 && message.isSentByMe)
 
                 MessageBubble(message = message, showStatus = showStatus)
@@ -188,7 +183,7 @@ private fun MessageBubble(message: Message, showStatus: Boolean) {
 @Composable
 private fun ChatBottomBar(
     modifier: Modifier = Modifier,
-    onSend: (String) -> Unit // Callback para enviar
+    onSend: (String) -> Unit
 ) {
     var text by remember { mutableStateOf("") }
 
@@ -218,10 +213,10 @@ private fun ChatBottomBar(
             IconButton(
                 onClick = {
                     if (text.isNotBlank()) {
-                        onSend(text) // Llamamos al callback
-                        text = ""    // Limpiamos el campo
+                        onSend(text)
+                        text = ""
                     }
-                },
+                }, 
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )

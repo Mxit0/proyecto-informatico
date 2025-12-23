@@ -42,9 +42,9 @@ data class Category(
 )
 
 enum class MessageStatus {
-    SENDING, // Enviando...
-    SENT,    // Enviado (Check simple)
-    READ     // Leído (Doble check azul)
+    SENDING,
+    SENT,
+    READ
 }
 
 data class Message(
@@ -74,10 +74,6 @@ data class ComponenteMaestro(
     val categoria: Int,
     val especificaciones: Map<String, Any>
 )
-
-// --- DATOS DE MUESTRA (RESTAURADOS) ---
-// Dejamos todos los datos de muestra para que las Previews
-// y las pantallas no migradas sigan funcionando.
 
 val sampleProduct1 = Product(
     id = "1",
@@ -109,12 +105,9 @@ val sampleRecommendations = listOf(sampleProduct1, sampleProduct2, sampleProduct
 val sampleNews = listOf(sampleProduct4, sampleProduct5, sampleProduct6)
 val sampleOffers = listOf(sampleProduct7, sampleProduct8, sampleProduct9)
 
-// --- ¡LISTA RESTAURADA! ---
-// Esta lista es la que causaba todos los errores
 val allSampleProducts = (sampleRecommendations + sampleNews + sampleOffers).distinctBy { it.id }
 
 
-// --- El resto de tus datos de muestra ---
 val sampleChats = listOf(
     ChatPreview("1", "GamerZ", "Disponible?", "10:30 AM", 2, null),
     ChatPreview("2", "PartsWorld", "Enviado.", "Ayer", 3, null)
@@ -139,7 +132,6 @@ val sampleReplies = listOf(
 )
 
 val sampleComponentesMaestros = listOf(
-    // Componentes para categoría 1 (simulando "Procesadores")
     ComponenteMaestro("cmp_i7_10700k", "Intel Core i7-10700K", 1, mapOf("Núcleos" to 8, "Frecuencia" to "3.8 GHz")),
     ComponenteMaestro("cmp_i9_11900k", "Intel Core i9-11900K", 1, mapOf("Núcleos" to 8, "Frecuencia" to "3.5 GHz")),
     ComponenteMaestro("cmp_ryzen7_5800x", "AMD Ryzen 7 5800X", 1, mapOf("Núcleos" to 8, "Frecuencia" to "3.8 GHz")),

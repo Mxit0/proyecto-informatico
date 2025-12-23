@@ -11,15 +11,12 @@ import io.socket.client.Ack
 
 object SocketManager {
     private var socket: Socket? = null
-    // Usa la IP de tu máquina (10.0.2.2 para emulador)
     private const val URL = "http://10.0.2.2:3000"
 
-    // Inicializar CON el token del usuario (lo obtienes tras el Login)
     fun init(token: String) {
         try {
             val opts = IO.Options()
             opts.forceNew = true
-            // ESTO ES CLAVE: Tu server.js busca el token aquí
             opts.auth = mapOf("token" to token)
 
             socket = IO.socket(URL, opts)
@@ -45,33 +42,28 @@ object SocketManager {
         socket?.disconnect()
     }
 
-    // Unirse a la sala: coincidiendo con server.js "join_chat"
     fun joinChat(chatId: Int) {
         val json = JSONObject()
         json.put("chatId", chatId)
         socket?.emit("join_chat", json)
     }
 
-    // Enviar mensaje: coincidiendo con server.js "send_message"
     fun sendMessage(chatId: Int, content: String, onAck: (Boolean) -> Unit) {
         val json = JSONObject()
         json.put("chatId", chatId)
         json.put("contenido", content)
 
-        // Enviamos el mensaje Y esperamos la confirmación (Ack) del servidor
         socket?.emit("send_message", json, Ack { args ->
-            // Este código se ejecuta cuando el servidor responde "callback({ok: true})"
             if (args.isNotEmpty()) {
                 val response = args[0] as JSONObject
                 val ok = response.optBoolean("ok")
-                onAck(ok) // Avisamos al ViewModel que ya se envió
+                onAck(ok)
             } else {
                 onAck(false)
             }
         })
     }
 
-    // Escuchar: server.js emite "new_message"
     fun onMessageReceived(callback: (Message) -> Unit) {
         socket?.on("new_message") { args ->
             if (args.isNotEmpty()) {
@@ -82,7 +74,7 @@ object SocketManager {
                         text = data.optString("contenido"),
                         isSentByMe = false,
                         senderId = data.optString("id_remitente"),
-                        status = MessageStatus.SENT // Los que recibimos ya están enviados
+                        status = MessageStatus.SENT
                     )
                     callback(msg)
                 } catch (e: Exception) {

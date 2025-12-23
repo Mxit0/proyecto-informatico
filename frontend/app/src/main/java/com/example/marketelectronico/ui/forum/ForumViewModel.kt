@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-// ... (Los sealed interface se mantienen igual) ...
 sealed interface ForumsUiState {
     data object Loading : ForumsUiState
     data class Success(val foros: List<Foro>) : ForumsUiState
@@ -35,10 +34,8 @@ class ForumViewModel : ViewModel() {
     private val gson = Gson()
     private val socket = SocketManager.getSocket()
 
-    // 👇 CORRECCIÓN AQUÍ: Convertimos el Long a Int
     val currentUserId: Int
         get() = try {
-            // TokenManager.getUserId() devuelve Long?, así que usamos .toInt()
             TokenManager.getUserId()?.toInt() ?: -1
         } catch (e: Exception) {
             -1
@@ -49,8 +46,6 @@ class ForumViewModel : ViewModel() {
         fetchForums()
         setupSocketListener()
     }
-
-    // --- API CALLS ---
 
     fun fetchForums() {
         viewModelScope.launch {
@@ -87,7 +82,6 @@ class ForumViewModel : ViewModel() {
     fun createForum(titulo: String, desc: String) {
         viewModelScope.launch {
             try {
-                // Ahora esto funcionará porque actualizamos el modelo CreateForoRequest
                 val req = CreateForoRequest(titulo, desc, currentUserId)
                 val res = ForumService.api.createForum(req)
                 if (res.ok) fetchForums()
@@ -98,7 +92,6 @@ class ForumViewModel : ViewModel() {
     fun createPost(foroId: Int, content: String) {
         viewModelScope.launch {
             try {
-                // Ahora esto funcionará porque actualizamos el modelo CreatePublicacionRequest
                 val req = CreatePublicacionRequest(content, currentUserId)
                 ForumService.api.createPost(foroId, req)
             } catch (e: Exception) { e.printStackTrace() }
@@ -123,7 +116,6 @@ class ForumViewModel : ViewModel() {
         }
     }
 
-    // --- SOCKETS ---
     private fun joinForumRoom(foroId: Int) {
         val data = JSONObject()
         data.put("room", "foro_$foroId")
@@ -151,18 +143,17 @@ class ForumViewModel : ViewModel() {
             try {
                 val req = UpdateForoRequest(titulo, desc)
                 val res = ForumService.api.updateForum(foroId, req)
-                if (res.ok) fetchForums() // Recargar lista para ver cambios
+                if (res.ok) fetchForums()
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
-    // 👇 NUEVO: Editar Comentario
     fun updatePost(postId: Int, foroId: Int, content: String) {
         viewModelScope.launch {
             try {
                 val req = UpdatePublicacionRequest(content)
                 val res = ForumService.api.updatePost(postId, req)
-                if (res.ok) fetchForumDetail(foroId) // Recargar posts
+                if (res.ok) fetchForumDetail(foroId)
             } catch (e: Exception) { e.printStackTrace() }
         }
     }

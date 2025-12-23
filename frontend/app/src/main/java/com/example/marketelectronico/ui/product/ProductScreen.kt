@@ -75,7 +75,6 @@ fun ProductScreen(
             android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
         }
     }
-    // --- 4. OBSERVAR ESTADO Y CARGAR DATOS ---
     val uiState by viewModel.uiState.collectAsState()
 
     val rawId = TokenManager.getUserId()
@@ -92,14 +91,10 @@ fun ProductScreen(
             viewModel.fetchProduct(productId)
         }
     }
-    // ----------------------------------------
 
-    // --- Lógica de la Bottom Bar (sin cambios) ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(Icons.Default.Home, Icons.AutoMirrored.Filled.List, Icons.Default.AddCircle, Icons.Default.Email, Icons.Default.Person, Icons.Default.Info)
     val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
-    // --- FIN LÓGICA BOTTOM BAR ---
-
     val myExistingReview by viewModel.myExistingReview.collectAsState()
 
     LaunchedEffect(uiState) {
@@ -114,13 +109,9 @@ fun ProductScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                // CAMBIO CLAVE:
-                // No usamos la variable 'uiState' de arriba (que puede ser vieja),
-                // sino que pedimos el valor ACTUAL al ViewModel en este instante exacto.
                 val currentState = viewModel.uiState.value
 
                 if (currentState is ProductDetailUiState.Success) {
-                    // Ahora sí tenemos el producto cargado y podemos chequear
                     viewModel.checkIfReviewed(currentState.product.sellerId)
                 }
             }
@@ -140,7 +131,6 @@ fun ProductScreen(
                 val sellerId = (uiState as ProductDetailUiState.Success).product.sellerId
                 viewModel.checkIfReviewed(sellerId)
 
-                // Reseteamos el valor a false para no recargar infinitamente
                 currentBackStackEntry?.savedStateHandle?.set("refresh_reviews", false)
             }
         }
@@ -157,7 +147,7 @@ fun ProductScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Acción de compartir */ }) {
+                    IconButton(onClick = { }) {
                         Icon(Icons.Default.Share, contentDescription = "Compartir", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 },
@@ -197,7 +187,6 @@ fun ProductScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
 
-        // --- 5. MANEJO DE ESTADO ---
         when (val state = uiState) {
             is ProductDetailUiState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
@@ -220,7 +209,6 @@ fun ProductScreen(
                     },
                     onDelete = { id ->
                         viewModel.deleteCurrentProduct(id) {
-                            // Al borrar exitosamente, volvemos atrás
                             navController.popBackStack()
                         }
                     },
@@ -228,11 +216,10 @@ fun ProductScreen(
                         viewModel.updateCurrentProduct(id, name, desc, price, stock)
                     },
                     onSellerClick = { sellerId ->
-                        // Navegamos a una nueva ruta pasando el ID
                         navController.navigate("profile_public/$sellerId")
                     },
                     myExistingReview = myExistingReview,
-                    onUpdateReview = { id, rating, comment -> // <--- Callback para editar
+                    onUpdateReview = { id, rating, comment ->
                         viewModel.updateUserReview(id, rating, comment) {
                             viewModel.checkIfReviewed(state.product.sellerId) // Recargar
                         }
@@ -272,7 +259,6 @@ private fun ProductDetailsContent(
     var showNoStockDialog by remember { mutableStateOf(false) }
     var showEditReviewDialog by remember { mutableStateOf(false) }
 
-    // --- GALERÍA DE IMÁGENES ---
     // Lista final de imágenes: si no hay imageUrls, usamos solo imageUrl
     val imageList = remember(product) {
         val baseList = if (product.imageUrls.isNotEmpty()) {
@@ -293,7 +279,7 @@ private fun ProductDetailsContent(
             listOf(product.imageUrl).filter { it.isNotBlank() }
         }
     }
-    // --- FIN GALERÍA DE IMÁGENES ---
+
 
     Column(
         modifier = Modifier
@@ -428,7 +414,6 @@ private fun ProductDetailsContent(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 👇 NUEVA ESTRUCTURA VISUAL
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -438,7 +423,6 @@ private fun ProductDetailsContent(
                     .clickable { onSellerClick(product.sellerId) }
                     .padding(12.dp)
             ) {
-                // 👇 FOTO CON COIL
                 AsyncImage(
                     model = product.sellerImageUrl ?: "https://i.pravatar.cc/150?u=${product.sellerId}",
                     contentDescription = "Avatar del vendedor",
@@ -472,7 +456,6 @@ private fun ProductDetailsContent(
             }
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Descripción
             Text(
                 text = "Descripción",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -486,7 +469,6 @@ private fun ProductDetailsContent(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Especificaciones
             Text(
                 text = "Especificaciones",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -510,12 +492,10 @@ private fun ProductDetailsContent(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- BOTONES INFERIORES (Reviews y Calificar) ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Botón Reviews del Producto
                 OutlinedButton(
                     onClick = { navController.navigate("product_reviews/${product.id}") },
                     modifier = Modifier

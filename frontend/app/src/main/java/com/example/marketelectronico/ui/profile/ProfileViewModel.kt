@@ -43,11 +43,7 @@ class ProfileViewModel : ViewModel() {
     private val _receivedReviews = MutableStateFlow<List<Review>>(emptyList())
     val receivedReviews: StateFlow<List<Review>> = _receivedReviews
 
-    //init {
-        //loadUserProfile()
-        //loadUserOrders()
-        //loadMyProducts()
-    //}
+
 
     fun loadData(userIdToLoad: String?) {
         val currentUserId = TokenManager.getUserId()?.toString()
@@ -57,24 +53,21 @@ class ProfileViewModel : ViewModel() {
             viewModelScope.launch {
                 _isLoading.value = true
                 try {
-                    // 1. Cargar Perfil (Reutilizamos la lógica del repo)
-                    // Nota: Asegúrate de tener getUserById en tu UserRepository
-                    val profile = userRepository.getUserById(targetId.toLong())
-                    _userProfile.value = profile.user // Asumiendo que devuelve UserResponse
+                val profile = userRepository.getUserById(targetId.toLong())
+                _userProfile.value = profile.user
 
-                    // 2. Cargar Productos de ese usuario
+                val products = productRepository.getProductsByUser(targetId.toLong())
+                _myProducts.value = products
                     val products = productRepository.getProductsByUser(targetId.toLong())
                     _myProducts.value = products
 
                     val reviews = ReviewRepository.getUserReviews(targetId)
                     _receivedReviews.value = reviews
 
-                    // 3. Cargar Compras (Solo si soy yo mismo, por privacidad)
                     if (targetId == currentUserId) {
-                        // ... lógica de cargar órdenes ...
                         loadUserOrders()
                     } else {
-                        _userOrders.value = emptyList() // No ver compras ajenas
+                        _userOrders.value = emptyList()
                     }
 
                 } catch (e: Exception) {
@@ -94,10 +87,7 @@ class ProfileViewModel : ViewModel() {
 
                 Log.d("ProfileViewModel", "Nueva imagen de perfil seleccionada: $uri")
 
-                // Subir la foto al backend / Supabase
                 userRepository.uploadProfilePhoto(uri, context)
-
-                // Al terminar, recargamos el perfil para traer la nueva URL en userProfile.foto
                 loadUserProfile()
             } catch (e: Exception) {
                 _error.value = e.message ?: "Error al actualizar la foto de perfil"
@@ -132,7 +122,6 @@ class ProfileViewModel : ViewModel() {
             viewModelScope.launch {
                 try {
                     val ordersFromApi = OrderRepository.getUserOrders()
-                    // Ahora comparamos String con String
                     _userOrders.value = ordersFromApi.filter { it.userId == currentUserId }
                 } catch (e: Exception) {
                     _userOrders.value = emptyList()
@@ -161,7 +150,7 @@ class ProfileViewModel : ViewModel() {
         val currentUserId = TokenManager.getUserId()?.toString() ?: return
         viewModelScope.launch {
             val success = ReviewRepository.deleteUserReview(reviewId, currentUserId)
-            onResult(success) // Devolvemos el resultado a la UI
+            onResult(success)
         }
     }
 

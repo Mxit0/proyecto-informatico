@@ -20,7 +20,6 @@ import com.example.marketelectronico.utils.TokenManager
 import com.example.marketelectronico.data.repository.Review
 import com.example.marketelectronico.data.repository.ReviewRepository
 
-// Estado para la pantalla de detalle
 sealed class ProductDetailUiState {
     data object Loading : ProductDetailUiState()
     data class Success(val product: Product) : ProductDetailUiState()
@@ -31,7 +30,6 @@ sealed class ProductDetailUiState {
  * ViewModel para la pantalla de detalle (ProductScreen)
  */
 class ProductViewModel(
-    // Inyección manual de dependencias
     private val productRepository: ProductRepository = ProductRepository()
 ) : ViewModel() {
 
@@ -41,7 +39,6 @@ class ProductViewModel(
     private val _navigationEvent = Channel<String>()
     val navigationEvent = _navigationEvent.receiveAsFlow()
 
-    // Repositorio de chat para el botón "Contactar"
     private val chatRepository: ChatRepository = ChatRepository(ApiClient.chatApi)
 
     private val _myExistingReview = MutableStateFlow<Review?>(null)
@@ -52,7 +49,6 @@ class ProductViewModel(
 
     fun fetchProduct(productId: String, isRefresh: Boolean = false) {
         viewModelScope.launch {
-            // SOLO mostramos Loading si NO es una recarga silenciosa (isRefresh = false)
             if (!isRefresh) {
                 _uiState.value = ProductDetailUiState.Loading
             }
@@ -88,13 +84,11 @@ class ProductViewModel(
 
     fun deleteCurrentProduct(productId: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
-            // CORREGIDO: Usar 'productRepository' en vez de 'repository'
             val success = productRepository.deleteProduct(productId)
             if (success) {
                 onSuccess()
             } else {
                 Log.e("ProductVM", "Error al eliminar")
-                // Aquí podrías poner un _uiState.value = Error...
             }
         }
     }
@@ -107,10 +101,8 @@ class ProductViewModel(
                 precio = price,
                 stock = stock
             )
-            // CORREGIDO: Usar 'productRepository' en vez de 'repository'
             val success = productRepository.updateProduct(productId, request)
             if (success) {
-                // Recargar los datos para ver los cambios
                 fetchProduct(productId)
             } else {
                 Log.e("ProductVM", "Error al actualizar")
@@ -121,8 +113,7 @@ class ProductViewModel(
     fun checkIfReviewed(sellerId: Int) {
         val currentUserId = TokenManager.getUserId()?.toString() ?: return
 
-        // No te puedes reseñar a ti mismo
-        if (currentUserId == sellerId.toString()) return
+            if (currentUserId == sellerId.toString()) return
 
         viewModelScope.launch {
             val review = ReviewRepository.checkUserReview(currentUserId, sellerId.toString())
@@ -135,10 +126,9 @@ class ProductViewModel(
         viewModelScope.launch {
             val success = ReviewRepository.updateUserReview(reviewId, currentUserId, rating, comment)
             if (success) {
-                // Obtener el ID del vendedor desde el estado actual del producto
                 val currentState = _uiState.value
                 if (currentState is ProductDetailUiState.Success) {
-                    checkIfReviewed(currentState.product.sellerId) // Usamos el ID del vendedor, no el mío
+                    checkIfReviewed(currentState.product.sellerId)
                 }
                 onSuccess()
             }
@@ -147,10 +137,8 @@ class ProductViewModel(
 
     fun uploadImages(productId: String, uris: List<Uri>, context: Context) {
         viewModelScope.launch {
-            // NO ponemos Loading manualmente aquí
             val success = productRepository.uploadProductImages(productId, uris, context)
             if (success) {
-                // Llamamos a fetchProduct con isRefresh = true
                 fetchProduct(productId, isRefresh = true)
                 _toastMessage.send("Imagen añadida correctamente")
             } else {
@@ -164,7 +152,6 @@ class ProductViewModel(
             try {
                 val success = productRepository.deleteImage(imageId)
                 if (success) {
-                    // Llamamos a fetchProduct con isRefresh = true
                     fetchProduct(productId, isRefresh = true)
                     _toastMessage.send("Imagen eliminada")
                 }

@@ -25,7 +25,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import coil.compose.AsyncImage // <-- 1. IMPORTAR COIL
+import coil.compose.AsyncImage 
 import com.example.marketelectronico.data.model.Product
 import com.example.marketelectronico.data.repository.CartRepository
 import com.example.marketelectronico.ui.theme.MarketElectronicoTheme
@@ -44,7 +44,7 @@ fun CartScreen(
     val totalPrice = CartRepository.totalPrice.value
     var productToDelete by remember { mutableStateOf<Product?>(null) }
 
-    // --- Lógica de la Bottom Bar (sin cambios) ---
+    
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(Icons.Default.Home, Icons.AutoMirrored.Filled.List, Icons.Default.AddCircle, Icons.Default.Email, Icons.Default.Person, Icons.Default.Info)
     val navRoutes = listOf("main", "categories", "publish", "chat_list", "profile", "forum")
@@ -158,19 +158,19 @@ fun CartItem(product: Product, onRemoveClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // --- 2. USAR ASYNCIMAGE EN LUGAR DE IMAGE ---
+        
         AsyncImage(
-            model = product.imageUrl, // URL real del producto
+            model = product.imageUrl, 
             contentDescription = product.name,
             modifier = Modifier
                 .size(60.dp)
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surface), // Fondo mientras carga
+                .background(MaterialTheme.colorScheme.surface), 
             contentScale = ContentScale.Crop,
             placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
             error = painterResource(id = android.R.drawable.ic_menu_gallery)
         )
-        // --------------------------------------------
+        
 
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -205,7 +205,7 @@ private fun formatCurrency(amount: Double): String {
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun CartScreenPreview() {
-    // ... (Preview con datos de muestra)
+    
     val previewProduct = Product(
         id = "1", name = "Intel Core i7", price = 250.0, imageUrl = "",
         status = "Good", sellerName = "Tech", sellerRating = 4.8, sellerReviews = 10, description = "", specifications = emptyMap()

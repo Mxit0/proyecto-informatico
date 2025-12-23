@@ -16,7 +16,6 @@ object SocketChatManager {
     private lateinit var socket: Socket
     private const val TAG = "SocketChat"
 
-    // Asegúrate de que este puerto coincida con tu server.js (4000 o 3000)
     private const val SOCKET_URL = "http://10.0.2.2:3000"
 
     fun connect() {
@@ -28,12 +27,9 @@ object SocketChatManager {
         }
 
         val opts = IO.Options().apply {
-            // CORRECCIÓN 1: Usar 'auth' es más directo y compatible con tu server.js
-            // que busca socket.handshake.auth.token
             auth = mapOf("token" to token)
 
-            // Si prefieres mantener extraHeaders, descomenta esto, pero auth es mejor:
-            // extraHeaders = mapOf("Authorization" to listOf("Bearer $token"))
+
         }
 
         try {
@@ -45,7 +41,6 @@ object SocketChatManager {
             }
 
             socket.on(Socket.EVENT_CONNECT_ERROR) { args ->
-                // CORRECCIÓN 2: Especificar el tipo de args explícitamente
                 val error = if (args.isNotEmpty()) args[0] else "Unknown"
                 Log.e(TAG, "Error de conexión: $error")
             }
@@ -55,7 +50,6 @@ object SocketChatManager {
             }
 
             socket.on("new_message") { args ->
-                // CORRECCIÓN 3: Especificar tipo explícito Array<Any>
                 val arguments = args as Array<Any>
                 if (arguments.isNotEmpty()) {
                     val mensaje = arguments[0] as JSONObject
@@ -72,8 +66,7 @@ object SocketChatManager {
             put("otherUserId", otherUserId)
         }
 
-        // CORRECCIÓN 4: Usar la interfaz Ack explícita para el callback
-        // y especificar el tipo de args (Array<Any>)
+
         socket.emit("open_chat_with_user", payload, Ack { args ->
             val arguments = args as Array<Any>
             if (arguments.isNotEmpty()) {
@@ -97,7 +90,6 @@ object SocketChatManager {
             put("chatId", chatId)
             put("contenido", contenido)
         }
-        // Nota: Si quieres confirmar que se envió, agrega un Ack aquí también
         socket.emit("send_message", payload)
     }
 
@@ -107,7 +99,6 @@ object SocketChatManager {
         }
     }
 
-    // Helper por si lo necesitas en ViewModels
     fun getSocket(): Socket? {
         return if (::socket.isInitialized) socket else null
     }
@@ -117,8 +108,7 @@ object SocketChatManager {
             if (args.isNotEmpty()) {
                 val data = args[0] as JSONObject
                 try {
-                    // Mapeamos el JSON del backend (server.js) al objeto Message de Android
-                    val message = Message(
+
                         id = data.optString("id"),
                         text = data.optString("contenido"),
                         senderId = data.optString("id_remitente"),
@@ -126,7 +116,6 @@ object SocketChatManager {
                         status = MessageStatus.SENT
                     )
 
-                    // IMPORTANTE: Ejecutar en el Hilo Principal (UI Thread)
                     Handler(Looper.getMainLooper()).post {
                         callback(message)
                     }

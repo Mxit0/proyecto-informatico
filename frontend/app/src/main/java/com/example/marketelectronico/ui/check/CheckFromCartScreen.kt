@@ -66,7 +66,6 @@ fun CheckFromCartScreen(navController: NavController) {
 
     LaunchedEffect(Unit) {
         startAnimation = true
-        // Cargar carrito al entrar
         CartRepository.loadCart()
     }
 
@@ -164,7 +163,6 @@ fun CheckFromCartScreen(navController: NavController) {
             Button(
                 onClick = {
                     scope.launch {
-                        // Realizar la comprobación de compatibilidad
                         checking = true
                         try {
                             val response = CompatibilityRepository.check(cartItems.toList())
@@ -177,7 +175,6 @@ fun CheckFromCartScreen(navController: NavController) {
                                         dialogMessage = "Todos los productos parecen compatibles."
                                         showDialog = true
                                     } else {
-                                        // Default: mark all compatible then mark incompatible pairs
                                         cartItems.forEach { statusMap[it.id.toString()] = "COMPATIBLE" }
                                         if (!data.pairs.isNullOrEmpty()) {
                                             data.pairs.forEach { p ->

@@ -43,13 +43,11 @@ fun ProductReviewScreen(
     productId: String?
 ) {
     val currentUserId = TokenManager.getUserId()?.toString() ?: ""
-    val scope = rememberCoroutineScope() // <--- 1. Scope para llamadas async
+    val scope = rememberCoroutineScope()
 
-    // Estado local de la lista
     var reviewsList by remember { mutableStateOf<List<Review>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // Función para recargar la lista (útil tras borrar/editar/dar like)
     fun reloadReviews() {
         if (productId != null) {
             scope.launch {
@@ -58,7 +56,6 @@ fun ProductReviewScreen(
         }
     }
 
-    // Carga inicial
     LaunchedEffect(productId) {
         if (productId != null) {
             reviewsList = ReviewRepository.getReviewsForProduct(productId)
@@ -66,7 +63,6 @@ fun ProductReviewScreen(
         isLoading = false
     }
 
-    // Ordenamiento local
     var selectedSortOption by remember { mutableStateOf("Most recent") }
     val reviews = remember(reviewsList, selectedSortOption) {
         when (selectedSortOption) {
@@ -76,7 +72,6 @@ fun ProductReviewScreen(
         }
     }
 
-    // Resumen
     val totalReviews = reviewsList.size
     val averageRating = if (reviewsList.isNotEmpty()) reviewsList.sumOf { it.rating } / totalReviews else 0.0
     val ratingSummary = (1..5).associateWith { star ->
@@ -113,22 +108,19 @@ fun ProductReviewScreen(
                     review = review,
                     currentUserId = currentUserId,
                     onLikeClick = {
-                        // 2. Llamada asíncrona a Toggle Like
                         scope.launch {
                             val success = ReviewRepository.toggleLike(review.id, currentUserId)
-                            if (success) reloadReviews() // Recargar para actualizar corazón/contador
+                            if (success) reloadReviews()
                         }
                     },
                     onDeleteClick = {
-                        // 2. Llamada asíncrona a Delete
                         scope.launch {
                             val success = ReviewRepository.deleteReview(review.id, currentUserId)
-                            if (success) reloadReviews() // Recargar para quitar la review
+                            if (success) reloadReviews()
                         }
                     },
                     onEditClick = { newComment, newRating ->
                         scope.launch {
-                            // newRating ya es Double (viene del slider/estrellas)
                             val success = ReviewRepository.updateReview(
                                 review.id,
                                 currentUserId,
@@ -206,7 +198,7 @@ fun SortByChips(
             chips.forEach { label ->
                 FilterChip(
                     selected = selectedOption == label,
-                    onClick = { onOptionSelected(label) }, // Notificamos el cambio
+                    onClick = { onOptionSelected(label) },
                     label = { Text(label) },
                     colors = FilterChipDefaults.filterChipColors(
                         containerColor = MaterialTheme.colorScheme.surface,
@@ -229,13 +221,11 @@ fun ReviewItem(
     onDeleteClick: () -> Unit,
     onEditClick: (String, Double) -> Unit
 ) {
-    // Estado para el diálogo de edición
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     Column {
         Row(verticalAlignment = Alignment.Top) {
-            // --- FOTO Y NOMBRE (Tu código existente) ---
             if (review.authorImageUrl != null) {
                 AsyncImage(
                     model = review.authorImageUrl,
@@ -267,12 +257,10 @@ fun ReviewItem(
                 )
             }
 
-            // --- ACCIONES DE DUEÑO (Editar / Borrar) ---
             if (review.authorId == currentUserId && currentUserId.isNotEmpty()) {
                 IconButton(onClick = { showEditDialog = true }) {
                     Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.Gray, modifier = Modifier.size(20.dp))
                 }
-                // --- MODIFICADO: Ahora abre el diálogo en lugar de borrar directo
                 IconButton(onClick = { showDeleteDialog = true }) {
                     Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
                 }
@@ -291,14 +279,13 @@ fun ReviewItem(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // --- BOTÓN DE LIKE ---
         val isLiked = review.likedByUserIds.contains(currentUserId)
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
-                .clickable { if(currentUserId.isNotEmpty()) onLikeClick() } // Solo si está logueado
+                .clickable { if(currentUserId.isNotEmpty()) onLikeClick() }
                 .background(if (isLiked) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent)
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {

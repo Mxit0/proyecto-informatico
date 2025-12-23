@@ -97,8 +97,7 @@ class ProductRepository {
                 )
             }.filterNotNull()
 
-            // VALIDACIÓN: Permitir subir aunque sea 1 foto si es edición.
-            // La validación de máximo 10 está en el backend.
+
             if (parts.isEmpty()) return false
 
             val response = api.uploadProductImages(productId, parts)
@@ -258,8 +257,6 @@ class ProductRepository {
     }
 }
 
-// CONSERVADA (de tu stash, pero podría ser redundante): Mapper simple.
-// Lo mantengo por si `getAllProducts` o `createProduct` lo necesitan explícitamente.
 /**
  * Función "Mapper" simple que convierte el DTO al modelo de UI (Product).
  */

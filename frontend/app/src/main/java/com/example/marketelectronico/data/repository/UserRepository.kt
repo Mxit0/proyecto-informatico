@@ -19,10 +19,10 @@ import kotlinx.coroutines.withContext
 class UserRepository {
     private val userApi = UserService.api
 
-    // --- NUEVO: Estado para guardar el usuario en memoria ---
+    
     private val _currentUser = MutableStateFlow<UserProfileDto?>(null)
     val currentUser: StateFlow<UserProfileDto?> = _currentUser.asStateFlow()
-    // --------------------------------------------------------
+    
 
     suspend fun getUserProfile(): UserProfileDto? {
         return try {
@@ -33,11 +33,11 @@ class UserRepository {
                 val response = userApi.getUserById(userId)
                 Log.d("UserRepository", "Respuesta recibida: $response")
 
-                // --- NUEVO: Actualizamos el estado en memoria ---
+                
                 if (response.ok && response.user != null) {
                     _currentUser.value = response.user
                 }
-                // ------------------------------------------------
+                
 
                 response.user
             } else {
@@ -84,14 +84,14 @@ class UserRepository {
     }
 
 
-    // --- NUEVO: Función para setear manualmente (usada en Login) ---
+    
     fun setUser(user: UserProfileDto?) {
         _currentUser.value = user
     }
 
     fun clearSession() {
         _currentUser.value = null
-        // Aquí también podrías limpiar el TokenManager
+    
         TokenManager.clear()
     }
 
@@ -107,10 +107,10 @@ class UserRepository {
         try {
             val userId = TokenManager.getUserId()
             if (userId != null) {
-                // Creamos el objeto request que definiste en UserDto.kt
+                
                 val request = com.example.marketelectronico.data.remote.FcmTokenRequest(token)
 
-                // Llamamos a la API
+                
                 val response = userApi.saveFcmToken(request)
 
                 if (response.isSuccessful) {

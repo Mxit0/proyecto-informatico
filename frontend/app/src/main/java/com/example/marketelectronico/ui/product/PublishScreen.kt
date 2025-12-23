@@ -47,12 +47,10 @@ fun PublishScreen(
     var stock by remember { mutableStateOf("1") }
     var descripcion by remember { mutableStateOf("") }
 
-    // Estado para el dropdown de Categorías
     var categoriaExpanded by remember { mutableStateOf(false) }
     var selectedCategoriaId by remember { mutableStateOf<Int?>(null) }
     var selectedCategoriaNombre by remember { mutableStateOf<String?>(null) }
 
-    // --- 1. ESTADO PARA EL NUEVO DROPDOWN DE COMPONENTES ---
     var componenteExpanded by remember { mutableStateOf(false) }
     var selectedComponenteId by remember { mutableStateOf<String?>(null) }
     var selectedComponenteNombre by remember { mutableStateOf<String?>(null) }
@@ -70,7 +68,6 @@ fun PublishScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is PublishUiState.Success) {
-            // Limpiar todo el formulario
             nombre = ""
             precio = ""
             stock = "1"
@@ -97,7 +94,6 @@ fun PublishScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Campos existentes (nombre, precio, descripción) ...
             OutlinedTextField(
                 value = nombre,
                 onValueChange = { nombre = it },
@@ -137,7 +133,6 @@ fun PublishScreen(
             OutlinedTextField(
                 value = stock,
                 onValueChange = {
-                    // Validar que solo sean números enteros
                     if (it.isEmpty() || it.matches(Regex("^\\d*$"))) {
                         stock = it
                     }
@@ -170,7 +165,6 @@ fun PublishScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Dropdown de Categorías (sin cambios funcionales)
             ExposedDropdownMenuBox(
                 expanded = categoriaExpanded,
                 onExpandedChange = { categoriaExpanded = !categoriaExpanded },
@@ -197,16 +191,13 @@ fun PublishScreen(
                         DropdownMenuItem(
                             text = { Text(category.nombre) },
                             onClick = {
-                                // --- 2. LÓGICA AL SELECCIONAR CATEGORÍA ---
                                 selectedCategoriaId = category.id
                                 selectedCategoriaNombre = category.nombre
                                 categoriaExpanded = false
 
-                                // Limpiar selección de componente anterior
                                 selectedComponenteId = null
                                 selectedComponenteNombre = null
 
-                                // Cargar los nuevos componentes
                                 viewModel.loadMasterComponents(category.id)
                             }
                         )
@@ -215,7 +206,6 @@ fun PublishScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- 3. NUEVO DROPDOWN DE COMPONENTES MAESTROS ---
             AnimatedVisibility(visible = selectedCategoriaId != null) {
                 Column {
                     ExposedDropdownMenuBox(
@@ -264,7 +254,6 @@ fun PublishScreen(
                 }
             }
 
-            // Sección de imágenes (sin cambios)
             Text(
                 text = "Imágenes del producto (mínimo 3) *",
                 style = MaterialTheme.typography.titleSmall,
@@ -318,7 +307,6 @@ fun PublishScreen(
             }
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Mostrar error si existe (sin cambios)
             if (uiState is PublishUiState.Error) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -336,7 +324,6 @@ fun PublishScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // --- 4. ACTUALIZAR LLAMADA AL VIEWMODEL ---
             Button(
                 onClick = {
                     viewModel.publishProduct(
@@ -345,7 +332,7 @@ fun PublishScreen(
                         stock = stock.toIntOrNull() ?: 1,
                         descripcion = descripcion,
                         categoriaId = selectedCategoriaId,
-                        masterComponentId = selectedComponenteId, // <-- PASAR EL NUEVO ID
+                        masterComponentId = selectedComponenteId,
                         imageUris = selectedImages,
                         context = context
                     )

@@ -24,17 +24,15 @@ fun CreatePostScreen(
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
 
-    // --- 1. CREAR EL FOCUS REQUESTER ---
     val focusRequester = remember { FocusRequester() }
 
-    // --- 2. PEDIR FOCUS AL CARGAR LA PANTALLA ---
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
 
     BaseScreen(
         title = "Crear Nuevo Hilo",
-        navController = navController, // <-- Pasa el NavController
+        navController = navController,
         modifier = modifier
     ) { padding ->
         Column(
@@ -49,7 +47,6 @@ fun CreatePostScreen(
                 label = { Text("Título del Hilo") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    // --- 3. APLICAR EL FOCUS REQUESTER ---
                     .focusRequester(focusRequester),
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
@@ -68,7 +65,7 @@ fun CreatePostScreen(
                 label = { Text("Contenido del Hilo...") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f), // Ocupa el espacio restante
+                    .weight(1f),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -81,8 +78,7 @@ fun CreatePostScreen(
 
             Button(
                 onClick = {
-                    // TODO: Añadir lógica para guardar el post
-                    navController.popBackStack() // Vuelve a la pantalla anterior (Foro)
+                    navController.popBackStack()
                 },
                 modifier = Modifier
                     .fillMaxWidth()

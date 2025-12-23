@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import com.example.marketelectronico.MainActivity // Importa tu MainActivity
+import com.example.marketelectronico.MainActivity 
 import com.example.marketelectronico.data.repository.UserRepository
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -18,7 +18,7 @@ import android.util.Log
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
-    // Se llama si Firebase refresca el token automáticamente
+    
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         CoroutineScope(Dispatchers.IO).launch {
@@ -26,7 +26,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    // Se llama cuando llega un mensaje
+    
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
@@ -35,7 +35,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val title = remoteMessage.notification?.title ?: "Nuevo mensaje"
         val body = remoteMessage.notification?.body ?: ""
 
-        // Datos extra del backend
+        
         val chatId = remoteMessage.data["chatId"]
         val remitenteId = remoteMessage.data["remitenteId"]
 
@@ -57,7 +57,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         )
 
         val builder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(android.R.drawable.ic_dialog_email) // Cambia por tu icono (R.drawable.ic_...)
+            .setSmallIcon(android.R.drawable.ic_dialog_email) 
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
@@ -67,11 +67,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                channelId, // "chat_channel"
+                channelId, 
                 "Mensajes de Chat",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                enableVibration(true) // Forzar vibración
+                enableVibration(true) 
                 enableLights(true)
             }
             manager.createNotificationChannel(channel)

@@ -14,16 +14,13 @@ import kotlinx.coroutines.launch
 
 object CartRepository {
 
-    private val api = ApiClient.cartApi // Asegúrate de tener esto configurado en ApiClient
+    private val api = ApiClient.cartApi
 
-    // Lista observable para la UI
     val cartItems = mutableStateListOf<Product>()
 
-    // Total observable
     private val _totalPrice = mutableDoubleStateOf(0.0)
     val totalPrice: State<Double> = _totalPrice
 
-    // Scope para ejecutar llamadas de red
     private val repoScope = CoroutineScope(Dispatchers.IO)
 
     /**
@@ -43,14 +40,13 @@ object CartRepository {
                 if (response.isSuccessful && response.body() != null) {
                     val cartData = response.body()!!
 
-                    // Convertimos los items del DTO a tu modelo Product de UI
                     val mappedProducts = cartData.items.map { dto ->
                         Product(
                             id = dto.idProducto,
                             name = dto.nombre,
                             price = dto.precioUnitario,
                             imageUrl = dto.imagenUrl ?: "",
-                            // Campos que el carrito backend no devuelve, ponemos valores por defecto
+
                             description = "",
                             status = "En stock: ${dto.stock}",
                             sellerId = 0,
@@ -61,7 +57,6 @@ object CartRepository {
                         )
                     }
 
-                    // Actualizamos la UI en el hilo principal
                     CoroutineScope(Dispatchers.Main).launch {
                         cartItems.clear()
                         cartItems.addAll(mappedProducts)
@@ -82,11 +77,10 @@ object CartRepository {
                 val request = AddToCartRequest(
                     userId = userId,
                     productId = product.id,
-                    quantity = 1 // Por defecto sumamos 1
+                    quantity = 1
                 )
                 val response = api.addToCart(request)
                 if (response.isSuccessful) {
-                    // Si se agregó con éxito, recargamos el carrito completo para actualizar precios/lista
                     loadCart()
                 }
             } catch (e: Exception) {
@@ -102,7 +96,7 @@ object CartRepository {
             try {
                 val response = api.removeFromCart(userId, product.id)
                 if (response.isSuccessful) {
-                    loadCart() // Recargamos para reflejar cambios
+                    loadCart()
                 }
             } catch (e: Exception) {
                 Log.e("CartRepository", "Error eliminando del carrito", e)

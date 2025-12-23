@@ -9,11 +9,10 @@ import java.util.Date
 import java.util.Locale
 import com.example.marketelectronico.data.remote.CreateOrderRequest
 
-// Tu modelo de UI existente
 data class Order(
     val id: String,
     val userId: String,
-    val items: List<Product>, // En el historial vendrá vacío por eficiencia
+    val items: List<Product>,
     val date: Date,
     val totalAmount: Double
 )
@@ -21,7 +20,6 @@ data class Order(
 object OrderRepository {
     private val api = ApiClient.orderApi
 
-    // Función para parsear la fecha de Postgres/Node a Date de Java
     private fun parseDate(dateString: String?): Date {
         if (dateString.isNullOrEmpty()) return Date()
         return try {
@@ -39,7 +37,6 @@ object OrderRepository {
         val userId = TokenManager.getUserId()?.toString() ?: return emptyList()
 
         return try {
-            // Llama a la API (OrderAPI usa OrderSummaryDto)
             val response = api.getOrdersByUser(userId)
 
             if (response.isSuccessful && response.body() != null) {
@@ -51,7 +48,6 @@ object OrderRepository {
                         id = dto.id,
                         userId = dto.userId,
                         items = emptyList(),
-                        // 👇 CORRECCIÓN AQUÍ: Usamos 'fechaCompra' (la variable Kotlin), no 'fecha_compra'
                         date = parseDate(dto.fechaCompra),
                         totalAmount = dto.total ?: 0.0
                     )
@@ -72,7 +68,6 @@ object OrderRepository {
                 val detailDto = response.body()!!
                 val compraDto = detailDto.compra
 
-                // Mapear items
                 val productList = detailDto.items.map { itemDto ->
                     Product(
                         id = itemDto.idProducto,
@@ -84,12 +79,10 @@ object OrderRepository {
                     )
                 }
 
-                // Mapear cabecera usando 'compraDto'
                 Order(
                     id = compraDto.id,
                     userId = compraDto.userId,
                     items = productList,
-                    // 👇 Aquí también usamos 'fechaCompra'
                     date = parseDate(compraDto.fechaCompra),
                     totalAmount = compraDto.total ?: 0.0
                 )
@@ -106,7 +99,6 @@ object OrderRepository {
         return try {
             val response = api.createOrder(CreateOrderRequest(userId))
             if (response.isSuccessful && response.body() != null) {
-                // Devolvemos el ID REAL que creó la base de datos
                 response.body()!!.orderId
             } else {
                 null

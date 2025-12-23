@@ -36,7 +36,6 @@ fun PostDetailScreen(
     val uiState by viewModel.detailState.collectAsState()
     var replyText by remember { mutableStateOf("") }
 
-    // Estado para editar comentario
     var postToEdit by remember { mutableStateOf<Publicacion?>(null) }
 
     var postToDelete by remember { mutableStateOf<Publicacion?>(null) }
@@ -84,16 +83,15 @@ fun PostDetailScreen(
                 is ForumDetailUiState.Success -> {
                     LazyColumn(contentPadding = PaddingValues(16.dp)) {
                         item {
-                            // Cabecera del Foro
                             Text(state.foro.descripcion ?: "", style = MaterialTheme.typography.bodyLarge)
                             Divider(modifier = Modifier.padding(vertical = 16.dp))
                         }
                         items(state.publicaciones) { post ->
                             PostItem(
                                 post = post,
-                                isMyPost = post.idUsuario == myUserId, // Chequeo de propiedad
+                                isMyPost = post.idUsuario == myUserId,
                                 onDelete = { postToDelete = post },
-                                onEdit = { postToEdit = post } // Trigger editar
+                                onEdit = { postToEdit = post }
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                         }
@@ -153,8 +151,7 @@ fun PostItem(
     ) {
         Column(modifier = Modifier.padding(12.dp).fillMaxWidth()) {
             Row(verticalAlignment = Alignment.Top) {
-                // FOTO USUARIO
-                AsyncImage(
+                    AsyncImage(
                     model = post.usuario?.foto,
                     contentDescription = null,
                     modifier = Modifier
@@ -166,7 +163,6 @@ fun PostItem(
                 Spacer(modifier = Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    // NOMBRE Y FECHA
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -178,7 +174,6 @@ fun PostItem(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        // Solo mostramos la fecha si no son mis acciones
                         if (!isMyPost) {
                             Text(
                                 text = post.fechaPublicacion.take(10),
@@ -199,14 +194,12 @@ fun PostItem(
                 }
             }
 
-            // ACCIONES (Botonera inferior derecha para el dueño)
             if (isMyPost) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Fecha a la izquierda de los botones
                     Text(
                         text = post.fechaPublicacion.take(10),
                         style = MaterialTheme.typography.labelSmall,
@@ -214,22 +207,20 @@ fun PostItem(
                         modifier = Modifier.weight(1f)
                     )
 
-                    // Botón Editar (Sutil)
                     IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
                         Icon(
                             Icons.Default.Edit,
                             contentDescription = "Editar",
-                            tint = MaterialTheme.colorScheme.primary, // Color del tema
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
 
-                    // Botón Borrar (Error)
                     IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = "Borrar",
-                            tint = MaterialTheme.colorScheme.error, // Color del tema
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(18.dp)
                         )
                     }

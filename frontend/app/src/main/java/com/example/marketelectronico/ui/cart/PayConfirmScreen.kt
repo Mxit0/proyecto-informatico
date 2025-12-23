@@ -44,9 +44,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.runtime.mutableIntStateOf
 
-/**
- * Pantalla de confirmación de pago exitoso.
- */
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PayConfirmScreen(
@@ -71,12 +69,12 @@ fun PayConfirmScreen(
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    var refreshTrigger by remember { mutableIntStateOf(0) } // Un número que cambia para forzar recarga
+    var refreshTrigger by remember { mutableIntStateOf(0) } 
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                refreshTrigger++ // Incrementamos para avisar que la pantalla volvió a ser visible
+                refreshTrigger++ 
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -104,8 +102,7 @@ fun PayConfirmScreen(
     val totalItems = purchasedItems.size
     val currentUser by UserRepository.getInstance().currentUser.collectAsState()
     val userName = currentUser?.nombre_usuario ?: ""
-    // --- Lógica para la barra de navegación inferior ---
-    // Copiada de ProductScreen.kt para consistencia
+    
     var selectedItem by remember { mutableIntStateOf(-1) }
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
@@ -117,9 +114,7 @@ fun PayConfirmScreen(
         Icons.Default.Info
     )
 
-    // --- Lógica de Navegación al Salir ---
-    // Esta función se llamará al presionar "Continue Shopping" o la flecha de "Atrás".
-    // Limpia el carrito y vuelve a la pantalla principal.
+    
     val onDoneShopping: () -> Unit = {
         navController.navigate("main") {
             popUpTo("main") { inclusive = true }
@@ -146,7 +141,7 @@ fun PayConfirmScreen(
             )
         },
         bottomBar = {
-            // Barra de navegación inferior, copiada de ProductScreen.kt
+            
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
@@ -179,7 +174,7 @@ fun PayConfirmScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // --- Encabezado ---
+            
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -196,7 +191,7 @@ fun PayConfirmScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // --- Detalles del Pedido ---
+            
             item {
                 PaymentDetailItem(
                     icon = Icons.Default.Tag,
@@ -213,13 +208,13 @@ fun PayConfirmScreen(
             }
             item {
                 PaymentDetailItem(
-                    icon = Icons.Default.LocalShipping, // Icono de camión
+                    icon = Icons.Default.LocalShipping, 
                     label = "Delivery Information",
-                    value = "Estimated Delivery: July 20-22" // Valor de ejemplo
+                    value = "Estimated Delivery: July 20-22" 
                 )
             }
 
-            // --- Resumen de Orden ---
+            
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
@@ -230,11 +225,11 @@ fun PayConfirmScreen(
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            // --- Lista de Items Comprados ---
+            
             items(purchasedItems) { product ->
-                //Pasamos 'currentUserId' en lugar de 'userName'
+                
                 val hasReviewed by produceState(initialValue = false, product.id, currentUserId, refreshTrigger) {
-                    // Si no hay usuario logueado, es false
+                    
                     if (currentUserId.isNotEmpty()) {
                         value = ReviewRepository.hasUserReviewedProduct(product.id, currentUserId)
                     } else {
@@ -244,7 +239,7 @@ fun PayConfirmScreen(
 
                 ProductSummaryItem(
                     product = product,
-                    showReviewButton = !hasReviewed, // Ahora sí funcionará
+                    showReviewButton = !hasReviewed, 
                     onAddReviewClick = {
                         navController.navigate("add_review/${product.id}")
                     }
@@ -252,7 +247,7 @@ fun PayConfirmScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // --- Botones de Acción ---
+            
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
@@ -266,7 +261,7 @@ fun PayConfirmScreen(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
-                    onClick = onDoneShopping, // Usa la función de limpiar y navegar
+                    onClick = onDoneShopping, 
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -281,9 +276,7 @@ fun PayConfirmScreen(
     }
 }
 
-/**
- * Un Composable reutilizable para los items de detalle (Order Number, Items, Delivery).
- */
+
 @Composable
 private fun PaymentDetailItem(
     icon: ImageVector,
@@ -326,9 +319,7 @@ private fun PaymentDetailItem(
     }
 }
 
-/**
- * Un Composable reutilizable para los productos en el resumen de orden.
- */
+
 @Composable
 private fun ProductSummaryItem(
     product: Product,
@@ -345,7 +336,7 @@ private fun ProductSummaryItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Placeholder - Usa tus imágenes reales si están disponibles
+            
             Image(
                 painter = painterResource(id = R.drawable.ic_launcher_background), // CAMBIA ESTO
                 contentDescription = product.name,
@@ -363,7 +354,7 @@ private fun ProductSummaryItem(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "1 x ${product.status}", // Muestra el estado (ej. "Used")
+                    text = "1 x ${product.status}", 
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -386,19 +377,18 @@ private fun ProductSummaryItem(
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E2F)
 @Composable
 fun PayConfirmScreenPreview() {
-    // Creamos una orden FALSA solo para el preview visual (sin llamar al repositorio)
+    
     val dummyOrder = Order(
         id = "preview123",
         userId = "user_preview",
         items = com.example.marketelectronico.data.model.allSampleProducts.take(2),
-        date = java.util.Date(), // <--- FALTABA ESTO
+        date = java.util.Date(), 
         totalAmount = 250.0
     )
 
 
     MarketElectronicoTheme {
-        // El preview fallará en mostrar datos reales porque el repo está vacío,
-        // pero la UI de carga se mostrará.
+        
         PayConfirmScreen(
             navController = rememberNavController(),
             orderId = "preview123"

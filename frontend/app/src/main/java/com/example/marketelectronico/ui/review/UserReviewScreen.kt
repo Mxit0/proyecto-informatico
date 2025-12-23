@@ -48,7 +48,6 @@ fun UserReviewScreen(
             Text("¿Qué tal fue tu experiencia con este vendedor?", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Kotlin usará automáticamente el RatingInput que está en ReviewScreen.kt
             RatingInput(currentRating = rating, onRatingChanged = { rating = it })
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -73,15 +72,12 @@ fun UserReviewScreen(
                                 comment = comment
                             )
                             if (success) {
-                                // AVISAR A LA PANTALLA ANTERIOR (PRODUCTO) QUE RECARGUE
                                 navController.previousBackStackEntry
                                     ?.savedStateHandle
                                     ?.set("refresh_reviews", true)
 
-                                // VOLVER
                                 navController.popBackStack()
                             } else {
-                                // Error
                             }
                         }
                     }

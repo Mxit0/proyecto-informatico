@@ -27,7 +27,6 @@ interface UserApi {
     @POST("usuarios/fcm-token")
     suspend fun saveFcmToken(@Body request: FcmTokenRequest): Response<Any>
 
-    //subir foto de perfil vía /api/profile/photo ===
     @Multipart
     @POST("api/profile/photo")
     suspend fun uploadProfilePhoto(
@@ -59,7 +58,6 @@ data class ReputationRequest(
     val calificacion: Double
 )
 
-// Respuesta del endpoint de foto
 data class PhotoResponse(
     val foto: String
 )

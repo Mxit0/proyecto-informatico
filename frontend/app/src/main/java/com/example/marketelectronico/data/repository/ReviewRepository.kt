@@ -108,8 +108,7 @@ object ReviewRepository {
         }
     }
 
-    // NOTA: 'hasUserReviewedProduct' ahora es difícil de calcular síncronamente en listas grandes.
-    // Lo ideal es verificarlo en el backend o manejarlo en la UI al cargar la lista.
+
     suspend fun hasUserReviewedProduct(productId: String, userId: String): Boolean {
         // Obtenemos las reseñas frescas y verificamos
         val reviews = getReviewsForProduct(productId)

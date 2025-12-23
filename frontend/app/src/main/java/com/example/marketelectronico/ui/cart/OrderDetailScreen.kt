@@ -42,7 +42,7 @@ fun OrderDetailScreen(
     var orderState by remember { mutableStateOf<Order?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // Cargar la orden asíncronamente
+    
     LaunchedEffect(orderId) {
         if (orderId != null) {
             orderState = OrderRepository.getOrderById(orderId)
@@ -119,7 +119,7 @@ fun OrderDetailScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Datos generales
+            
             item {
                 DetailItem(Icons.Default.Tag, "ID Orden", "#${currentOrder.id.take(8)}")
             }
@@ -130,14 +130,14 @@ fun OrderDetailScreen(
                 DetailItem(Icons.Default.LocalShipping, "Estado", "Entregado") // Puedes ajustar esto si tienes estado en el backend
             }
 
-            // Lista de productos
+            
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Productos (${currentOrder.items.size})", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
             }
 
             items(currentOrder.items) { product ->
-                //Pasamos 'currentUserId'
+                
                 val hasReviewed by produceState(initialValue = false, product.id, currentUserId, refreshTrigger) {
                     if (currentUserId.isNotEmpty()) {
                         value = ReviewRepository.hasUserReviewedProduct(product.id, currentUserId)

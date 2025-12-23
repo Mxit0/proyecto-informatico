@@ -37,12 +37,10 @@ fun ForumScreen(
     val uiState by viewModel.forumsState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
 
-    // Estado para controlar qué foro se está editando
     var forumToEdit by remember { mutableStateOf<Foro?>(null) }
 
     var forumToDelete by remember { mutableStateOf<Foro?>(null) }
 
-    // ID del usuario actual para comparar permisos
     val myUserId = viewModel.currentUserId
 
     Scaffold(
@@ -80,9 +78,9 @@ fun ForumScreen(
                             items(state.foros) { foro ->
                                 ForumItem(
                                     foro = foro,
-                                    isMyForum = foro.idCreador == myUserId, // Verificar dueño
+                                    isMyForum = foro.idCreador == myUserId,
                                     onDelete = { forumToDelete = foro },
-                                    onEdit = { forumToEdit = foro }, // Abrir diálogo de edición
+                                    onEdit = { forumToEdit = foro },
                                     onClick = { navController.navigate("forum_detail/${foro.id}") }
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -94,7 +92,6 @@ fun ForumScreen(
         }
     }
 
-    // Diálogo de Crear
     if (showCreateDialog) {
         CreateForumDialog(
             onDismiss = { showCreateDialog = false },
@@ -105,7 +102,6 @@ fun ForumScreen(
         )
     }
 
-    // Diálogo de Editar
     forumToEdit?.let { foro ->
         EditForumDialog(
             foro = foro,
@@ -157,7 +153,6 @@ fun ForumItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // --- ENCABEZADO: AUTOR ---
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = foro.usuario?.foto,
@@ -175,12 +170,10 @@ fun ForumItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                // Fecha o indicador opcional aquí
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // --- TÍTULO Y DESCRIPCIÓN ---
             Text(
                 text = foro.titulo,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -198,14 +191,12 @@ fun ForumItem(
                 )
             }
 
-            // --- ACCIONES (SOLO SI ES MI FORO) ---
             if (isMyForum) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    // Botón Editar
                     OutlinedButton(
                         onClick = onEdit,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
@@ -222,7 +213,6 @@ fun ForumItem(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Botón Borrar (Estilo Alerta/Error)
                     OutlinedButton(
                         onClick = onDelete,
                         colors = ButtonDefaults.outlinedButtonColors(

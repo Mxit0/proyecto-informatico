@@ -14,17 +14,14 @@ class CheckBySearchViewModel(
     private val productRepository: ProductRepository = ProductRepository()
 ) : ViewModel() {
 
-    // Lista completa de productos para buscar
     var allProducts by mutableStateOf<List<Product>>(emptyList())
         private set
 
-    // Estado de la verificación
     var isChecking by mutableStateOf(false)
     var checkResultTitle by mutableStateOf("")
     var checkResultMessage by mutableStateOf("")
     var showResultDialog by mutableStateOf(false)
 
-    // Productos seleccionados
     var selectedProduct1 by mutableStateOf<Product?>(null)
     var selectedProduct2 by mutableStateOf<Product?>(null)
 
@@ -34,7 +31,6 @@ class CheckBySearchViewModel(
 
     private fun loadProducts() {
         viewModelScope.launch {
-            // Cargamos todos los productos para poder filtrar localmente
             allProducts = productRepository.getAllProducts()
         }
     }
@@ -61,8 +57,6 @@ class CheckBySearchViewModel(
         viewModelScope.launch {
             isChecking = true
             try {
-                // Reutilizamos el repositorio de compatibilidad existente
-                // Enviamos una lista con los dos productos seleccionados
                 val response = CompatibilityRepository.check(listOf(p1, p2))
 
                 if (response.isSuccessful && response.body() != null) {

@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 
 class ChatViewModel : ViewModel() {
 
-    // Lista de mensajes. Índice 0 = Mensaje más nuevo.
     val messages = mutableStateListOf<Message>()
 
     private var currentUserId: Int = -1
@@ -32,27 +31,20 @@ class ChatViewModel : ViewModel() {
         this.currentChatId = chatId
         this.currentUserId = userId
 
-        // Conectar Socket
         SocketManager.init(token)
         SocketManager.connect()
         SocketManager.joinChat(chatId)
         SocketManager.markMessagesAsRead(chatId)
 
-        // Cargar Historial
         loadHistory(chatId)
 
-        // ESCUCHAR MENSAJES EN TIEMPO REAL
         SocketManager.onMessageReceived { message ->
-            // Si el mensaje lo envié yo, lo ignoro (ya lo agregué localmente al enviar)
-            // Si el senderId viene como String y currentUserId es Int, convertimos
             if (message.senderId == currentUserId.toString()) {
                 return@onMessageReceived
             }
 
-            // Es un mensaje de la OTRA persona
             val incomingMsg = message.copy(isSentByMe = false)
 
-            // Evitar duplicados y agregar al INICIO (Index 0)
             if (messages.none { it.id == incomingMsg.id }) {
                 messages.add(0, incomingMsg)
                 SocketManager.markMessagesAsRead(chatId)
@@ -77,7 +69,6 @@ class ChatViewModel : ViewModel() {
                     val processedHistory = history.map { msg ->
                         msg.copy(isSentByMe = msg.senderId == currentUserId.toString())
                     }
-                    // IMPORTANTE: Invertimos la lista para que el nuevo esté en index 0
                     messages.addAll(processedHistory.reversed())
                 }
             } catch (e: Exception) {
@@ -108,7 +99,6 @@ class ChatViewModel : ViewModel() {
                 status = MessageStatus.SENDING
             )
 
-            // Agregar AL PRINCIPIO (Index 0) para que salga abajo inmediatamente
             messages.add(0, tempMessage)
 
             SocketManager.sendMessage(currentChatId, text) { success ->

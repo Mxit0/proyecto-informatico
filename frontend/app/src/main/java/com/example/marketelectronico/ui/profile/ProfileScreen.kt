@@ -75,7 +75,6 @@ fun ProfileScreen(
     LaunchedEffect(userIdArgument) {
         viewModel.loadData(userIdArgument)
     }
-    // Estado del perfil
     val userProfile by viewModel.userProfile.collectAsState()
     val userOrders by viewModel.userOrders.collectAsState()
     val myProducts by viewModel.myProducts.collectAsState()
@@ -84,21 +83,18 @@ fun ProfileScreen(
     val error by viewModel.error.collectAsState()
     val context = LocalContext.current
 
-    // Imagen local elegida desde la galería
     var localImageUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Launcher para abrir la galería
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            localImageUri = uri          // para mostrarla en la UI
+            localImageUri = uri
             viewModel.onNewProfileImageSelected(uri, context)
         }
     }
 
 
-    // --- LÓGICA DE LA BOTTOM BAR ---
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
         Icons.Default.Home,
@@ -226,7 +222,6 @@ fun ProfileScreen(
 }
 
 
-// --- SECCIÓN DE INFORMACIÓN DEL USUARIO (De tu compañero) ---
 @Composable
 private fun UserInfoSection(
     userProfile: com.example.marketelectronico.data.remote.UserProfileDto?,
@@ -240,22 +235,17 @@ private fun UserInfoSection(
             .padding(top = 24.dp, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Usamos Box para superponer el icono de lápiz sobre la foto
         Box(contentAlignment = Alignment.BottomEnd) {
 
-            // DEFINIR EL MODIFICADOR COMÚN PARA LA IMAGEN
             val imageModifier = Modifier
-                .size(100.dp) // Tamaño fijo y más grande
+                .size(100.dp)
                 .clip(CircleShape)
-                .background(Color.LightGray) // Fondo por si la imagen es transparente o carga
+                .background(Color.LightGray)
                 .then(
-                    // Solo agregamos el efecto de click si es editable
                     if (isEditable) Modifier.clickable { onChangePhotoClick() } else Modifier
                 )
 
-            // MOSTRAR LA IMAGEN SEGÚN EL ESTADO
             when {
-                // Caso A: Imagen seleccionada de la galería (local)
                 localImageUri != null -> {
                     AsyncImage(
                         model = localImageUri,
@@ -264,7 +254,6 @@ private fun UserInfoSection(
                         contentScale = ContentScale.Crop
                     )
                 }
-                // Caso B: Foto guardada en el backend
                 userProfile?.foto != null -> {
                     AsyncImage(
                         model = userProfile.foto,
@@ -273,34 +262,31 @@ private fun UserInfoSection(
                         contentScale = ContentScale.Crop
                     )
                 }
-                // Caso C: Sin foto (Placeholder)
                 else -> {
                     Image(
                         painter = painterResource(id = android.R.drawable.ic_menu_camera),
                         contentDescription = "Foto de Perfil",
-                        modifier = imageModifier.padding(24.dp), // Padding interno para que el icono no se estire
+                        modifier = imageModifier.padding(24.dp),
                         contentScale = ContentScale.Fit
                     )
                 }
             }
 
-            // EL ICONO DE EDITAR (LÁPIZ) - Superpuesto
             if (isEditable) {
-                // Creamos un pequeño círculo azul para el lápiz
                 Box(
                     modifier = Modifier
-                        .padding(4.dp) // Un pequeño margen respecto al borde de la foto
-                        .size(24.dp)   // Tamaño del círculo del botón
+                        .padding(4.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
-                        .clickable { onChangePhotoClick() }, // Click también aquí
+                        .clickable { onChangePhotoClick() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Editar foto",
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp) // Tamaño del icono de lápiz dentro del círculo
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -308,7 +294,6 @@ private fun UserInfoSection(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Textos del perfil
         Text(
             text = userProfile?.nombre_usuario ?: "Cargando...",
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
@@ -322,7 +307,6 @@ private fun UserInfoSection(
 }
 
 
-// --- PESTAÑAS DEL PERFIL ---
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ProfileTabs(
@@ -337,10 +321,8 @@ private fun ProfileTabs(
 ) {
     val tabTitles = remember(isOwnProfile) {
         if (isOwnProfile) {
-            // Si es mi perfil, veo todo
             listOf("Mi Nota", "Ventas", "Compras", "Reviews")
         } else {
-            // Si es perfil ajeno, ocultamos "Compras"
             listOf("Mi Nota", "Ventas", "Reviews")
         }
     }
@@ -359,7 +341,7 @@ private fun ProfileTabs(
                 Tab(
                     selected = pagerState.currentPage == index,
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
-                    text = { Text(text = title, fontSize = 12.sp) } // Ajusté un poco la fuente
+                    text = { Text(text = title, fontSize = 12.sp) }
                 )
             }
         }
@@ -372,8 +354,7 @@ private fun ProfileTabs(
                 modifier = Modifier.fillMaxSize().padding(16.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
-                // 2. SWITCH BASADO EN EL NOMBRE DE LA PESTAÑA (NO EN EL ÍNDICE)
-                // Como el índice cambia si quitamos pestañas, usamos el título para saber qué mostrar.
+
                 when (tabTitles[pageIndex]) {
                     "Mi Nota" -> MyRatingPage(
                         reviews = receivedReviews,
@@ -405,7 +386,6 @@ private fun ProfileTabs(
             }
         }
 
-        // El botón de cerrar sesión solo aparece si es tu perfil
         if (isOwnProfile) {
             Button(
                 onClick = { navController.navigate("login") { popUpTo(0) { inclusive = true } } },
@@ -431,7 +411,6 @@ private fun MyRatingPage(
     viewModel: ProfileViewModel,
     profileId: String?
 ) {
-    // Calcular promedio real
     val averageRating = remember(reviews) {
         if (reviews.isEmpty()) 0.0 else reviews.map { it.rating }.average()
     }
@@ -440,7 +419,6 @@ private fun MyRatingPage(
         Text("Reputación del Vendedor", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Gran Estrella y Nota
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(48.dp))
             Spacer(modifier = Modifier.width(8.dp))
@@ -456,7 +434,6 @@ private fun MyRatingPage(
         HorizontalDivider()
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Lista de Reseñas Recibidas
         if (reviews.isEmpty()) {
             Text("Aún no hay reseñas recibidas.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
         } else {
@@ -469,7 +446,6 @@ private fun MyRatingPage(
                         review = review,
                         viewModel = viewModel,
                         onUpdateSuccess = {
-                            // Ahora 'viewModel' y 'profileId' SÍ existen en este ámbito
                             viewModel.loadData(profileId)
                         }
                     )
@@ -499,7 +475,6 @@ private fun ReceivedReviewItem(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row {
-                // Foto autor
                 AsyncImage(
                     model = review.authorImageUrl,
                     contentDescription = null,
@@ -509,13 +484,11 @@ private fun ReceivedReviewItem(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    // Nombre y Fecha
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = review.author, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = ReviewRepository.formatDate(review.date), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                     }
-                    // Estrellas (Copiado de tu versión anterior corregida)
                     Row {
                         val rating = review.rating
                         val fullStars = rating.toInt()
@@ -526,7 +499,6 @@ private fun ReceivedReviewItem(
                     }
                 }
 
-                // ICONOS DE ACCIÓN (SOLO SI ES MI RESEÑA)
                 if (isMyReview) {
                     Row {
                         IconButton(onClick = { showEditDialog = true }, modifier = Modifier.size(24.dp)) {
@@ -547,7 +519,6 @@ private fun ReceivedReviewItem(
         }
     }
 
-    // --- DIÁLOGOS ---
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -573,7 +544,6 @@ private fun ReceivedReviewItem(
     }
 
     if (showEditDialog) {
-        // Reutilizamos la lógica simple de variables de estado para el dialogo
         var newRating by remember { mutableDoubleStateOf(review.rating) }
         var newComment by remember { mutableStateOf(review.comment) }
 
@@ -582,7 +552,6 @@ private fun ReceivedReviewItem(
             title = { Text("Editar Reseña") },
             text = {
                 Column {
-                    // Importante: Asegúrate de importar RatingInput de tu paquete review
                     com.example.marketelectronico.ui.review.RatingInput(
                         currentRating = newRating,
                         onRatingChanged = { newRating = it }
@@ -632,7 +601,7 @@ private fun PurchasesHistoryPage(
                 items(orders) { order ->
                     OrderHistoryItem(
                         order = order,
-                        onClick = { onOrderClick(order.id) } // Pasamos el evento click
+                        onClick = { onOrderClick(order.id) }
                     )
                 }
             }
@@ -642,22 +611,18 @@ private fun PurchasesHistoryPage(
 
 @Composable
 private fun ReviewsHistoryPage(targetUserId: String, onReviewClick: (String) -> Unit) {
-    // Estado para las reseñas
     var myReviews by remember { mutableStateOf<List<Review>>(emptyList()) }
 
     val currentUserId = TokenManager.getUserId()?.toString()
     val isMyProfile = targetUserId == currentUserId
 
-    // Llamada asíncrona correcta
     LaunchedEffect(targetUserId) {
         if (targetUserId.isNotEmpty()) {
-            // Aquí cargamos las reviews escritas por el usuario del perfil (targetUserId)
             myReviews = ReviewRepository.getReviewsByUser(targetUserId)
         }
     }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // Título dinámico
         val title = if (isMyProfile) "Reviews que has escrito" else "Reviews escritas por el usuario"
         Text(title, style = MaterialTheme.typography.titleMedium)
 
@@ -693,7 +658,6 @@ private fun MyReviewItem(review: Review, onClick: () -> Unit) {
             .clickable(onClick = onClick)
     ) {
         Row(modifier = Modifier.padding(16.dp)) {
-            // Imagen del producto (usando Coil)
             AsyncImage(
                 model = review.productImageUrl,
                 contentDescription = null,
@@ -717,7 +681,6 @@ private fun MyReviewItem(review: Review, onClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Estrellas
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val rating = review.rating
                     val fullStars = rating.toInt()
@@ -760,7 +723,6 @@ private fun OrderHistoryItem(
         shadowElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // ... (El contenido de texto sigue igual) ...
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -784,7 +746,6 @@ private fun OrderHistoryItem(
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Texto indicativo
             Text(
                 text = "Ver detalles de la compra >",
                 style = MaterialTheme.typography.labelMedium,
@@ -820,7 +781,6 @@ private fun MySalesPage(
 
 @Composable
 private fun MyProductItem(product: Product, onClick: () -> Unit) {
-    // Calculamos si hay stock para cambiar el color del texto
     val stock = product.specifications["Stock"]?.toIntOrNull() ?: 0
     val hasStock = stock > 0
 
@@ -833,7 +793,6 @@ private fun MyProductItem(product: Product, onClick: () -> Unit) {
             .clickable(onClick = onClick)
     ) {
         Row(modifier = Modifier.padding(12.dp)) {
-            // Imagen
             AsyncImage(
                 model = product.imageUrl,
                 contentDescription = null,
@@ -862,7 +821,6 @@ private fun MyProductItem(product: Product, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Indicador de Stock
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = if(hasStock) Icons.Default.CheckCircle else Icons.Default.Warning,

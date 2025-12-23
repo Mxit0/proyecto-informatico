@@ -24,15 +24,13 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import java.util.Calendar
 
-/**
- * Pantalla con el formulario para añadir una nueva tarjeta.
- */
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddPaymentMethodScreen(
     navController: NavController
 ) {
-    // Estados para los campos del formulario
+    
     var alias by remember { mutableStateOf("") }
     var cardholderName by remember { mutableStateOf("") }
     var cardNumber by remember { mutableStateOf("") }
@@ -61,10 +59,10 @@ fun AddPaymentMethodScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()), // Permite scroll si los campos no caben
+                .verticalScroll(rememberScrollState()), 
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Campos del formulario
+            
             Column {
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
@@ -75,7 +73,7 @@ fun AddPaymentMethodScreen(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(16.dp)) // <-- Añade este espaciador también
+                Spacer(modifier = Modifier.height(16.dp)) 
                 OutlinedTextField(
                     value = cardholderName,
                     onValueChange = { cardholderName = it },
@@ -88,7 +86,7 @@ fun AddPaymentMethodScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = cardNumber,
-                    onValueChange = { if (it.length <= 16) cardNumber = it }, // Limita a 16 dígitos
+                    onValueChange = { if (it.length <= 16) cardNumber = it }, 
                     label = { Text("Card Number") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -100,12 +98,12 @@ fun AddPaymentMethodScreen(
                     val isExpiryDateError = expiryDate.length == 4 && !isExpiryDateValid(expiryDate)
                     OutlinedTextField(
                         value = expiryDate,
-                        onValueChange = { if (it.length <= 4) expiryDate = it.filter { char -> char.isDigit() } }, // MMYY, solo dígitos
-                        label = { Text("Expiry Date (MM/YY)") }, // Texto de label actualizado
+                        onValueChange = { if (it.length <= 4) expiryDate = it.filter { char -> char.isDigit() } }, 
+                        label = { Text("Expiry Date (MM/YY)") }, 
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
-                        // --- AÑADIR ESTAS 3 LÍNEAS ---
+                        
                         visualTransformation = DateVisualTransformation(),
                         isError = isExpiryDateError,
                         supportingText = { if (isExpiryDateError) Text("Fecha inválida o expirada") }
@@ -113,7 +111,7 @@ fun AddPaymentMethodScreen(
                     Spacer(modifier = Modifier.width(16.dp))
                     OutlinedTextField(
                         value = cvv,
-                        onValueChange = { if (it.length <= 3) cvv = it }, // Limita a 3 dígitos
+                        onValueChange = { if (it.length <= 3) cvv = it }, 
                         label = { Text("CVV") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -122,29 +120,29 @@ fun AddPaymentMethodScreen(
                 }
             }
 
-            // Botón de guardar
+            
             Button(
                 onClick = {
-                    // 1. Crear el nuevo método de pago
+                    
                     val newMethod = PaymentMethod(
-                        id = UUID.randomUUID().toString(), // ID aleatorio
+                        id = UUID.randomUUID().toString(), 
                         alias = alias,
-                        type = if (cardNumber.startsWith("4")) "Visa" else "Mastercard", // Lógica simple
+                        type = if (cardNumber.startsWith("4")) "Visa" else "Mastercard", 
                         lastFour = cardNumber.takeLast(4),
                         cardholderName = cardholderName
                     )
 
-                    // 2. Añadirlo al repositorio
+                    
                     PaymentRepository.addMethod(newMethod)
 
-                    // 3. Volver a la pantalla anterior
+                    
                     navController.popBackStack()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp)
                     .height(50.dp),
-                // Deshabilitar el botón si los campos están vacíos (lógica simple)
+                
                 enabled = alias.isNotBlank() && cardholderName.isNotBlank() && cardNumber.length == 16 && isExpiryDateValid(expiryDate) && cvv.length == 3
             ) {
                 Text("Save Card")
@@ -154,9 +152,7 @@ fun AddPaymentMethodScreen(
 
 }
 
-/**
- * Formateador visual para la fecha de expiración (MM/YY)
- */
+
 private class DateVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val trimmed = if (text.text.length >= 4) text.text.substring(0..3) else text.text
@@ -183,24 +179,22 @@ private class DateVisualTransformation : VisualTransformation {
         return TransformedText(AnnotatedString(out), offsetTranslator)
     }
 }
-/**
- * Comprueba si la fecha de expiración (MMYY) es válida y está en el futuro.
- */
+
 private fun isExpiryDateValid(expiryDate: String): Boolean {
     if (expiryDate.length != 4) return false
 
     return try {
         val month = expiryDate.substring(0, 2).toInt()
-        val year = expiryDate.substring(2, 4).toInt() + 2000 // Asume 20xx
+        val year = expiryDate.substring(2, 4).toInt() + 2000 
 
         if (month < 1 || month > 12) return false
 
         val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-        val currentMonth = Calendar.getInstance().get(Calendar.MONTH) + 1 // Calendar es 0-11
+        val currentMonth = Calendar.getInstance().get(Calendar.MONTH) + 1 
 
         when {
-            year < currentYear -> false // Año ya pasó
-            year == currentYear && month < currentMonth -> false // Mes ya pasó
+            year < currentYear -> false 
+            year == currentYear && month < currentMonth -> false 
             else -> true
         }
     } catch (e: NumberFormatException) {

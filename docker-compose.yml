@@ -1,38 +1,37 @@
 version: '3.8'
 
 services:
-  # 1. Servicio de la API (Node.js/Express)
+  
   api:
-    # Construye la imagen usando el Dockerfile en la carpeta './backend'
+    
     build:
       context: ./backend
       dockerfile: Dockerfile
-    # Mapea el puerto del contenedor (3000) al host (3000)
+    
     ports:
       - "3000:3000"
-    # Monta el código local para desarrollo
+   
     volumes:
       - ./backend:/usr/src/app
-     # - /usr/src/app/node_modules # Evita que sobrescriba node_modules
-    # Asegura que Redis inicie antes que la API
+     
     depends_on:
       - cache
-    # Carga las variables de entorno desde el archivo .env
+    
     env_file:
       - ./backend/.env
-    # Comando para iniciar la API (ejecuta el script 'start' de package.json)
+    
     command: npm start
 
-  # 2. Servicio de la Caché (Redis)
+  
   cache:
     image: redis:6-alpine
-    # Mapea el puerto de Redis
+    
     ports:
       - "6379:6379"
-    # Persistencia de datos para que los datos no se borren
+    
     volumes:
       - redis_data:/data
 
-# Define el volumen para persistir los datos de Redis
+
 volumes:
   redis_data:

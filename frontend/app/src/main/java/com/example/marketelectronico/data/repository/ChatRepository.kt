@@ -9,13 +9,11 @@ import com.example.marketelectronico.data.model.ChatPreview
 import com.example.marketelectronico.data.remote.ChatListResponse
 import com.example.marketelectronico.utils.TokenManager
 import com.example.marketelectronico.data.remote.UserService
-// Asegúrate de tener una instancia de Retrofit accesible, por ejemplo en un objeto ApiClient
-// import com.example.marketelectronico.data.remote.ApiClient
+
 
 
 class ChatRepository(
-    // Idealmente inyectas la API. Si no usas inyección de dependencias,
-    // puedes instanciarla aquí directamente o pasarla al construir.
+
     private val api: ChatApi
 ) {
 
@@ -27,12 +25,11 @@ class ChatRepository(
         return try {
             val response = api.getMessages(chatId)
             if (response.isSuccessful && response.body()?.ok == true) {
-                // Mapeamos de MessageDto (backend) a Message (modelo UI)
                 response.body()?.mensajes?.map { dto ->
                     Message(
                         id = dto.id.toString(),
                         text = dto.contenido,
-                        isSentByMe = false, // Se ajusta en el ViewModel
+                        isSentByMe = false,
                         senderId = dto.id_remitente.toString(),
                         status = if (dto.leido) com.example.marketelectronico.data.model.MessageStatus.READ
                         else com.example.marketelectronico.data.model.MessageStatus.SENT
@@ -71,7 +68,6 @@ class ChatRepository(
             val response = api.getMyChats()
 
             if (response.isSuccessful && response.body()?.ok == true) {
-                // Mapeo directo: DTO del Backend -> Modelo de UI
                 response.body()!!.chats.map { dto ->
                     ChatPreview(
                         id = dto.id,

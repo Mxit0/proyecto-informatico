@@ -11,15 +11,12 @@ import retrofit2.http.DELETE
 import retrofit2.http.Query
 interface ReviewAPI {
 
-    // Obtener reseñas de un producto
     @GET("api/reviews/product/{productId}")
     suspend fun getReviewsByProduct(@Path("productId") productId: String): Response<List<ReviewDto>>
 
-    // Obtener historial de reseñas de un usuario
     @GET("api/reviews/user/{userId}/history")
     suspend fun getUserReviewHistory(@Path("userId") userId: String): Response<List<ReviewDto>>
 
-    // Crear una nueva reseña
     @POST("api/reviews")
     suspend fun addReview(@Body request: CreateReviewRequest): Response<ReviewDto>
 
@@ -32,26 +29,21 @@ interface ReviewAPI {
     @PUT("api/reviews/{reviewId}")
     suspend fun updateReview(@Path("reviewId") reviewId: String, @Body body: UpdateReviewRequest): Response<Any>
 
-    // Crear reseña de usuario
     @POST("api/reviews/user")
     suspend fun addUserReview(@Body request: CreateUserReviewRequest): Response<Any>
 
-    // Obtener reseñas de un usuario (vendedor)
     @GET("api/reviews/user/{userId}")
     suspend fun getUserReviews(@Path("userId") userId: String): Response<List<UserReviewDto>>
 
-    // Obtener promedio (opcional, útil para la UI)
     @GET("api/reviews/user/{userId}/average")
     suspend fun getUserRating(@Path("userId") userId: String): Response<UserRatingResponse>
 
-    // NUEVO: Borrar reseña de usuario
     @DELETE("api/reviews/user/{reviewId}")
     suspend fun deleteUserReview(
         @Path("reviewId") reviewId: String,
         @Query("userId") userId: String // <--- Ahora viaja en la URL
     ): Response<Any>
 
-    // NUEVO: Editar reseña de usuario
     @PUT("api/reviews/user/{reviewId}")
     suspend fun updateUserReview(@Path("reviewId") reviewId: String, @Body body: UpdateReviewRequest): Response<Any>
 

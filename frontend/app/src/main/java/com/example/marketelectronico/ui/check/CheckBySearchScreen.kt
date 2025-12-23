@@ -34,7 +34,6 @@ fun CheckBySearchScreen(
     navController: NavController,
     viewModel: CheckBySearchViewModel = viewModel()
 ) {
-    // Lista completa de productos desde el VM
     val allProducts = viewModel.allProducts
     val focusManager = LocalFocusManager.current
 
@@ -60,7 +59,6 @@ fun CheckBySearchScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(24.dp)
-                // Hacemos la columna clickeable para quitar el foco al tocar fuera
                 .clickable(
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                     indication = null
@@ -74,7 +72,6 @@ fun CheckBySearchScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            // --- SELECTOR 1 ---
             ProductSearchSelector(
                 label = "Componente 1 (ej. Procesador)",
                 allProducts = allProducts,
@@ -84,7 +81,6 @@ fun CheckBySearchScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- SELECTOR 2 ---
             ProductSearchSelector(
                 label = "Componente 2 (ej. Placa Madre)",
                 allProducts = allProducts,
@@ -94,7 +90,6 @@ fun CheckBySearchScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // --- BOTÓN VERIFICAR ---
             Button(
                 onClick = {
                     focusManager.clearFocus()
@@ -120,7 +115,6 @@ fun CheckBySearchScreen(
         }
     }
 
-    // --- DIÁLOGO DE RESULTADO ---
     if (viewModel.showResultDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissDialog() },
@@ -149,7 +143,6 @@ fun ProductSearchSelector(
     var query by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
 
-    // Filtrar productos mientras se escribe
     val filteredProducts = remember(query, allProducts) {
         if (query.isEmpty()) emptyList()
         else allProducts.filter { it.name.contains(query, ignoreCase = true) }.take(5)

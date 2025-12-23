@@ -1,6 +1,5 @@
 package com.example.marketelectronico.ui.main
 
-// ... (Todos tus imports: Image, Layout, LazyColumn, Icons, etc.)
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,7 +39,6 @@ import androidx.compose.foundation.background
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 
-// ... (Tu Composable MainScreen, TechTradeTopBar no cambian)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -65,7 +63,7 @@ fun MainScreen(
         topBar = {
             TechTradeTopBar(
                 onCartClick = { navController.navigate("cart") },
-                onNotificationsClick = { /* navController.navigate("notifications") */ }
+                onNotificationsClick = { }
             )
         },
         bottomBar = {
@@ -153,10 +151,8 @@ private fun MainScreenContent(
     navController: NavController,
     onCategorySelected: (Int?) -> Unit = {}
 ) {
-    // 1. Estado de la búsqueda
     var searchQuery by remember { mutableStateOf("") }
 
-    // 2. Filtramos los productos si hay texto
     val filteredProducts = remember(products, searchQuery) {
         if (searchQuery.isEmpty()) {
             emptyList()
@@ -165,7 +161,6 @@ private fun MainScreenContent(
         }
     }
 
-    // Datos para la vista normal
     val recommendations = products.take(5)
     val news = products.drop(5).take(5)
     val offers = products.drop(10)
@@ -174,10 +169,8 @@ private fun MainScreenContent(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        // Si estamos buscando, añadimos espacio extra entre items
         verticalArrangement = if (searchQuery.isNotEmpty()) Arrangement.spacedBy(16.dp) else Arrangement.Top
     ) {
-        // --- BARRA DE BÚSQUEDA ---
         item {
             SearchBar(
                 query = searchQuery,
@@ -186,9 +179,7 @@ private fun MainScreenContent(
             )
         }
 
-        // --- LÓGICA DE VISUALIZACIÓN ---
         if (searchQuery.isNotEmpty()) {
-            // === MODO BÚSQUEDA ===
             if (filteredProducts.isEmpty()) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
@@ -212,7 +203,6 @@ private fun MainScreenContent(
                 }
             }
         } else {
-            // === MODO NORMAL (TU DISEÑO ORIGINAL) ===
             item {
                 if (categories.isNotEmpty()) {
                     CategoriesSection(

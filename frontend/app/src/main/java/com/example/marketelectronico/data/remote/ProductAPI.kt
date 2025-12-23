@@ -11,29 +11,22 @@ import retrofit2.http.Multipart
 import retrofit2.http.Part
 import retrofit2.http.PATCH
 import retrofit2.http.DELETE
-// --- 1. Interfaz ---
 interface ProductApi {
-    // GET /productos
     @GET("api/productos")
-    suspend fun getAllProducts(): List<ProductResponse> // <-- Esta respuesta ahora contendrá imágenes
+    suspend fun getAllProducts(): List<ProductResponse>
 
-    // GET /productos/:id
     @GET("api/productos/{id}")
-    suspend fun getProductById(@Path("id") id: String): ProductResponse // <-- Esta respuesta ahora contendrá imágenes
+    suspend fun getProductById(@Path("id") id: String): ProductResponse
 
-    // GET /categorias
     @GET("api/productos/categorias")
     suspend fun getAllCategories(): List<CategoryResponse>
 
-    // GET /productos/categoria/:categoryId
     @GET("api/productos/categoria/{categoryId}")
     suspend fun getProductsByCategory(@Path("categoryId") categoryId: Int): List<ProductResponse>
 
-    // POST /productos
     @POST("api/productos")
     suspend fun createProduct(@Body product: CreateProductRequest): ProductResponse
 
-    // GET /productos/componentes/categoria/:categoryId
     @GET("api/productos/componentes/categoria/{categoryId}")
     suspend fun getComponentsByCategory(@Path("categoryId") categoryId: Int): List<ComponentResponse>
 
@@ -50,7 +43,6 @@ interface ProductApi {
         @Body updates: UpdateProductRequest
     ): ProductResponse
 
-    // DELETE para borrar
     @DELETE("api/productos/{id}")
     suspend fun deleteProduct(@Path("id") id: String): retrofit2.Response<Unit>
 
@@ -61,7 +53,6 @@ interface ProductApi {
     suspend fun deleteProductImage(@Path("id") imageId: Int): retrofit2.Response<Unit>
 }
 
-// --- 2. DTOs ---
 data class CategoryResponse(
     val id: Int,
     val nombre: String
@@ -82,32 +73,28 @@ data class ProductResponse(
     @SerializedName("id_usuario")
     val idUsuario: Int,
 
-    // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
-    // Le decimos a GSON que el backend enviará "producto_imagenes"
     @SerializedName("producto_imagenes")
-    val imagenes: List<ImageResponse> = emptyList(), // Cambio: usar emptyList() como defaul
+    val imagenes: List<ImageResponse> = emptyList(),
 
-    @SerializedName("activo") // Coincide con la columna de Supabase
+    @SerializedName("activo")
     val activo: Boolean? = true
 )
 
-// Coincide con la función 'getProductImages' y el join manual
 data class ImageResponse(
-    @SerializedName("id_im") // <-- El nombre correcto
+    @SerializedName("id_im")
     val id_im: Int,
     @SerializedName("url_imagen")
     val urlImagen: String
 )
 
-// DTO para crear un producto
 data class CreateProductRequest(
     val nombre: String,
     val precio: Double,
     val descripcion: String,
     @SerializedName("id_usuario")
     val idUsuario: Long,
-    val stock: Int = 1, // Valor por defecto
-    val categoria: Int, // ID de la categoría
+    val stock: Int = 1,
+    val categoria: Int,
     @SerializedName("id_componente_maestro")
     val idComponenteMaestro: String?
 )
@@ -129,7 +116,6 @@ data class UpdateProductRequest(
     val stock: Int? = null
 )
 
-// --- 3. Servicio ---
 object ProductService {
     val api: ProductApi by lazy {
         ApiClient.retrofit.create(ProductApi::class.java)

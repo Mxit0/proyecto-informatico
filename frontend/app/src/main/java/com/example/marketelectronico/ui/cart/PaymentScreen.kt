@@ -37,16 +37,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 
 
-// --- 2. ELIMINAR EL MODELO Y LOS DATOS DE MUESTRA LOCALES ---
-// (Ya no se necesitan, ahora están en el PaymentRepository)
-/*
-data class PaymentMethod( ... )
-val samplePaymentMethods = listOf( ... )
-*/
-
-// --- Constantes para el cálculo ---
 private const val SHIPPING_COST = 5.00
-private const val TAX_RATE = 0.19 // 19%
+private const val TAX_RATE = 0.19
 
 /**
  * Formatea un valor Double a un string de moneda (ej. $120.00)
@@ -66,15 +58,12 @@ fun PaymentScreen(
     navController: NavController
 ) {
     val scope = rememberCoroutineScope()
-    // --- Lógica de Cálculo ---
     val subtotal = CartRepository.totalPrice.value
     val taxes = subtotal * TAX_RATE
     val total = subtotal + SHIPPING_COST + taxes
 
-    // --- 3. LEER LA LISTA DESDE EL REPOSITORIO ---
     val paymentMethods = PaymentRepository.paymentMethods
 
-    // Estado para la barra de navegación inferior
     var selectedItem by remember { mutableIntStateOf(-1) }
     val navItems = listOf("Inicio", "Categorías", "Vender", "Mensajes", "Perfil", "Foro")
     val navIcons = listOf(
@@ -86,8 +75,6 @@ fun PaymentScreen(
         Icons.Default.Info
     )
 
-    // Estado para el método de pago seleccionado
-    // Asegurarse de que el ID seleccionado sea válido
     var selectedMethodId by remember { mutableStateOf(paymentMethods.firstOrNull()?.id) }
 
     Scaffold(
@@ -106,24 +93,20 @@ fun PaymentScreen(
             )
         },
         bottomBar = {
-            // El BottomBar contiene el botón de pago Y la navegación
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                 Button(
                     onClick = {
-                        // Usamos coroutine scope porque createOrder es suspend
-                        // Asegúrate de tener: val scope = rememberCoroutineScope() al inicio del composable
                         scope.launch {
                             val currentUserId = TokenManager.getUserId()?.toString()
                             if (currentUserId != null) {
-                                // 1. LLAMADA REAL AL BACKEND
                                 val realOrderId = OrderRepository.createOrder(currentUserId)
 
                                 if (realOrderId != null) {
-                                    // 2. Si hay éxito, el backend ya limpió el carrito,
-                                    // pero actualizamos la UI local limpiando la lista observable
-                                    CartRepository.clearCart() // (Opcional, loadCart() lo haría)
+                                    CartRepository.clearCart()
 
-                                    // 3. Navegamos con el ID REAL
+                                    navController.navigate("pay_confirm/$realOrderId") {
+                                        popUpTo("cart") { inclusive = true }
+                                    }
                                     navController.navigate("pay_confirm/$realOrderId") {
                                         popUpTo("cart") { inclusive = true }
                                     }
@@ -173,7 +156,6 @@ fun PaymentScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
         ) {
-            // --- Sección de Métodos de Pago ---
             item {
                 Text(
                     text = "Payment Method",
