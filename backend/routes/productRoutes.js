@@ -192,7 +192,7 @@ router.delete("/imagenes/:id", async (req, res) => {
     await deleteProductImage(id);
     res.json({ message: "Imagen eliminada" });
   } catch (error) {
-    // Si el error es por la regla de mínimo 3, devolvemos 400 Bad Request
+   
     res.status(400).json({ error: error.message });
   }
 });
@@ -243,8 +243,7 @@ router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Aquí deberías validar que el usuario que pide borrar sea el dueño (usando token/session),
-    // pero por ahora implementaremos la lógica base.
+    
     const deleted = await deleteProduct(id);
 
     if (!deleted) {

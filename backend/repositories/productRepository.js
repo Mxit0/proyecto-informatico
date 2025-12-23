@@ -3,8 +3,7 @@ import redisClient from "../lib/redisClient.js";
 const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET;
 
 const TABLE = "producto";
-// Asumo que la tabla se llama 'categoria' (singular).
-// Si se llama 'categorias', cambia esta línea:
+
 const TABLE_CATEGORIA = "categoria";
 
 const CACHE_EXPIRATION_SECONDS = 3600;
@@ -27,7 +26,7 @@ export async function getAllProducts(page, limit) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    // 1. Obtener los productos
+    
     const { data: productsData, error: productsError } = await supabase
       .from(TABLE)
       .select("*")
@@ -36,15 +35,15 @@ export async function getAllProducts(page, limit) {
 
     if (productsError) throw productsError;
 
-    // Si no hay productos, retornar array vacío
+    
     if (!productsData || productsData.length === 0) {
       return [];
     }
 
-    // Recolectamos los IDs para hacer las consultas eficientes
+    
     const productIds = productsData.map((p) => p.id);
 
-    // 2. Obtener las IMÁGENES (solo si hay productos)
+    
     let imagesData = [];
     if (productIds.length > 0) {
       const { data: images, error: imagesError } = await supabase
@@ -56,12 +55,12 @@ export async function getAllProducts(page, limit) {
       imagesData = images || [];
     }
 
-    // Filtrar categoryIds: SOLO números puros, ignorar cualquier string
+
     const categoryIds = [
       ...new Set(productsData.map((p) => p.categoria)),
     ].filter((cat) => typeof cat === "number"); // SOLO números, nada más
 
-    // 3. Obtener las CATEGORÍAS (solo si hay IDs numéricos)
+    
     let categoriesData = [];
     if (categoryIds.length > 0) {
       const { data: categories, error: categoriesError } = await supabase
@@ -73,9 +72,9 @@ export async function getAllProducts(page, limit) {
       categoriesData = categories || [];
     }
 
-    // 4. Unir todo ("Pegar" imágenes y nombres de categorías)
+    
     const productsComplete = productsData.map((product) => {
-      // A. Pegar Imágenes
+      
       const imagenes = imagesData
         .filter((img) => img.id_prod === product.id)
         .map((img) => ({
@@ -83,9 +82,7 @@ export async function getAllProducts(page, limit) {
           url_imagen: img.url_imagen,
         }));
 
-      // B. Pegar Nombre de Categoría
-      // Si categoria es un número, buscar en categoriesData
-      // Si es un string, usarlo directamente como nombre
+      
       let categoryName = "Desconocido";
       if (typeof product.categoria === "number") {
         const categoryObj = categoriesData.find(
@@ -93,7 +90,7 @@ export async function getAllProducts(page, limit) {
         );
         categoryName = categoryObj ? categoryObj.nombre : "Desconocido";
       } else if (typeof product.categoria === "string") {
-        // Si ya es un string (nombre), usarlo directamente
+        
         categoryName = product.categoria;
       }
 
@@ -132,7 +129,7 @@ export async function getProductById(id) {
 
     console.log(`Cache MISS: Pidiendo ${CACHE_KEY} a Supabase`);
 
-    // 1. Obtener producto
+   
     const { data: productData, error: productError } = await supabase
       .from(TABLE)
       .select("*")
@@ -142,7 +139,7 @@ export async function getProductById(id) {
     if (productError) throw productError;
     if (!productData) return null;
 
-    // 2. Obtener imágenes
+   
     const { data: imagesData, error: imagesError } = await supabase
       .from("producto_imagenes")
       .select("id_im, id_prod, url_imagen")
@@ -150,17 +147,17 @@ export async function getProductById(id) {
 
     if (imagesError) throw imagesError;
 
-    // 3. Obtener categoría (¡NUEVO!)
+    
     const { data: categoryData, error: categoryError } = await supabase
       .from(TABLE_CATEGORIA)
       .select("nombre")
       .eq("id", productData.categoria)
       .single();
 
-    // No lanzamos error si falta la categoría, solo ponemos "Desconocido"
+    
     const categoryName = categoryData ? categoryData.nombre : "Desconocido";
 
-    // 4. Unir todo
+    
     const imagenes = imagesData.map((img) => ({
       id_im: img.id_im,
       url_imagen: img.url_imagen,
@@ -169,7 +166,7 @@ export async function getProductById(id) {
     const productComplete = {
       ...productData,
       producto_imagenes: imagenes,
-      categoria: categoryName, // <-- Reemplazo del ID por el Nombre
+      categoria: categoryName,
     };
 
     await redisClient.setEx(
@@ -184,7 +181,7 @@ export async function getProductById(id) {
   }
 }
 
-// --- (El resto de funciones: createProduct, uploadProductImages... se quedan igual) ---
+
 import { getComponentById } from "./componenteRepository.js";
 
 export async function createProduct(productData) {
@@ -199,18 +196,18 @@ export async function createProduct(productData) {
     id_componente_maestro,
   } = productData;
 
-  // Validación mínima: si se requiere componente maestro, verificar que exista y pertenezca a la categoría
+ 
   if (!id_componente_maestro) {
     throw new Error("Se requiere id_componente_maestro al crear el producto");
   }
 
-  // Obtener componente y validar
+  
   const componente = await getComponentById(id_componente_maestro);
   if (!componente) {
     throw new Error("Componente maestro no encontrado");
   }
 
-  // Validar que la categoría del componente coincida con la categoría enviada
+  
   if (componente.categoria !== categoria) {
     throw new Error(
       "El componente maestro no pertenece a la categoría seleccionada"
@@ -242,7 +239,7 @@ export async function createProduct(productData) {
     await redisClient.del(keys);
   }
 
-  // devolver el producto y asegurar producto_imagenes como array vacío
+ 
   return {
     ...data,
     producto_imagenes: data.producto_imagenes ?? [],
@@ -339,7 +336,7 @@ export const updateProduct = async (id, updates) => {
 export async function getAllCategories() {
   try {
     const { data, error } = await supabase
-      .from("categoria") // Asegúrate que tu tabla se llama 'categoria'
+      .from("categoria") 
       .select("id, nombre")
       .order("nombre", { ascending: true });
 
@@ -358,7 +355,7 @@ export async function getProductsByCategory(categoryId) {
   try {
     // 1. Obtener productos
     const { data: productsData, error: productsError } = await supabase
-      .from("producto") // Asegúrate que tu tabla se llama 'producto'
+      .from("producto") 
       .select("*")
       .eq("categoria", categoryId)
       .eq('activo', true);
@@ -396,7 +393,7 @@ export async function getProductsByCategory(categoryId) {
 
 export async function deleteProduct(id) {
   try {
-    // En lugar de .delete(), usamos .update()
+    
     const { error } = await supabase
       .from(TABLE)
       .update({ activo: false }) 
@@ -422,25 +419,25 @@ export async function deleteProduct(id) {
 
 export async function getProductsByUserId(userId) {
   try {
-    // 1. Obtener productos
+    
     const { data: products, error } = await supabase
       .from('producto')
       .select('*')
       .eq('id_usuario', userId)
       .eq('activo', true)
-      .order('fecha_publicacion', { ascending: false }); // Los más recientes primero
+      .order('fecha_publicacion', { ascending: false }); 
 
     if (error) throw error;
     if (!products || products.length === 0) return [];
 
-    // 2. Obtener imágenes (para mostrar la foto principal)
+   
     const productIds = products.map(p => p.id);
     const { data: images } = await supabase
       .from('producto_imagenes')
       .select('id_prod, url_imagen')
       .in('id_prod', productIds);
 
-    // 3. Unir imagen principal
+    
     return products.map(p => {
       const img = images.find(i => i.id_prod === p.id);
       return {
@@ -456,7 +453,7 @@ export async function getProductsByUserId(userId) {
 
 export async function deleteProductImage(id_im) {
   try {
-    // 1. Obtener datos de la imagen y del producto
+   
     const { data: imgData, error: fetchError } = await supabase
       .from("producto_imagenes")
       .select("id_prod, url_imagen")
@@ -467,7 +464,7 @@ export async function deleteProductImage(id_im) {
 
     const productId = imgData.id_prod;
 
-    // 2. [REGLA DE ORO] Contar cuántas imágenes tiene el producto
+
     const { count, error: countError } = await supabase
       .from("producto_imagenes")
       .select("*", { count: "exact", head: true })
@@ -475,14 +472,14 @@ export async function deleteProductImage(id_im) {
 
     if (countError) throw countError;
 
-    // VALIDACIÓN: Mínimo 3 imágenes
+   
     if (count <= 3) {
       throw new Error("No se puede eliminar. El producto debe tener al menos 3 imágenes.");
     }
 
-    // 3. Borrar de Storage (Bucket)
+  
     const fullUrl = imgData.url_imagen;
-    // Extraer path relativo: "public/4/123.jpg"
+
     const path = fullUrl.split(`${BUCKET_NAME}/`)[1]; 
 
     if (path) {
@@ -492,7 +489,7 @@ export async function deleteProductImage(id_im) {
       if (storageError) console.error("Error borrando de Storage:", storageError);
     }
 
-    // 4. Borrar registro de BD
+
     const { error: dbError } = await supabase
       .from("producto_imagenes")
       .delete()
@@ -500,16 +497,16 @@ export async function deleteProductImage(id_im) {
 
     if (dbError) throw dbError;
 
-    // 5. Invalidar Caché Redis (Vital para que la app se actualice)
+
     const cacheKey = `producto_full:${productId}`;
     await redisClient.del(cacheKey);
     
-    // Limpiar listas también
+
     const listKeys = await redisClient.keys("productos*");
     if (listKeys.length > 0) await redisClient.del(listKeys);
 
     return true;
   } catch (error) {
-    throw error; // Lanzar el error para que llegue al Route
+    throw error; 
   }
 }

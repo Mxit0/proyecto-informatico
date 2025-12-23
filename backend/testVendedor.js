@@ -6,13 +6,13 @@ const socket = io("http://localhost:3000", {
 });
 
 socket.on("connect", () => {
-  console.log("✅ Vendedor conectado");
+  console.log("Vendedor conectado");
 
   socket.emit("join_chat", { chatId: CHAT_ID });
 });
 
 socket.on("new_message", (msg) => {
-  console.log("📩 (Vendedor) nuevo mensaje:", msg);
+  console.log("Vendedor) nuevo mensaje:", msg);
 });
 
 socket.on("disconnect", () => {

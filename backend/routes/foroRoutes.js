@@ -6,7 +6,7 @@ import { requireAuth } from "../middleware/auth.js";
 const router = express.Router();
 
 /**
- * 🛠️ FUNCIÓN AUXILIAR: Enriquecer con datos de usuario
+ * FUNCIÓN AUXILIAR: Enriquecer con datos de usuario
  * Busca manualmente los nombres y fotos de los usuarios para evitar errores de Foreign Key.
  */
 async function enrichWithUser(items, userIdField, userAlias = 'usuario') {
@@ -65,12 +65,12 @@ router.post("/", requireAuth, async (req, res) => {
 router.get("/", async (_req, res) => {
   const { data, error } = await supabase
     .from("foro")
-    .select("*") // Seleccionamos datos crudos
+    .select("*") 
     .order("fecha_creacion", { ascending: false });
 
   if (error) return res.status(500).json({ ok: false, error: error.message });
 
-  // Enriquecemos la lista manualmente
+  
   const forosEnriquecidos = await enrichWithUser(data, "id_creador");
   res.json({ ok: true, foros: forosEnriquecidos });
 });
@@ -101,7 +101,7 @@ router.put("/:id", requireAuth, async (req, res) => {
   const { titulo, descripcion } = req.body;
   const userId = req.user.id_usuario;
 
-  // Verificar dueño
+  
   const { data: foro } = await supabase.from("foro").select("id_creador").eq("id", id).maybeSingle();
   if (!foro || foro.id_creador !== userId) {
     return res.status(403).json({ ok: false, error: "Sin permiso" });
@@ -153,7 +153,7 @@ router.get("/:foroId/publicaciones", async (req, res) => {
 
   if (error) return res.status(500).json({ ok: false, error: error.message });
 
-  // Enriquecemos con los datos del usuario que comentó (usando 'id_usuario')
+  
   const publicacionesFull = await enrichWithUser(data, "id_usuario");
   res.json({ ok: true, publicaciones: publicacionesFull });
 });
@@ -176,7 +176,7 @@ router.post("/:foroId/publicaciones", requireAuth, async (req, res) => {
 
   if (error) return res.status(500).json({ ok: false, error: error.message });
 
-  // Enriquecemos MANUALMENTE para que el Socket envíe la foto y nombre
+  
   const publicacionCompleta = await enrichWithUser(nueva, "id_usuario");
 
   // EMITIR SOCKET

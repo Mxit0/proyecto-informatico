@@ -10,13 +10,13 @@ function normalizePair(a, b) {
 }
 
 /**
- * 🧾 Obtener todos los chats donde participa el usuario
+ * Obtener todos los chats donde participa el usuario
  */
 
 // backend/routes/chatRoutes.js
 
 router.get("/", requireAuth, async (req, res) => {
-  const userId = req.user.id_usuario; // Esto puede ser string o number
+  const userId = req.user.id_usuario; 
 
   try {
     const { data: chats, error } = await supabase
@@ -45,7 +45,7 @@ router.get("/", requireAuth, async (req, res) => {
 
         return {
             id: String(chat.id),
-            // Aseguramos que estos nombres coincidan con el DTO de Android
+            
             name: otherUser ? otherUser.nombre_usuario : "Usuario Desconocido",
             photoUrl: otherUser ? otherUser.foto : null,
             otherUserId: Number(otherUserId),
@@ -69,7 +69,7 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 /**
- * 📜 Obtener mensajes de un chat específico
+ *  Obtener mensajes de un chat específico
  */
 router.get("/:chatId/mensajes", requireAuth, async (req, res) => {
   const userId = req.user.id_usuario;
@@ -80,7 +80,7 @@ router.get("/:chatId/mensajes", requireAuth, async (req, res) => {
   }
 
   try {
-    // Validar pertenencia del usuario al chat
+    
     const { data: chat, error: chatError } = await supabase
       .from("chat")
       .select("id, id_usuario1, id_usuario2")
@@ -96,7 +96,7 @@ router.get("/:chatId/mensajes", requireAuth, async (req, res) => {
       return res.status(403).json({ ok: false, error: "No perteneces a este chat" });
     }
 
-    // Obtener mensajes
+    
     const { data: mensajes, error } = await supabase
       .from("mensaje")
       .select("id, id_chat, id_remitente, contenido, fecha_envio")
@@ -113,7 +113,7 @@ router.get("/:chatId/mensajes", requireAuth, async (req, res) => {
 });
 
 /**
- * (Opcional) Crear/obtener chat vía HTTP entre dos usuarios
+ * Crear/obtener chat vía HTTP entre dos usuarios
  * Útil si quieres abrirlo sin socket al comienzo
  */
 router.post("/with-user/:otherUserId", requireAuth, async (req, res) => {

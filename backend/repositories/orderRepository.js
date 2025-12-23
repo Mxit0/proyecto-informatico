@@ -3,15 +3,13 @@ import { getCartByUser, clearCart } from './carroRepository.js';
 
 export async function createOrderFromCart(userId) {
   try {
-    // 1. Obtener los items actuales del carrito
+    
     const cartData = await getCartByUser(userId);
     
     if (!cartData || cartData.items.length === 0) {
       throw new Error("El carrito está vacío");
     }
 
-    // --- NUEVO: VALIDACIÓN DE STOCK ---
-    // Antes de crear nada, verificamos que haya stock suficiente para TODOS los items
     for (const item of cartData.items) {
       const { data: product, error: productError } = await supabase
         .from('producto')
@@ -27,7 +25,7 @@ export async function createOrderFromCart(userId) {
     }
     // ----------------------------------
 
-    // 2. Crear la cabecera de la compra
+    
     const { data: newOrder, error: orderError } = await supabase
       .from('compras')
       .insert({
@@ -41,7 +39,7 @@ export async function createOrderFromCart(userId) {
 
     if (orderError) throw orderError;
 
-    // 3. Mover los items a 'detalle_compra'
+    
     const orderItems = cartData.items.map(item => ({
       id_compra: newOrder.id,
       id_producto: item.id_producto,
@@ -55,10 +53,9 @@ export async function createOrderFromCart(userId) {
 
     if (detailsError) throw detailsError;
 
-    // --- NUEVO: DESCONTAR STOCK ---
-    // Actualizamos el stock de cada producto comprado
+    
     for (const item of cartData.items) {
-      // 1. Obtenemos el stock actual (lo volvemos a pedir para asegurar el dato más reciente)
+      
       const { data: currentProd } = await supabase
         .from('producto')
         .select('stock')
@@ -68,23 +65,21 @@ export async function createOrderFromCart(userId) {
       if (currentProd) {
         const nuevoStock = currentProd.stock - item.cantidad;
         
-        // 2. Actualizamos la tabla
+        
         await supabase
           .from('producto')
-          .update({ stock: nuevoStock >= 0 ? nuevoStock : 0 }) // Evitar negativos por seguridad
+          .update({ stock: nuevoStock >= 0 ? nuevoStock : 0 }) 
           .eq('id', item.id_producto);
       }
     }
-    // ------------------------------
-
-    // 4. Vaciar el carrito
+    
     await clearCart(userId);
 
-    // 5. Devolver el ID
+    
     return newOrder.id;
 
   } catch (err) {
-    // Si algo falla, el error se propagará al controller y el frontend recibirá el mensaje (ej: "Stock insuficiente...")
+    
     throw new Error(err.message); 
   }
 }

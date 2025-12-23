@@ -1,14 +1,11 @@
 // test_full_integration.js
 
-import "dotenv/config"; // Carga las variables de entorno (.env)
+import "dotenv/config"; 
 
 // Importa el servicio (Ajusta la ruta si es necesario)
 import compatibilityService from "./services/compatibilityService.js";
 import fetch from "node-fetch";
 
-// ----------------------------------------------------
-// --- FUNCIÓN DE PRUEBA DE INTEGRACIÓN COMPLETA ---
-// ----------------------------------------------------
 
 async function runFullIntegrationTest() {
   console.log("==================================================");
@@ -17,14 +14,12 @@ async function runFullIntegrationTest() {
 
   if (!process.env.GEMINI_API_KEY) {
     console.error(
-      "❌ ERROR: La variable de entorno GEMINI_API_KEY no está configurada."
+      "ERROR: La variable de entorno GEMINI_API_KEY no está configurada."
     );
     return;
   }
 
-  // Obtener varios productos reales desde la API para prueba (filtramos
-  // aquellos que tengan componente maestro asociado). Puedes ajustar
-  // TEST_ITEMS_COUNT en las env vars (por defecto 3).
+  // Obtener varios productos reales desde la API para prueba
   const BASE = process.env.BASE_URL || "http://localhost:3000";
   const ITEMS_COUNT = parseInt(process.env.TEST_ITEMS_COUNT || "3");
 
@@ -108,7 +103,7 @@ async function runFullIntegrationTest() {
     console.log("\n--- Resultado desde el endpoint (server) ---");
     console.log(JSON.stringify(apiJson, null, 2));
 
-    // 2B) PRUEBA 2: Llamar al servicio directamente (Gemini)
+    // 2B) PRUEBA 2: Llamar al servicio directamente
     console.log(
       "🔍 2B. Llamando directamente a Gemini via compatibilityService.callGeminiAPI..."
     );
@@ -122,7 +117,7 @@ async function runFullIntegrationTest() {
     console.log(JSON.stringify(geminiResult, null, 2));
 
     console.log("\n==================================================");
-    console.log("✅ PRUEBA DE INTEGRACIÓN COMPLETA REALIZADA.");
+    console.log("PRUEBA DE INTEGRACIÓN COMPLETA REALIZADA.");
     console.log(
       `⏱️ Tiempo total de la llamada directa a Gemini: ${(
         (endTime - startTime) /
@@ -131,7 +126,7 @@ async function runFullIntegrationTest() {
     );
     console.log("==================================================");
   } catch (error) {
-    console.error("\n❌ PRUEBA CRÍTICA FALLIDA.");
+    console.error("\n PRUEBA CRÍTICA FALLIDA.");
     console.error(
       "Detalles del error (Verifica si los IDs UUID son correctos o si la DB está accesible):",
       error.message

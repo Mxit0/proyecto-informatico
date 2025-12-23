@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient.js';
  * Retorna el ID del carrito.
  */
 async function getOrCreateCartId(userId) {
-  // 1. Intentamos buscar el carrito existente
+  
   const { data: cart, error } = await supabase
     .from('carrito')
     .select('id')
@@ -31,7 +31,7 @@ export async function addToCart(userId, productId, quantity) {
   try {
     const cartId = await getOrCreateCartId(userId);
 
-    // --- 1. NUEVO: Verificar stock en la base de datos ---
+    
     const { data: productData, error: productError } = await supabase
       .from('producto')
       .select('stock, nombre')
@@ -43,9 +43,9 @@ export async function addToCart(userId, productId, quantity) {
     if (productData.stock < quantity) {
         throw new Error(`No hay suficiente stock de ${productData.nombre}. Disponible: ${productData.stock}`);
     }
-    // ----------------------------------------------------
+    
 
-    // Verificamos si el item ya está en la lista (Lógica existente)
+    
     const { data: existingItem, error: fetchError } = await supabase
       .from('listacarrito')
       .select('id, cantidad')

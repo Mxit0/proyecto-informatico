@@ -17,7 +17,7 @@ import {
 
 const router = express.Router();
 
-// Sirve para: Obtener las reseñas de un producto
+//Obtener las reseñas de un producto
 // URL: GET /api/reviews/product/5
 router.get('/product/:productId', async (req, res) => {
   try {
@@ -29,7 +29,7 @@ router.get('/product/:productId', async (req, res) => {
   }
 });
 
-// Sirve para: Obtener el historial de reseñas escritas por un usuario
+// Obtener el historial de reseñas escritas por un usuario
 // URL: GET /api/reviews/user/2/history
 router.get('/user/:userId/history', async (req, res) => {
   try {
@@ -41,7 +41,7 @@ router.get('/user/:userId/history', async (req, res) => {
   }
 });
 
-// Sirve para: Obtener las reseñas recibidas por un vendedor (Reputación)
+// Obtener las reseñas recibidas por un vendedor (Reputación)
 // URL: GET /api/reviews/seller/1
 router.get('/seller/:sellerId', async (req, res) => {
   try {
@@ -66,7 +66,7 @@ router.get('/user/check', async (req, res) => {
   }
 });
 
-// Sirve para: Publicar una nueva reseña
+// Publicar una nueva reseña
 // URL: POST /api/reviews
 router.post('/', async (req, res) => {
   try {
@@ -87,7 +87,7 @@ router.post('/', async (req, res) => {
     res.status(201).json(newReview);
 
   } catch (error) {
-    // Si ya existe reseña, devolvemos error 409 (Conflicto)
+    
     if (error.message.includes('Ya has calificado')) {
       return res.status(409).json({ error: error.message });
     }

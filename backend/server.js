@@ -18,7 +18,7 @@ import reviewRoutes from "./routes/reviewRoutes.js";
 import foroRoutes from "./routes/foroRoutes.js";
 import compatibilityRoutes from "./routes/compatibilityRoutes.js";
 import { supabase } from "./lib/supabaseClient.js";
-import { admin } from "./lib/firebaseAdmin.js"; // <-- Importante: Esto viene de Cuello (Notificaciones)
+import { admin } from "./lib/firebaseAdmin.js"; 
 
 dotenv.config();
 
@@ -74,14 +74,13 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/carro", carroRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/reviews", reviewRoutes);
-// AGREGADO: Habilitamos la ruta de foros en la API
 app.use("/api/foros", foroRoutes);
 app.use("/api/compatibility", compatibilityRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// === NUEVO: endpoint para subir foto de perfil ===
+
 // POST /api/profile/photo  (body: multipart/form-data con campo "photo")
 app.post(
   "/api/profile/photo",
@@ -168,8 +167,7 @@ const io = new SocketIOServer(server, {
   },
 });
 
-// AGREGADO: Vital para que el Foro emita eventos sin estar conectado al socket directo
-// Esto permite que cuando hagas un POST /api/foros/../publicaciones, el controlador use req.app.get('io')
+
 app.set("io", io);
 
 // Normalizar pareja de usuarios
@@ -190,7 +188,7 @@ io.use((socket, next) => {
     if (!token) return next(new Error("No token"));
 
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // payload es el user que firmaste en authRoutes (incluye id_usuario, correo, etc.)
+    
     socket.user = payload;
     next();
   } catch (err) {
@@ -239,10 +237,7 @@ async function saveMessage({ chatId, senderId, contenido }) {
 io.on("connection", (socket) => {
   console.log("Socket conectado:", socket.user?.id_usuario);
 
-  /**
-   * Abrir chat entre el usuario logueado y otro usuario (vendedor/comprador)
-   * payload: { otherUserId: number }
-   */
+  
   socket.on("open_chat_with_user", async ({ otherUserId }, callback) => {
     try {
       const currentUserId = socket.user.id_usuario;
@@ -261,17 +256,14 @@ io.on("connection", (socket) => {
     }
   });
 
-  /**
-   * Unirse explícitamente a un chat (para cargar historial y escuchar mensajes)
-   * payload: { chatId: number }
-   */
+  
   socket.on("join_chat", (data) => {
-    // Caso Foro (Joaquín)
+    
     if (data.room) {
       socket.join(data.room);
       console.log(`Socket unido a sala: ${data.room}`);
     }
-    // Caso Chat Privado (Cuello)
+    
     else if (data.chatId) {
       const room = `chat_${data.chatId}`;
       socket.join(room);

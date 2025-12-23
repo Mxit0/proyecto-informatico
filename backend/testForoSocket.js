@@ -11,22 +11,22 @@ const socket = io("http://localhost:3000", {
 });
 
 socket.on("connect", () => {
-  console.log("✅ Conectado al Socket.IO, id:", socket.id);
+  console.log("Conectado al Socket.IO, id:", socket.id);
 
   // nos unimos a la sala del foro
   socket.emit("join_forum", { foroId: FORO_ID });
-  console.log("📌 join_forum enviado para foro", FORO_ID);
+  console.log("join_forum enviado para foro", FORO_ID);
 });
 
 // Escuchar nuevas publicaciones del foro
 socket.on("new_forum_post", (post) => {
-  console.log("🔥 Nueva publicación recibida en foro:", post);
+  console.log("Nueva publicación recibida en foro:", post);
 });
 
 socket.on("connect_error", (err) => {
-  console.error("❌ Error de conexión:", err.message);
+  console.error("Error de conexión:", err.message);
 });
 
 socket.on("disconnect", () => {
-  console.log("🔌 Desconectado del socket");
+  console.log(" Desconectado del socket");
 });

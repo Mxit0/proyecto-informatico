@@ -6,7 +6,7 @@ const socket = io("http://localhost:3000", {
 });
 
 socket.on("connect", () => {
-  console.log("✅ Comprador conectado");
+  console.log("Comprador conectado");
 
   socket.emit(
     "open_chat_with_user",
@@ -32,7 +32,7 @@ socket.on("connect", () => {
 });
 
 socket.on("new_message", (msg) => {
-  console.log("📩 (Comprador) nuevo mensaje:", msg);
+  console.log("(Comprador) nuevo mensaje:", msg);
 });
 
 socket.on("disconnect", () => {

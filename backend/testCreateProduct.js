@@ -1,10 +1,10 @@
 import fetch from "node-fetch";
 
 const body = {
-  id_componente_maestro: "10000000-0000-0000-0000-000000000007", // UUID existente de componente_maestro
+  id_componente_maestro: "10000000-0000-0000-0000-000000000007", 
   precio: 350000,
   descripcion: "Producto en excelente estado, probado.",
-  id_usuario: 4,  // Cambiar según tu tabla usuario
+  id_usuario: 4,  
   stock: 1
 };
 

@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabaseClient.js';
 
-// --- FUNCIÓN AUXILIAR (Privada) ---
-// Sirve para: Buscar los datos "extra" (nombres, fotos) y dar formato para que el Frontend (Kotlin) no falle.
+
+// Buscar los datos "extra" (nombres, fotos) y dar formato para que el Frontend (Kotlin) no falle.
 async function enrichReviews(reviews) {
   if (!reviews || reviews.length === 0) return [];
 
@@ -12,7 +12,7 @@ async function enrichReviews(reviews) {
 
   
   const { data: usersData, error: usersError } = await supabase
-    .from('usuario') // Tabla 'usuario'
+    .from('usuario') 
     .select('id_usuario, nombre_usuario, foto') 
     .in('id_usuario', userIds);
   
@@ -20,7 +20,7 @@ async function enrichReviews(reviews) {
 
 
   const { data: productsData, error: productsError } = await supabase
-    .from('producto') // Tabla 'producto'
+    .from('producto')
     .select('id, nombre, id_usuario') 
     .in('id', productIds);
   
@@ -162,12 +162,12 @@ export async function getReviewsReceivedBySeller(sellerId) {
 
 export async function deleteReview(reviewId, userId) {
   try {
-    // Validamos que la reseña pertenezca al usuario antes de borrar
+    
     const { error } = await supabase
       .from('resenas')
       .delete()
       .eq('id', reviewId)
-      .eq('id_usuario', userId); // Seguridad: Solo el dueño borra
+      .eq('id_usuario', userId); 
 
     if (error) throw error;
     return true;
@@ -178,7 +178,7 @@ export async function deleteReview(reviewId, userId) {
 
 export async function toggleReviewLike(reviewId, userId) {
   try {
-    // 1. Verificar si ya existe el like
+    
     const { data: existingLike, error: fetchError } = await supabase
       .from('resena_likes')
       .select('id')
@@ -189,7 +189,7 @@ export async function toggleReviewLike(reviewId, userId) {
     if (fetchError) throw fetchError;
 
     if (existingLike) {
-      // SI EXISTE -> BORRAR (Dislike)
+      
       const { error: deleteError } = await supabase
         .from('resena_likes')
         .delete()
@@ -199,7 +199,7 @@ export async function toggleReviewLike(reviewId, userId) {
       return { action: 'removed' };
 
     } else {
-      // NO EXISTE -> INSERTAR (Like)
+      
       const { error: insertError } = await supabase
         .from('resena_likes')
         .insert({ id_resena: reviewId, id_usuario: userId });
@@ -233,7 +233,7 @@ async function enrichUserReviews(reviews) {
 
   const authorIds = [...new Set(reviews.map(r => r.id_autor))];
 
-  // Obtenemos datos de los autores
+  
   const { data: authorsData, error } = await supabase
     .from('usuario')
     .select('id_usuario, nombre_usuario, foto')
@@ -247,7 +247,7 @@ async function enrichUserReviews(reviews) {
       id: String(r.id),
       targetUserId: String(r.id_destinatario),
       
-      // Datos del Autor
+      
       authorId: String(r.id_autor),
       authorName: author ? author.nombre_usuario : 'Usuario eliminado',
       authorPhoto: author ? author.foto : null,
@@ -262,13 +262,13 @@ async function enrichUserReviews(reviews) {
 // Crear una reseña a un usuario
 export async function addUserReview({ id_autor, id_destinatario, calificacion, comentario }) {
   try {
-    // Validar que no se esté reseñando a sí mismo
+    
     if (String(id_autor) === String(id_destinatario)) {
         throw new Error("No puedes reseñarte a ti mismo.");
     }
 
     const { data, error } = await supabase
-      .from('resenas_usuarios') // <--- Nueva tabla
+      .from('resenas_usuarios') 
       .insert([{ id_autor, id_destinatario, calificacion, comentario }])
       .select()
       .single();
@@ -291,7 +291,7 @@ export async function getReviewsForUser(userId) {
 
     if (error) throw error;
     
-    // Usamos el enriquecedor específico para usuarios
+    
     return await enrichUserReviews(reviews);
   } catch (err) {
     throw new Error('Error obteniendo reseñas del usuario: ' + err.message);
@@ -320,10 +320,10 @@ export async function getUserRatingAverage(userId) {
 export async function deleteUserReview(reviewId, authorId) {
   try {
     const { error } = await supabase
-      .from('resenas_usuarios') // <-- Tabla de usuarios
+      .from('resenas_usuarios') 
       .delete()
       .eq('id', reviewId)
-      .eq('id_autor', authorId); // Seguridad: Solo el autor borra
+      .eq('id_autor', authorId); 
 
     if (error) throw error;
     return true;
@@ -335,10 +335,10 @@ export async function deleteUserReview(reviewId, authorId) {
 export async function updateUserReview(reviewId, authorId, rating, comment) {
   try {
     const { error } = await supabase
-      .from('resenas_usuarios') // <-- Tabla de usuarios
+      .from('resenas_usuarios') 
       .update({ calificacion: rating, comentario: comment })
       .eq('id', reviewId)
-      .eq('id_autor', authorId); // Seguridad
+      .eq('id_autor', authorId); 
 
     if (error) throw error;
     return true;
@@ -349,7 +349,7 @@ export async function updateUserReview(reviewId, authorId, rating, comment) {
 
 export async function getReviewBetweenUsers(authorId, targetUserId) {
   try {
-    // Obtener el dato crudo
+    
     const { data, error } = await supabase
       .from('resenas_usuarios')
       .select('*')
@@ -358,13 +358,12 @@ export async function getReviewBetweenUsers(authorId, targetUserId) {
       .maybeSingle(); 
 
     if (error) throw error;
-    if (!data) return null; // Si no existe, devuelve null
+    if (!data) return null;
 
-    // Usar la función enrichUserReviews para formatearlo
-    // Como enrichUserReviews espera un array, metemos 'data' en corchetes [data]
+    
     const enrichedList = await enrichUserReviews([data]);
 
-    // Devolvemos el primer elemento ya formateado
+    
     return enrichedList.length > 0 ? enrichedList[0] : null;
 
   } catch (err) {
